@@ -6,27 +6,56 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-
-interface Market {
-  id: string
-  question: string
-  yesPrice: number
-  noPrice: number
-  settlementDates: Array<{ date: string; label: string }>
-}
+import type { MarketWithQuote } from "@/lib/api"
+import { tradesApi } from "@/lib/api"
+import { useAuth } from "@/contexts/auth-context"
+import { toast } from "sonner"
 
 interface BetDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  market: Market
+  market: MarketWithQuote
   outcome: "YES" | "NO"
+  onSuccess?: () => void
 }
 
-export function BetDialog({ open, onOpenChange, market, outcome }: BetDialogProps) {
+export function BetDialog({ open, onOpenChange, market, outcome, onSuccess }: BetDialogProps) {
+  const { user } = useAuth()
   const [amount, setAmount] = useState("")
-  const price = outcome === "YES" ? market.yesPrice : market.noPrice
+  const [loading, setLoading] = useState(false)
+  const price = outcome === "YES" ? market.quote.yesPriceCents : market.quote.noPriceCents
   const shares = amount ? (Number.parseFloat(amount) / price) * 100 : 0
   const potentialReturn = shares * 100
+
+  const handlePlaceBet = async () => {
+    if (!user) {
+      toast.error("Please sign in to place a bet")
+      return
+    }
+
+    const stake = Number.parseFloat(amount)
+    if (!stake || stake < 0.5) {
+      toast.error("Minimum stake is $0.50")
+      return
+    }
+
+    try {
+      setLoading(true)
+      await tradesApi.placeTrade({
+        marketId: market.id,
+        side: outcome,
+        stake,
+      })
+      toast.success("Bet placed successfully!")
+      onOpenChange(false)
+      setAmount("")
+      onSuccess?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to place bet")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,7 +73,7 @@ export function BetDialog({ open, onOpenChange, market, outcome }: BetDialogProp
             </div>
             <div className="text-right">
               <div className="text-sm text-muted-foreground mb-1">Current price</div>
-              <div className="text-2xl font-bold font-mono">{price}¢</div>
+              <div className="text-2xl font-bold font-mono">{Math.round(price)}¢</div>
             </div>
           </div>
 
@@ -56,16 +85,17 @@ export function BetDialog({ open, onOpenChange, market, outcome }: BetDialogProp
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              min="0"
+              min="0.5"
               step="0.01"
             />
+            <p className="text-xs text-muted-foreground">Minimum: $0.50</p>
           </div>
 
           {amount && (
             <div className="space-y-2 p-4 rounded-lg bg-muted/50">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Shares</span>
-                <span className="font-mono font-medium">{shares.toFixed(2)}</span>
+                <span className="font-mono font-medium">{shares.toFixed(4)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Potential return</span>
@@ -80,36 +110,34 @@ export function BetDialog({ open, onOpenChange, market, outcome }: BetDialogProp
             </div>
           )}
 
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Settlement Dates</div>
-            <div className="flex flex-wrap gap-2">
-              {market.settlementDates.map((settlement, idx) => (
-                <Badge key={idx} variant="outline" className="text-xs font-mono">
-                  {settlement.label}
-                </Badge>
-              ))}
+          {market.settlementDates.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Settlement Dates</div>
+              <div className="flex flex-wrap gap-2">
+                {market.settlementDates.map((settlement, idx) => (
+                  <Badge key={idx} variant="outline" className="text-xs font-mono">
+                    {settlement.label}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This market will be evaluated at multiple dates. You can cash out at any settlement date if the outcome
+                is favorable.
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              This market will be evaluated at multiple dates. You can cash out at any settlement date if the outcome is
-              favorable.
-            </p>
-          </div>
+          )}
         </div>
 
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1" disabled={loading}>
             Cancel
           </Button>
           <Button
-            onClick={() => {
-              // Handle bet placement
-              onOpenChange(false)
-              setAmount("")
-            }}
-            disabled={!amount || Number.parseFloat(amount) <= 0}
+            onClick={handlePlaceBet}
+            disabled={!amount || Number.parseFloat(amount) < 0.5 || loading || !user}
             className="flex-1"
           >
-            Place Bet
+            {loading ? "Placing..." : !user ? "Sign In Required" : "Place Bet"}
           </Button>
         </div>
       </DialogContent>
