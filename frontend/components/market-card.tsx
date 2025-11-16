@@ -1,25 +1,25 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { TrendingUp, Users, Calendar } from "lucide-react"
-import { BetDialog } from "@/components/bet-dialog"
-import type { MarketWithQuote } from "@/lib/api"
-import { format } from "date-fns"
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { TrendingUp, Users, Calendar } from "lucide-react";
+import { BetDialog } from "@/components/bet-dialog";
+import type { Market } from "@/lib/api";
+import { format } from "date-fns";
 
-export function MarketCard({ market }: { market: MarketWithQuote }) {
-  const [betDialogOpen, setBetDialogOpen] = useState(false)
-  const [selectedOutcome, setSelectedOutcome] = useState<"YES" | "NO">("YES")
+export function MarketCard({ market }: { market: Market; }) {
+  const [betDialogOpen, setBetDialogOpen] = useState(false);
+  const [selectedOutcome, setSelectedOutcome] = useState<"YES" | "NO">("YES");
 
   const handleBet = (outcome: "YES" | "NO") => {
-    setSelectedOutcome(outcome)
-    setBetDialogOpen(true)
-  }
+    setSelectedOutcome(outcome);
+    setBetDialogOpen(true);
+  };
 
-  const endDate = format(new Date(market.resolutionDate), "MMM d, yyyy")
-  const yesPrice = Math.round(market.quote.yesPriceCents)
-  const noPrice = Math.round(market.quote.noPriceCents)
+  const endDate = format(new Date(market.resolutionDate), "MMM d, yyyy");
+  // const yesPrice = Math.round(market.quote.yesPriceCents);
+  // const noPrice = Math.round(market.quote.noPriceCents);
 
   return (
     <>
@@ -49,7 +49,7 @@ export function MarketCard({ market }: { market: MarketWithQuote }) {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* <div className="grid grid-cols-2 gap-3 mb-4">
           <button
             onClick={() => handleBet("YES")}
             className="p-4 rounded-lg border-2 border-success/20 bg-success/5 hover:bg-success/10 transition-colors text-left"
@@ -64,7 +64,7 @@ export function MarketCard({ market }: { market: MarketWithQuote }) {
             <div className="text-xs text-muted-foreground mb-1">NO</div>
             <div className="text-2xl font-bold text-destructive">{noPrice}¢</div>
           </button>
-        </div>
+        </div> */}
 
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t">
           <div className="flex items-center gap-1">
@@ -80,5 +80,5 @@ export function MarketCard({ market }: { market: MarketWithQuote }) {
 
       <BetDialog open={betDialogOpen} onOpenChange={setBetDialogOpen} market={market} outcome={selectedOutcome} onSuccess={() => window.location.reload()} />
     </>
-  )
+  );
 }

@@ -20,11 +20,18 @@ CREATE TABLE IF NOT EXISTS markets (
     resolution_date TIMESTAMPTZ NOT NULL,
     description TEXT,
     tags TEXT[] DEFAULT '{}',
-    baseline_probability DOUBLE PRECISION DEFAULT 0.5,
-    initial_liquidity DOUBLE PRECISION DEFAULT 500.0,
+    liquidity_parameter DOUBLE PRECISION DEFAULT 500.0,
     settlement_dates JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Securities table
+CREATE TABLE IF NOT EXISTS securities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    market_id UUID NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
+    outcome TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Trades table
@@ -32,12 +39,21 @@ CREATE TABLE IF NOT EXISTS trades (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     market_id UUID NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
-    side TEXT NOT NULL CHECK (side IN ('YES', 'NO')),
+    security_id UUID NOT NULL REFERENCES securities(id) ON DELETE CASCADE,
+    quantity INT NOT NULL,
     price_cents DOUBLE PRECISION NOT NULL,
-    shares DOUBLE PRECISION NOT NULL,
-    stake DOUBLE PRECISION NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Constraint that you can only trade securities in their own market
+ALTER TABLE securities
+    ADD CONSTRAINT securities_market_id_unique
+    UNIQUE (id, market_id);
+ALTER TABLE trades 
+    ADD CONSTRAINT trades_security_market_fk
+    FOREIGN KEY (security_id, market_id)
+    REFERENCES securities(id, market_id)
+    ON DELETE CASCADE;
 
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_profiles_id ON profiles(id);
@@ -50,6 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_trades_created_at ON trades(created_at DESC);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE securities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE markets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trades ENABLE ROW LEVEL SECURITY;
 
