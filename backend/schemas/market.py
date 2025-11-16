@@ -63,7 +63,7 @@ class MarketUpdate(BaseModel):
 
 class MarketQuote(BaseModel):
     security_id: str = Field(alias="securityId")
-    quantity: int
+    quantity_traded: int = Field(alias="quantityTraded")
     buy_unit_price_cents: float = Field(alias="buyUnitPriceCents")
     sell_unit_price_cents: float = Field(alias="sellUnitPriceCents")
     implied_probability: float = Field(alias="impliedProbability")
@@ -72,10 +72,11 @@ class MarketQuote(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class MarketWithQuote(MarketBase):
+class Market(MarketBase):
     quotes: List[MarketQuote] = Field(default_factory=list)
-    total_volume: float = Field(alias="totalVolume")
+    securities: List[Security] = Field(default_factory=list)
     open_interest: float = Field(alias="openInterest")
+    total_volume: float = Field(alias="totalVolume")
     liquidity_parameter: float = Field(
         default=500.0, alias="liquidityParameter", ge=0.0
     )
@@ -85,7 +86,7 @@ class MarketWithQuote(MarketBase):
 
 
 class MarketListResponse(BaseModel):
-    items: List[MarketWithQuote]
+    items: List[Market]
     count: int
 
 

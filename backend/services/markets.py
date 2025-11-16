@@ -10,10 +10,9 @@ from supabase import Client
 from schemas.market import (
     MarketCreate,
     MarketListResponse,
-    MarketSecuritiesResponse,
     MarketStatus,
     MarketUpdate,
-    MarketWithQuote,
+    Market,
     Security,
     SettlementDate,
 )
@@ -39,7 +38,7 @@ class MarketService:
         items = [self._attach_quote(record) for record in records]
         return MarketListResponse(items=items, count=len(items))
 
-    def get_market(self, market_id: str) -> MarketWithQuote:
+    def get_market(self, market_id: str) -> Market:
         response = (
             self.supabase.table("markets")
             .select("*")
@@ -54,7 +53,7 @@ class MarketService:
             )
         return self._attach_quote(record)
 
-    def create_market(self, payload: MarketCreate) -> MarketWithQuote:
+    def create_market(self, payload: MarketCreate) -> Market:
         record = {
             "question": payload.question,
             "category": payload.category,
@@ -78,7 +77,7 @@ class MarketService:
         self._create_securities(created["id"], payload.outcomes)
         return self._attach_quote(created)
 
-    def update_market(self, market_id: str, payload: MarketUpdate) -> MarketWithQuote:
+    def update_market(self, market_id: str, payload: MarketUpdate) -> Market:
         update: Dict[str, Any] = {}
         if payload.question is not None:
             update["question"] = payload.question
@@ -106,9 +105,10 @@ class MarketService:
         updated = response.data[0] if isinstance(response.data, list) else response.data
         return self._attach_quote(updated)
 
-    def _attach_quote(self, record: Dict[str, Any]) -> MarketWithQuote:
+    def _attach_quote(self, record: Dict[str, Any]) -> Market:
         trades = self._get_trades(record["id"])
-        quantities = self._get_quantities(trades)
+        securities = self._get_market_securities(record["id"])
+        quantities = self._get_quantities(trades, securities)
         quotes = calculate_market_quotes(quantities, record.get("liquidity_parameter"))
         total_volume = self._get_total_volume(trades)
         open_interest = self._get_open_interest(trades)
@@ -131,12 +131,13 @@ class MarketService:
             "description": record.get("description"),
             "tags": record.get("tags") or [],
             "quotes": quotes,
+            "securities": securities,
             "openInterest": round(open_interest, 2),
             "totalVolume": round(total_volume, 2),
             "liquidity_parameter": record.get("liquidity_parameter"),
             "settlementDates": settlement_dates,
         }
-        return MarketWithQuote.model_validate(mapped)
+        return Market.model_validate(mapped)
 
     def _get_trades(self, market_id: str) -> List[TradeRecord]:
         trades = []
@@ -161,16 +162,22 @@ class MarketService:
             trades.append(TradeRecord.model_validate(mapped))
         return trades
 
-    def _get_depths(self, trades: List[TradeRecord]) -> Dict[str, float]:
-        depths = defaultdict(float)
+    def _get_depths(
+        self, trades: List[TradeRecord], securities: List[Security]
+    ) -> Dict[str, float]:
+        depths = {security.id: 0.0 for security in securities}
         for trade in trades:
-            depths[trade.security_id] += abs(trade.quantity)
+            if trade.security_id in depths:
+                depths[trade.security_id] += abs(trade.quantity)
         return depths
 
-    def _get_quantities(self, trades: List[TradeRecord]) -> Dict[str, float]:
-        quantities = defaultdict(float)
+    def _get_quantities(
+        self, trades: List[TradeRecord], securities: List[Security]
+    ) -> Dict[str, float]:
+        quantities = {security.id: 0.0 for security in securities}
         for trade in trades:
-            quantities[trade.security_id] += trade.quantity
+            if trade.security_id in quantities:
+                quantities[trade.security_id] += trade.quantity
         return quantities
 
     def _get_total_volume(self, trades: List[TradeRecord]) -> float:
@@ -222,6 +229,26 @@ class MarketService:
                     detail="Failed to create security",
                 )
 
+    def _get_market_securities(self, market_id: str) -> List[Security]:
+        securities = []
+        response = (
+            self.supabase.table("securities")
+            .select("*")
+            .eq("market_id", market_id)
+            .execute()
+        )
+        rows = response.data or []
+        for row in rows:
+            mapped = {
+                "id": row.get("id"),
+                "market_id": market_id,
+                "outcome": row.get("outcome"),
+                "created_at": row.get("created_at")
+                or datetime.now(timezone.utc).isoformat(),
+            }
+            securities.append(Security.model_validate(mapped))
+        return securities
+
     def get_security(self, security_id: str) -> Security:
         response = (
             self.supabase.table("securities")
@@ -244,23 +271,3 @@ class MarketService:
             or datetime.now(timezone.utc).isoformat(),
         }
         return Security.model_validate(mapped)
-
-    def get_securities_by_market(self, market_id: str) -> MarketSecuritiesResponse:
-        securities = []
-        response = (
-            self.supabase.table("securities")
-            .select("*")
-            .eq("market_id", market_id)
-            .execute()
-        )
-        rows = response.data or []
-        for row in rows:
-            mapped = {
-                "id": row.get("id"),
-                "market_id": market_id,
-                "outcome": row.get("outcome"),
-                "created_at": row.get("created_at")
-                or datetime.now(timezone.utc).isoformat(),
-            }
-            securities.append(Security.model_validate(mapped))
-        return MarketSecuritiesResponse(items=securities, count=len(securities))

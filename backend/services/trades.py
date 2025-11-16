@@ -20,7 +20,7 @@ class TradeService:
         security = self.market_service.get_security(payload.security_id)
         market = self.market_service.get_market(security.market_id)
         execution_price = calculate_market_price_cents(
-            {quote.security_id: quote.quantity for quote in market.quotes},
+            {quote.security_id: quote.quantity_traded for quote in market.quotes},
             {payload.security_id: payload.quantity},
             market.liquidity_parameter,
         )

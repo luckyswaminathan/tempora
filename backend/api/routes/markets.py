@@ -6,9 +6,8 @@ from api import deps
 from schemas.market import (
     MarketCreate,
     MarketListResponse,
-    MarketSecuritiesResponse,
     MarketUpdate,
-    MarketWithQuote,
+    Market,
 )
 from schemas.user import UserBase
 from services.markets import MarketService
@@ -25,36 +24,28 @@ def list_markets(
     return service.list_markets(category=category, status_filter=status_filter)
 
 
-@router.post("", response_model=MarketWithQuote, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=Market, status_code=status.HTTP_201_CREATED)
 def create_market(
     payload: MarketCreate,
     service: MarketService = Depends(deps.get_market_service),
     _: UserBase = Depends(deps.get_current_user),
-) -> MarketWithQuote:
+) -> Market:
     return service.create_market(payload)
 
 
-@router.get("/{market_id}", response_model=MarketWithQuote)
+@router.get("/{market_id}", response_model=Market)
 def get_market(
     market_id: str,
     service: MarketService = Depends(deps.get_market_service),
-) -> MarketWithQuote:
+) -> Market:
     return service.get_market(market_id)
 
 
-@router.patch("/{market_id}", response_model=MarketWithQuote)
+@router.patch("/{market_id}", response_model=Market)
 def update_market(
     market_id: str,
     payload: MarketUpdate,
     service: MarketService = Depends(deps.get_market_service),
     _: UserBase = Depends(deps.get_current_user),
-) -> MarketWithQuote:
+) -> Market:
     return service.update_market(market_id, payload)
-
-
-@router.get("/{market_id}/securities", response_model=MarketSecuritiesResponse)
-def list_securities(
-    market_id: str,
-    service: MarketService = Depends(deps.get_market_service),
-) -> MarketSecuritiesResponse:
-    return service.get_securities_by_market(market_id)

@@ -94,7 +94,7 @@ export const authApi = {
 };
 
 // Markets API
-export interface MarketWithQuote {
+export interface Market {
   id: string;
   question: string;
   category: string;
@@ -106,13 +106,20 @@ export interface MarketWithQuote {
   tags: string[];
   quotes: Array<{
     securityId: string;
+    quantityTraded: number;
     buyUnitPriceCents: number;
     sellUnitPriceCents: number;
     impliedProbability: number;
     lastCalculatedAt: string;
   }>;
-  totalVolume: number;
+  securities: Array<{
+    id: string;
+    marketId: string;
+    outcome: string;
+    createdAt: string;
+  }>;
   openInterest: number;
+  totalVolume: number;
   liquidityParameter: number;
   settlementDates: Array<{
     label: string;
@@ -121,7 +128,7 @@ export interface MarketWithQuote {
 }
 
 export interface MarketListResponse {
-  items: MarketWithQuote[];
+  items: Market[];
   count: number;
 }
 
@@ -145,18 +152,18 @@ export const marketsApi = {
     return fetchWithAuth(`/markets${query ? `?${query}` : ""}`);
   },
 
-  async getMarket(id: string): Promise<MarketWithQuote> {
+  async getMarket(id: string): Promise<Market> {
     return fetchWithAuth(`/markets/${id}`);
   },
 
-  async createMarket(data: MarketCreate): Promise<MarketWithQuote> {
+  async createMarket(data: MarketCreate): Promise<Market> {
     return fetchWithAuth("/markets", {
       method: "POST",
       body: JSON.stringify(data),
     });
   },
 
-  async updateMarket(id: string, data: Partial<MarketCreate>): Promise<MarketWithQuote> {
+  async updateMarket(id: string, data: Partial<MarketCreate>): Promise<Market> {
     return fetchWithAuth(`/markets/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),

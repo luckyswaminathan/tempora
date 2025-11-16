@@ -1,61 +1,61 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import type { MarketWithQuote } from "@/lib/api"
-import { tradesApi } from "@/lib/api"
-import { useAuth } from "@/contexts/auth-context"
-import { toast } from "sonner"
+import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import type { Market } from "@/lib/api";
+import { tradesApi } from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
+import { toast } from "sonner";
 
 interface BetDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  market: MarketWithQuote
-  outcome: "YES" | "NO"
-  onSuccess?: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  market: Market;
+  outcome: "YES" | "NO";
+  onSuccess?: () => void;
 }
 
 export function BetDialog({ open, onOpenChange, market, outcome, onSuccess }: BetDialogProps) {
-  const { user } = useAuth()
-  const [amount, setAmount] = useState("")
-  const [loading, setLoading] = useState(false)
-  const price = outcome === "YES" ? market.quote.yesPriceCents : market.quote.noPriceCents
-  const shares = amount ? (Number.parseFloat(amount) / price) * 100 : 0
-  const potentialReturn = shares * 100
+  const { user } = useAuth();
+  const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const price = outcome === "YES" ? market.quote.yesPriceCents : market.quote.noPriceCents;
+  const shares = amount ? (Number.parseFloat(amount) / price) * 100 : 0;
+  const potentialReturn = shares * 100;
 
   const handlePlaceBet = async () => {
     if (!user) {
-      toast.error("Please sign in to place a bet")
-      return
+      toast.error("Please sign in to place a bet");
+      return;
     }
 
-    const stake = Number.parseFloat(amount)
+    const stake = Number.parseFloat(amount);
     if (!stake || stake < 0.5) {
-      toast.error("Minimum stake is $0.50")
-      return
+      toast.error("Minimum stake is $0.50");
+      return;
     }
 
     try {
-      setLoading(true)
+      setLoading(true);
       await tradesApi.placeTrade({
         marketId: market.id,
         side: outcome,
         stake,
-      })
-      toast.success("Bet placed successfully!")
-      onOpenChange(false)
-      setAmount("")
-      onSuccess?.()
+      });
+      toast.success("Bet placed successfully!");
+      onOpenChange(false);
+      setAmount("");
+      onSuccess?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to place bet")
+      toast.error(error instanceof Error ? error.message : "Failed to place bet");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -142,5 +142,5 @@ export function BetDialog({ open, onOpenChange, market, outcome, onSuccess }: Be
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

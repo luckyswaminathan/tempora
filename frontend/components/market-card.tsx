@@ -1,25 +1,25 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { TrendingUp, Users, Calendar } from "lucide-react"
-import { BetDialog } from "@/components/bet-dialog"
-import type { MarketWithQuote } from "@/lib/api"
-import { format } from "date-fns"
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { TrendingUp, Users, Calendar } from "lucide-react";
+import { BetDialog } from "@/components/bet-dialog";
+import type { Market } from "@/lib/api";
+import { format } from "date-fns";
 
-export function MarketCard({ market }: { market: MarketWithQuote }) {
-  const [betDialogOpen, setBetDialogOpen] = useState(false)
-  const [selectedOutcome, setSelectedOutcome] = useState<"YES" | "NO">("YES")
+export function MarketCard({ market }: { market: Market; }) {
+  const [betDialogOpen, setBetDialogOpen] = useState(false);
+  const [selectedOutcome, setSelectedOutcome] = useState<"YES" | "NO">("YES");
 
   const handleBet = (outcome: "YES" | "NO") => {
-    setSelectedOutcome(outcome)
-    setBetDialogOpen(true)
-  }
+    setSelectedOutcome(outcome);
+    setBetDialogOpen(true);
+  };
 
-  const endDate = format(new Date(market.resolutionDate), "MMM d, yyyy")
-  const yesPrice = Math.round(market.quote.yesPriceCents)
-  const noPrice = Math.round(market.quote.noPriceCents)
+  const endDate = format(new Date(market.resolutionDate), "MMM d, yyyy");
+  const yesPrice = Math.round(market.quote.yesPriceCents);
+  const noPrice = Math.round(market.quote.noPriceCents);
 
   return (
     <>
@@ -80,5 +80,5 @@ export function MarketCard({ market }: { market: MarketWithQuote }) {
 
       <BetDialog open={betDialogOpen} onOpenChange={setBetDialogOpen} market={market} outcome={selectedOutcome} onSuccess={() => window.location.reload()} />
     </>
-  )
+  );
 }

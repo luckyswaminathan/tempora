@@ -26,6 +26,8 @@ def _lmsr_implied_probabilities(
 
 def _ls_lmsr_liquidity(quantities: List[float], vig: float = 0.1) -> float:
     n = len(quantities)
+    if n == 0:
+        return 1.0
     alpha = vig / (n * log(n))
     return alpha * sum(abs(q) for q in quantities)
 
@@ -58,7 +60,7 @@ def calculate_market_quotes(
     for security_id, quantity in quantities_map.items():
         mapped = {
             "security_id": security_id,
-            "quantity": quantity,
+            "quantity_traded": quantity,
             "buy_unit_price_cents": _lmsr_price_cents(
                 quantities_map, {security_id: 1}, b
             ),
