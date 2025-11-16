@@ -3,7 +3,13 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 
 from api import deps
-from schemas.market import MarketCreate, MarketListResponse, MarketUpdate, MarketWithQuote
+from schemas.market import (
+    MarketCreate,
+    MarketListResponse,
+    MarketSecuritiesResponse,
+    MarketUpdate,
+    MarketWithQuote,
+)
 from schemas.user import UserBase
 from services.markets import MarketService
 
@@ -44,3 +50,11 @@ def update_market(
     _: UserBase = Depends(deps.get_current_user),
 ) -> MarketWithQuote:
     return service.update_market(market_id, payload)
+
+
+@router.get("/{market_id}/securities", response_model=MarketSecuritiesResponse)
+def list_securities(
+    market_id: str,
+    service: MarketService = Depends(deps.get_market_service),
+) -> MarketSecuritiesResponse:
+    return service.get_securities_by_market(market_id)

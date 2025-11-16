@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class Holding(BaseModel):
     market_id: str = Field(alias="marketId")
+    security_id: str = Field(alias="securityId")
     question: str
     outcome: str
     avg_price_cents: float = Field(alias="avgPriceCents")
