@@ -6,7 +6,13 @@ from typing import Optional
 from fastapi import HTTPException, status
 from supabase import Client
 
-from schemas.trade import TradeCreate, TradeListResponse, TradeRecord
+from schemas.trade import (
+    TradeCreate,
+    TradeCreateRequest,
+    TradeListResponse,
+    TradePriceResponse,
+    TradeRecord,
+)
 from services.markets import MarketService
 from services.pricing import calculate_market_price_cents
 
@@ -16,13 +22,30 @@ class TradeService:
         self.supabase = supabase
         self.market_service = MarketService(supabase)
 
+    def _price_trade(self, security_id: str, quantity: int) -> float:
+        security = self.market_service.get_security(security_id)
+        market = self.market_service.get_market(security.market_id)
+        return calculate_market_price_cents(
+            {quote.security_id: quote.quantity_traded for quote in market.quotes},
+            {security_id: quantity},
+            market.liquidity_parameter,
+        )
+
+    def price_trade(self, payload: TradeCreateRequest) -> TradePriceResponse:
+        return TradePriceResponse.model_validate(
+            {
+                "price": self._price_trade(
+                    payload.security_id, quantity=payload.quantity
+                ),
+                "priced_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
     def place_trade(self, payload: TradeCreate) -> TradeRecord:
         security = self.market_service.get_security(payload.security_id)
         market = self.market_service.get_market(security.market_id)
-        execution_price = calculate_market_price_cents(
-            {quote.security_id: quote.quantity_traded for quote in market.quotes},
-            {payload.security_id: payload.quantity},
-            market.liquidity_parameter,
+        execution_price = self._price_trade(
+            payload.security_id, quantity=payload.quantity
         )
 
         record = {

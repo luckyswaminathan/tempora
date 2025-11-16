@@ -39,3 +39,8 @@ class TradeRecord(BaseModel):
 class TradeListResponse(BaseModel):
     items: list[TradeRecord]
     count: int
+
+
+class TradePriceResponse(BaseModel):
+    price: float
+    priced_at: datetime = Field(alias="pricedAt")
