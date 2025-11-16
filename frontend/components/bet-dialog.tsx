@@ -15,7 +15,7 @@ interface BetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   market: Market;
-  outcome: "YES" | "NO";
+  outcome: string;
   onSuccess?: () => void;
 }
 
@@ -23,7 +23,7 @@ export function BetDialog({ open, onOpenChange, market, outcome, onSuccess }: Be
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const price = outcome === "YES" ? market.quote.yesPriceCents : market.quote.noPriceCents;
+  const price = 0; // TODO: fix this
   const shares = amount ? (Number.parseFloat(amount) / price) * 100 : 0;
   const potentialReturn = shares * 100;
 

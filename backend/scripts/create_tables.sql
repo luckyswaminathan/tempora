@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS securities (
     market_id UUID NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
     outcome TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
-)
+);
 
 -- Trades table
 CREATE TABLE IF NOT EXISTS trades (

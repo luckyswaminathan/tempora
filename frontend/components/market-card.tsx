@@ -18,8 +18,8 @@ export function MarketCard({ market }: { market: Market; }) {
   };
 
   const endDate = format(new Date(market.resolutionDate), "MMM d, yyyy");
-  const yesPrice = Math.round(market.quote.yesPriceCents);
-  const noPrice = Math.round(market.quote.noPriceCents);
+  // const yesPrice = Math.round(market.quote.yesPriceCents);
+  // const noPrice = Math.round(market.quote.noPriceCents);
 
   return (
     <>
@@ -49,7 +49,7 @@ export function MarketCard({ market }: { market: Market; }) {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* <div className="grid grid-cols-2 gap-3 mb-4">
           <button
             onClick={() => handleBet("YES")}
             className="p-4 rounded-lg border-2 border-success/20 bg-success/5 hover:bg-success/10 transition-colors text-left"
@@ -64,7 +64,7 @@ export function MarketCard({ market }: { market: Market; }) {
             <div className="text-xs text-muted-foreground mb-1">NO</div>
             <div className="text-2xl font-bold text-destructive">{noPrice}¢</div>
           </button>
-        </div>
+        </div> */}
 
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t">
           <div className="flex items-center gap-1">
