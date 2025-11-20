@@ -29,11 +29,17 @@ class AuthService:
                     "options": {"data": {"display_name": payload.display_name}},
                 }
             )
-        except Exception as exc:  # pragma: no cover - direct supabase client error passthrough
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        except (
+            Exception
+        ) as exc:  # pragma: no cover - direct supabase client error passthrough
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
 
         if not response.user or not response.session:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to create user")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to create user"
+            )
 
         self._sync_profile(
             user_id=response.user.id,
@@ -42,16 +48,24 @@ class AuthService:
             joined_at=datetime.now(timezone.utc),
         )
 
-        return self._build_auth_response(response.user, response.session.access_token, response.session.refresh_token)
+        return self._build_auth_response(
+            response.user, response.session.access_token, response.session.refresh_token
+        )
 
     def login(self, payload: LoginRequest) -> AuthResponse:
         try:
-            response = self.supabase.auth.sign_in_with_password({"email": payload.email, "password": payload.password})
+            response = self.supabase.auth.sign_in_with_password(
+                {"email": payload.email, "password": payload.password}
+            )
         except Exception as exc:  # pragma: no cover
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+            ) from exc
 
         if not response.user or not response.session:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            )
 
         self._sync_profile(
             user_id=response.user.id,
@@ -60,35 +74,51 @@ class AuthService:
             last_seen_at=datetime.now(timezone.utc),
         )
 
-        return self._build_auth_response(response.user, response.session.access_token, response.session.refresh_token)
+        return self._build_auth_response(
+            response.user, response.session.access_token, response.session.refresh_token
+        )
 
     def get_user_from_token(self, access_token: str) -> UserBase:
         try:
             result = self.supabase.auth.get_user(access_token)
         except Exception as exc:  # pragma: no cover
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token") from exc
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token"
+            ) from exc
 
         if not result.user:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+            )
 
         return UserBase.model_validate(
             {
                 "id": result.user.id,
                 "email": result.user.email,
-                "displayName": self._display_name_from_metadata(result.user.user_metadata),
+                "displayName": self._display_name_from_metadata(
+                    result.user.user_metadata
+                ),
                 "createdAt": result.user.created_at,
             }
         )
 
     def get_profile(self, user_id: str) -> UserProfile:
-        response = self.supabase.table("profiles").select("*").eq("id", user_id).single().execute()
+        response = (
+            self.supabase.table("profiles")
+            .select("*")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
         profile = response.data
         if not profile:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found"
+            )
 
         trades = (
             self.supabase.table("trades")
-            .select("market_id, stake, side")
+            .select("market_id, security_id, quantity")
             .eq("user_id", user_id)
             .execute()
             .data
@@ -134,7 +164,9 @@ class AuthService:
             return None
         return metadata.get("display_name")
 
-    def _build_auth_response(self, user, access_token: str, refresh_token: str) -> AuthResponse:
+    def _build_auth_response(
+        self, user, access_token: str, refresh_token: str
+    ) -> AuthResponse:
         base = UserBase.model_validate(
             {
                 "id": user.id,
@@ -144,6 +176,10 @@ class AuthService:
             }
         )
         tokens = AuthTokens.model_validate(
-            {"accessToken": access_token, "refreshToken": refresh_token, "tokenType": "bearer"}
+            {
+                "accessToken": access_token,
+                "refreshToken": refresh_token,
+                "tokenType": "bearer",
+            }
         )
         return AuthResponse(user=base, tokens=tokens)
