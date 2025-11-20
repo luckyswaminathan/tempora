@@ -1,6 +1,3 @@
-import json
-
-
 def test_list_markets(client):
     resp = client.get("/markets")
     assert resp.status_code == 200

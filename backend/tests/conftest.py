@@ -2,7 +2,6 @@ import os
 import sys
 import pytest
 from fastapi.testclient import TestClient
-from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 # TODO: figure out how to get rid of this ugly stuff
