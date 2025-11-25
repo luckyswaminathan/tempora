@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 
 from schemas.market import MarketQuote
 
-USE_LS_LSMR = False
+USE_LS_LMSR = False
 
 
 def _lmsr_softmax_sum(quantities: List[float], b: float) -> float:
@@ -44,7 +44,7 @@ def _lmsr_price_cents(
 
 
 def _lmsr_b(quantities: List[float], liquidity: Optional[float] = None) -> float:
-    if liquidity is None or USE_LS_LSMR:
+    if liquidity is None or USE_LS_LMSR:
         liquidity = _ls_lmsr_liquidity(quantities)
     return max(liquidity, 1.0)
 

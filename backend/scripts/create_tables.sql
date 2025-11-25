@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS markets (
     resolution_date TIMESTAMPTZ NOT NULL,
     description TEXT,
     tags TEXT[] DEFAULT '{}',
-    liquidity_parameter DOUBLE PRECISION DEFAULT 500.0,
+    liquidity_parameter DOUBLE PRECISION DEFAULT NULL,
     settlement_dates JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()

@@ -43,16 +43,16 @@ class PortfolioService:
             mark_price = 0.0
             for quote in market.quotes:
                 if security_id == quote.security_id:
-                    mark_price = quote.implied_probability
+                    mark_price = 100.0 * quote.implied_probability
 
             avg_price = mark_price
             if quantity:
-                avg_price = (position_cost / quantity) * 100
+                avg_price = position_cost / quantity
 
             cost_basis += position_cost
-            mark_value_dollars = mark_price * quantity / 100
-            market_value += mark_value_dollars
-            pnl = mark_value_dollars - position_cost
+            mark_value_cents = mark_price * quantity
+            market_value += mark_value_cents
+            pnl = mark_value_cents - position_cost
 
             holdings.append(
                 Holding.model_validate(
@@ -61,11 +61,11 @@ class PortfolioService:
                         "securityId": security_id,
                         "question": market.question,
                         "outcome": security.outcome,
-                        "avgPriceCents": round(avg_price, 2),
-                        "quantity": round(quantity, 4),
-                        "markPriceCents": round(mark_price, 2),
+                        "avgPriceCents": avg_price,
+                        "quantity": quantity,
+                        "markPriceCents": mark_price,
                         "endDate": market.resolution_date.strftime("%b %d, %Y"),
-                        "pnl": round(pnl, 2),
+                        "pnl": round(pnl, 20),
                     }
                 )
             )

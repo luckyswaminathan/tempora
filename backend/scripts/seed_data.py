@@ -30,7 +30,7 @@ def seed_markets() -> None:
                 ).isoformat(),
                 "status": "open",
                 "tags": ["macroeconomics", "economy", "us"],
-                "liquidity_parameter": 1000.0,
+                "liquidity_parameter": 100000,
                 "settlement_dates": [
                     {
                         "label": "Midpoint Review",
@@ -67,7 +67,7 @@ def seed_markets() -> None:
                 ).isoformat(),
                 "status": "open",
                 "tags": ["cryptocurrency", "bitcoin", "crypto"],
-                "liquidity_parameter": 800.0,
+                "liquidity_parameter": 100000,
                 "settlement_dates": [
                     {
                         "label": "Q2 2025",

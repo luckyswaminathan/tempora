@@ -22,7 +22,10 @@ class TradeService:
         self.supabase = supabase
         self.market_service = MarketService(supabase)
 
-    def _price_trade(self, security_id: str, quantity: int) -> float:
+    def _price_trade(self, security_id: Optional[str], quantity: int) -> float:
+        if security_id is None:
+            return 0.0
+        
         security = self.market_service.get_security(security_id)
         market = self.market_service.get_market(security.market_id)
         return calculate_market_price_cents(
@@ -31,11 +34,11 @@ class TradeService:
             market.liquidity_parameter,
         )
 
-    def price_trade(self, security_id: str, quantity: int) -> TradePriceResponse:
+    def price_trade(self, security_id: Optional[str] = None, quantity: int = 0) -> TradePriceResponse:
         return TradePriceResponse.model_validate(
             {
                 "price": self._price_trade(security_id, quantity=quantity),
-                "priced_at": datetime.now(timezone.utc).isoformat(),
+                "pricedAt": datetime.now(timezone.utc).isoformat(),
             }
         )
 

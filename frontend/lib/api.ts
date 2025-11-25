@@ -122,7 +122,7 @@ export interface Market {
   }>;
   openInterest: number;
   totalVolume: number;
-  liquidityParameter: number;
+  liquidityParameter: number | null;
   settlementDates: Array<{
     label: string;
     date: string;
@@ -211,17 +211,17 @@ export const tradesApi = {
     return fetchWithAuth(`/trades${query ? `?${query}` : ""}`);
   },
 
-  async priceTrade(params?: {
-    securityId?: string;
-    quantity?: number;
-  }): Promise<TradeListResponse> {
+  async priceTrade(
+    securityId: string,
+    quantity: number
+  ): Promise<TradePriceResponse> {
     const searchParams = new URLSearchParams();
-    if (params?.securityId) searchParams.set("securityId", params.securityId);
-    if (params?.quantity)
-      searchParams.set("quantity", params.quantity.toString());
+    // Backend expects snake_case in query params
+    searchParams.set("securityId", securityId);
+    searchParams.set("quantity", quantity.toString());
 
     const query = searchParams.toString();
-    return fetchWithAuth(`/trades/price${query ? `?${query}` : ""}`);
+    return fetchWithAuth(`/trades/price?${query}`);
   },
 
   async placeTrade(data: TradeCreate): Promise<TradeRecord> {

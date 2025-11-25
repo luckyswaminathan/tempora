@@ -47,8 +47,8 @@ class MarketCreate(BaseModel):
     resolution_date: datetime = Field(alias="resolutionDate")
     description: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
-    liquidity_parameter: float = Field(
-        default=500.0, alias="liquidityParameter", ge=0.0
+    liquidity_parameter: Optional[float] = Field(
+        default=None, alias="liquidityParameter", ge=0.0
     )
 
 
@@ -77,8 +77,8 @@ class Market(MarketBase):
     securities: List[Security] = Field(default_factory=list)
     open_interest: float = Field(alias="openInterest")
     total_volume: float = Field(alias="totalVolume")
-    liquidity_parameter: float = Field(
-        default=500.0, alias="liquidityParameter", ge=0.0
+    liquidity_parameter: Optional[float] = Field(
+        default=None, alias="liquidityParameter", ge=0.0
     )
     settlement_dates: List[SettlementDate] = Field(
         default_factory=list, alias="settlementDates"
