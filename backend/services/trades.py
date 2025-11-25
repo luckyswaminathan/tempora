@@ -31,12 +31,10 @@ class TradeService:
             market.liquidity_parameter,
         )
 
-    def price_trade(self, payload: TradeCreateRequest) -> TradePriceResponse:
+    def price_trade(self, security_id: str, quantity: int) -> TradePriceResponse:
         return TradePriceResponse.model_validate(
             {
-                "price": self._price_trade(
-                    payload.security_id, quantity=payload.quantity
-                ),
+                "price": self._price_trade(security_id, quantity=quantity),
                 "priced_at": datetime.now(timezone.utc).isoformat(),
             }
         )

@@ -42,7 +42,8 @@ def place_trade(
 
 @router.get("/price", response_model=TradePriceResponse)
 def price_trade(
-    payload: TradeCreateRequest,
+    security_id: str,
+    quantity: str,
     trade_service: TradeService = Depends(deps.get_trade_service),
 ) -> TradePriceResponse:
-    return trade_service.price_trade(payload)
+    return trade_service.price_trade(security_id, int(quantity))

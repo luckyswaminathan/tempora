@@ -24,7 +24,9 @@ async function fetchWithAuth<T>(
   });
 
   if (!response.ok) {
-    const error: ApiError = await response.json().catch(() => ({ detail: response.statusText }));
+    const error: ApiError = await response
+      .json()
+      .catch(() => ({ detail: response.statusText }));
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
 
@@ -143,7 +145,10 @@ export interface MarketCreate {
 }
 
 export const marketsApi = {
-  async listMarkets(params?: { category?: string; status?: string; }): Promise<MarketListResponse> {
+  async listMarkets(params?: {
+    category?: string;
+    status?: string;
+  }): Promise<MarketListResponse> {
     const searchParams = new URLSearchParams();
     if (params?.category) searchParams.set("category", params.category);
     if (params?.status) searchParams.set("status", params.status);
@@ -192,13 +197,31 @@ export interface TradeListResponse {
   count: number;
 }
 
+export interface TradePriceResponse {
+  price: number;
+  pricedAt: string;
+}
+
 export const tradesApi = {
-  async listTrades(params?: { marketId?: string; }): Promise<TradeListResponse> {
+  async listTrades(params?: { marketId?: string }): Promise<TradeListResponse> {
     const searchParams = new URLSearchParams();
     if (params?.marketId) searchParams.set("marketId", params.marketId);
 
     const query = searchParams.toString();
     return fetchWithAuth(`/trades${query ? `?${query}` : ""}`);
+  },
+
+  async priceTrade(params?: {
+    securityId?: string;
+    quantity?: number;
+  }): Promise<TradeListResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.securityId) searchParams.set("securityId", params.securityId);
+    if (params?.quantity)
+      searchParams.set("quantity", params.quantity.toString());
+
+    const query = searchParams.toString();
+    return fetchWithAuth(`/trades/price${query ? `?${query}` : ""}`);
   },
 
   async placeTrade(data: TradeCreate): Promise<TradeRecord> {
@@ -250,5 +273,4 @@ export const usersApi = {
   async getPortfolio(): Promise<PortfolioSnapshot> {
     return fetchWithAuth("/users/me/portfolio");
   },
-}
-
+};
