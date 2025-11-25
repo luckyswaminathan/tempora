@@ -3,8 +3,7 @@
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { TrendingUp, Users, Calendar, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, Users, Calendar } from "lucide-react";
 import { BetDialog } from "@/components/bet-dialog";
 import { type Market } from "@/lib/api";
 import { format } from "date-fns";
@@ -12,7 +11,6 @@ import { format } from "date-fns";
 export function MarketCard({ market }: { market: Market }) {
   const [betDialogOpen, setBetDialogOpen] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null);
-  const [tradeMode, setTradeMode] = useState<"buy" | "sell">("buy");
   const [hoveredOutcome, setHoveredOutcome] = useState<string | null>(null);
 
   // Combine securities with their quotes
@@ -35,16 +33,11 @@ export function MarketCard({ market }: { market: Market }) {
   const endDate = format(new Date(market.resolutionDate), "MMM d, yyyy");
 
   const handleOutcomeClick = (outcomeId: string) => {
-    setSelectedOutcome(selectedOutcome === outcomeId ? null : outcomeId);
+    setSelectedOutcome(outcomeId);
     setBetDialogOpen(true);
   };
 
   const getBarColor = (outcome: typeof outcomes[0]) => {
-    if (selectedOutcome === outcome.id) {
-      return tradeMode === "buy"
-        ? "bg-green-500 hover:bg-green-600"
-        : "bg-red-500 hover:bg-red-600";
-    }
     if (hoveredOutcome === outcome.id) {
       return "bg-blue-400";
     }
@@ -68,36 +61,10 @@ export function MarketCard({ market }: { market: Market }) {
           {market.question}
         </h3>
 
-        {/* Trade Mode Toggle */}
-        <div className="flex gap-2 mb-4">
-          <Button
-            variant={tradeMode === "buy" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setTradeMode("buy");
-            }}
-            className="flex-1"
-          >
-            <ArrowUpRight className="w-4 h-4 mr-1" />
-            Buy
-          </Button>
-          <Button
-            variant={tradeMode === "sell" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setTradeMode("sell");
-            }}
-            className="flex-1"
-          >
-            <ArrowDownRight className="w-4 h-4 mr-1" />
-            Sell
-          </Button>
-        </div>
-
         {/* Probability Distribution Chart */}
         <div className="mb-4">
           <div className="text-xs text-muted-foreground mb-3 font-medium">
-            Select Outcome
+            Click to trade
           </div>
 
           <div className="space-y-2">
@@ -105,7 +72,6 @@ export function MarketCard({ market }: { market: Market }) {
               const heightPercent =
                 maxProbability > 0 ? (outcome.probability / maxProbability) * 100 : 0;
 
-              const isSelected = selectedOutcome === outcome.id;
               const isHovered = hoveredOutcome === outcome.id;
 
               return (
@@ -118,10 +84,7 @@ export function MarketCard({ market }: { market: Market }) {
                   {/* Bar */}
                   <button
                     onClick={() => handleOutcomeClick(outcome.id)}
-                    className={`
-                      w-full rounded-lg transition-all duration-200 relative overflow-hidden
-                      ${isSelected ? "ring-2 ring-offset-2 ring-primary" : ""}
-                    `}
+                    className="w-full rounded-lg transition-all duration-200 relative overflow-hidden hover:ring-2 hover:ring-primary hover:ring-offset-2"
                     style={{ height: "48px" }}
                   >
                     {/* Background bar */}
@@ -156,7 +119,10 @@ export function MarketCard({ market }: { market: Market }) {
                               : "text-muted-foreground"
                           }`}
                         >
-                          {outcome.quote?.quantityTraded || 0}
+                          {outcome.buyPrice < 100 
+                            ? `${outcome.buyPrice.toFixed(1)}¢`
+                            : `$${(outcome.buyPrice / 100).toFixed(2)}`
+                          }
                         </span>
                       </div>
                     </div>
@@ -199,7 +165,10 @@ export function MarketCard({ market }: { market: Market }) {
         onOpenChange={setBetDialogOpen}
         market={market}
         outcome={selectedOutcome || ""}
-        onSuccess={() => window.location.reload()}
+        onSuccess={() => {
+          // Just close dialog - parent will handle refetch
+          setBetDialogOpen(false);
+        }}
       />
     </>
   );

@@ -42,17 +42,20 @@ export function BetDialog({
   }, [market.quotes, outcome]);
 
   const shares = quantity ? Number.parseInt(quantity) : 0;
+  const isBuy = shares > 0;
+  const isSell = shares < 0;
 
   // Fetch price from backend whenever quantity changes
   useEffect(() => {
     const fetchPrice = async () => {
-      if (!shares || shares < 1) {
+      if (shares === 0) {
         setCalculatedPrice(null);
         return;
       }
 
       setFetchingPrice(true);
       try {
+        // Backend handles negative quantities for sells
         const priceData = await tradesApi.priceTrade(outcome, shares);
         setCalculatedPrice(priceData.price);
       } catch (error) {
@@ -68,24 +71,26 @@ export function BetDialog({
     return () => clearTimeout(timer);
   }, [shares, outcome]);
 
-  // Calculate costs
-  const totalCostCents = calculatedPrice || 0;
+  // Calculate costs (price is always positive, sign is in quantity)
+  const totalCostCents = Math.abs(calculatedPrice || 0);
   const totalCostDollars = totalCostCents / 100;
-  const pricePerShareCents = shares > 0 ? totalCostCents / shares : 0;
+  const pricePerShareCents = shares !== 0 ? totalCostCents / Math.abs(shares) : 0;
 
-  // Potential return if outcome wins (each share pays $1)
-  const potentialReturnDollars = shares;
-  const potentialProfitDollars = potentialReturnDollars - totalCostDollars;
+  // For buy: pay cost, get shares worth $1 each if win
+  // For sell: receive cost, lose shares worth $1 each if win
+  const potentialReturnDollars = isBuy ? Math.abs(shares) : 0;
+  const potentialProfitDollars = isBuy 
+    ? potentialReturnDollars - totalCostDollars
+    : totalCostDollars; // For sell, you receive the money
 
-  const handlePlaceBet = async () => {
+  const handlePlaceTrade = async () => {
     if (!user) {
-      toast.error("Please sign in to place a bet");
+      toast.error("Please sign in to place a trade");
       return;
     }
 
-    const numShares = Number.parseInt(quantity);
-    if (!numShares || numShares < 1) {
-      toast.error("Minimum quantity is 1 share");
+    if (shares === 0) {
+      toast.error("Enter a quantity (positive to buy, negative to sell)");
       return;
     }
 
@@ -109,16 +114,17 @@ export function BetDialog({
       
       await tradesApi.placeTrade({
         security_id: outcome,
-        quantity: numShares,
+        quantity: shares, // Negative for sell, positive for buy
       });
       
-      toast.success(`Trade placed! Bought ${numShares} shares of ${selectedSecurity.outcome}`);
+      const action = isBuy ? "Bought" : "Sold";
+      toast.success(`Trade placed! ${action} ${Math.abs(shares)} shares of ${selectedSecurity.outcome}`);
       onOpenChange(false);
       setQuantity("");
       setCalculatedPrice(null);
       onSuccess?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to place bet");
+      toast.error(error instanceof Error ? error.message : "Failed to place trade");
     } finally {
       setLoading(false);
     }
@@ -128,20 +134,20 @@ export function BetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-balance">Place Your Bet</DialogTitle>
+          <DialogTitle className="text-balance">Place Your Trade</DialogTitle>
           <DialogDescription className="text-balance">{market.question}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
             <div>
-              <div className="text-sm text-muted-foreground mb-1">Betting on</div>
+              <div className="text-sm text-muted-foreground mb-1">Trading</div>
               <div className="text-2xl font-bold">
                 {selectedSecurity?.outcome || outcome}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-muted-foreground mb-1">Unit price</div>
+              <div className="text-sm text-muted-foreground mb-1">Current price</div>
               <div className="text-lg font-mono">
                 {quote?.buyUnitPriceCents 
                   ? `${quote.buyUnitPriceCents.toFixed(2)}¢`
@@ -156,22 +162,23 @@ export function BetDialog({
             <Input
               id="quantity"
               type="number"
-              placeholder="10"
+              placeholder="10 (or -10 to sell)"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              min="1"
               step="1"
             />
             <p className="text-xs text-muted-foreground">
-              Each share pays $1.00 if this outcome occurs
+              Positive = buy (long), Negative = sell (short). Each share pays $1 if outcome occurs.
             </p>
           </div>
 
-          {quantity && shares > 0 && (
+          {quantity && shares !== 0 && (
             <div className="space-y-2 p-4 rounded-lg bg-muted/50">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Shares</span>
-                <span className="font-mono font-medium">{shares}</span>
+                <span className="text-muted-foreground">Action</span>
+                <span className={`font-mono font-medium ${isBuy ? 'text-green-600' : 'text-red-600'}`}>
+                  {isBuy ? `BUY ${shares}` : `SELL ${Math.abs(shares)}`}
+                </span>
               </div>
               
               {fetchingPrice ? (
@@ -193,23 +200,37 @@ export function BetDialog({
                     </span>
                   </div>
                   <div className="flex justify-between text-sm border-t pt-2">
-                    <span className="text-muted-foreground font-medium">Total cost</span>
+                    <span className="text-muted-foreground font-medium">
+                      {isBuy ? 'Total cost' : 'You receive'}
+                    </span>
                     <span className="font-mono font-bold text-lg">
                       ${totalCostDollars.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">If outcome wins</span>
-                    <span className="font-mono font-medium text-green-600">
-                      ${potentialReturnDollars.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Potential profit</span>
-                    <span className={`font-mono font-medium ${potentialProfitDollars > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {potentialProfitDollars > 0 ? '+' : ''}${potentialProfitDollars.toFixed(2)}
-                    </span>
-                  </div>
+                  {isBuy && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">If outcome wins</span>
+                        <span className="font-mono font-medium text-green-600">
+                          ${potentialReturnDollars.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Potential profit</span>
+                        <span className={`font-mono font-medium ${potentialProfitDollars > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {potentialProfitDollars > 0 ? '+' : ''}${potentialProfitDollars.toFixed(2)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {isSell && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Profit if sold</span>
+                      <span className="font-mono font-medium text-green-600">
+                        +${potentialProfitDollars.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                   <div className="pt-2 border-t text-xs text-muted-foreground">
                     ✓ Real-time price from LMSR market maker
                   </div>
@@ -233,8 +254,7 @@ export function BetDialog({
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                This market will be evaluated at multiple dates. You can cash out at any settlement date if the outcome
-                is favorable.
+                Market evaluated at multiple dates. Cash out at any settlement if favorable.
               </p>
             </div>
           )}
@@ -250,9 +270,10 @@ export function BetDialog({
             Cancel
           </Button>
           <Button
-            onClick={handlePlaceBet}
-            disabled={!quantity || shares < 1 || loading || !user || !calculatedPrice || fetchingPrice}
+            onClick={handlePlaceTrade}
+            disabled={shares === 0 || loading || !user || !calculatedPrice || fetchingPrice}
             className="flex-1"
+            variant={isSell ? "destructive" : "default"}
           >
             {loading 
               ? "Placing..." 
@@ -261,7 +282,9 @@ export function BetDialog({
                 : fetchingPrice
                   ? "Loading..."
                   : calculatedPrice
-                    ? `Buy for $${totalCostDollars.toFixed(2)}`
+                    ? isBuy 
+                      ? `Buy for $${totalCostDollars.toFixed(2)}`
+                      : `Sell for $${totalCostDollars.toFixed(2)}`
                     : "Enter quantity"
             }
           </Button>
