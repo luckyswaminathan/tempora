@@ -30,12 +30,12 @@ Once the tables are created, you can:
 
 1. **Seed sample data** (optional):
    ```bash
-   python backend/scripts/seed_data.py
+   python scripts/seed_data.py
    ```
 
 2. **Start your backend**:
    ```bash
-   uvicorn backend.main:app --reload --port 8000
+   uvicorn main:app --reload --port 8000
    ```
 
 ## Troubleshooting

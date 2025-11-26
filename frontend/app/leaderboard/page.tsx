@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { Trophy, TrendingUp, Users } from "lucide-react"
 
 const MOCK_LEADERBOARD = [
-  { rank: 1, name: "Alice Johnson", pnl: 18450, roi: 142, trades: 312 },
+  { rank: 1, name: "Alice Johnson", pnl: 18450, roi: 142, trades: 676767 },
   { rank: 2, name: "QuantumTrader", pnl: 16320, roi: 129, trades: 281 },
   { rank: 3, name: "MacroHawk", pnl: 15110, roi: 118, trades: 245 },
   { rank: 4, name: "TechAlpha", pnl: 12780, roi: 104, trades: 198 },

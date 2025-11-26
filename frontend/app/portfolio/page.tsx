@@ -99,16 +99,16 @@ export default function PortfolioPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Cost Basis</div>
-          <div className="text-2xl font-semibold">${summary.costBasis.toFixed(2)}</div>
+          <div className="text-2xl font-semibold">${(summary.costBasis / 100.0).toFixed(2)}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Market Value</div>
-          <div className="text-2xl font-semibold">${summary.marketValue.toFixed(2)}</div>
+          <div className="text-2xl font-semibold">${(summary.marketValue / 100.0).toFixed(2)}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">P&L</div>
           <div className={`text-2xl font-semibold ${summary.unrealisedPnL >= 0 ? "text-green-600" : "text-red-600"}`}>
-            ${summary.unrealisedPnL.toFixed(2)}
+            ${(summary.unrealisedPnL / 100.0).toFixed(2)}
           </div>
         </Card>
         <Card className="p-4">
@@ -146,7 +146,7 @@ export default function PortfolioPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-muted-foreground">Qty</div>
-                      <div className="font-semibold">{h.quantity.toFixed(4)}</div>
+                      <div className="font-semibold">{h.quantity}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-muted-foreground">Mark</div>
@@ -155,7 +155,7 @@ export default function PortfolioPage() {
                     <div className="text-right">
                       <div className="text-xs text-muted-foreground">P&L</div>
                       <div className={`font-semibold flex items-center justify-end gap-1 ${isUp ? "text-green-600" : "text-red-600"}`}>
-                        {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />} ${h.pnl.toFixed(2)}
+                        {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />} ${(h.pnl / 100.0).toFixed(2)}
                       </div>
                     </div>
                   </div>
