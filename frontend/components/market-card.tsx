@@ -218,7 +218,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
         open={betDialogOpen}
         onOpenChange={setBetDialogOpen}
         market={market}
-        outcome={selectedOutcome || ""}
+        securityId={selectedOutcome || ""}
         onSuccess={handleTradeSuccess}
       />
     </>

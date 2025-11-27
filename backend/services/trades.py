@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import List, Optional
+from uuid import uuid4
 
 from fastapi import HTTPException, status
 from supabase import Client
 
 from schemas.trade import (
+    Leg,
     TradeCreate,
     TradeCreateRequest,
     TradeListResponse,
     TradePriceResponse,
+    TradePlaceResponse,
     TradeRecord,
 )
 from services.markets import MarketService
@@ -22,60 +25,53 @@ class TradeService:
         self.supabase = supabase
         self.market_service = MarketService(supabase)
 
-    def _price_trade(self, security_id: Optional[str], quantity: int) -> float:
-        if security_id is None:
-            return 0.0
-        
-        security = self.market_service.get_security(security_id)
-        market = self.market_service.get_market(security.market_id)
+    def _price_trade(self, market_id: str, legs: List[Leg]) -> float:
+        market = self.market_service.get_market(market_id)
+        quantities_map = {
+            quote.security_id: quote.quantity_traded for quote in market.quotes
+        }
+        trade_map = {leg.security_id: leg.quantity for leg in legs}
         return calculate_market_price_cents(
-            {quote.security_id: quote.quantity_traded for quote in market.quotes},
-            {security_id: quantity},
-            market.liquidity_parameter,
+            quantities_map, trade_map, market.liquidity_parameter
         )
 
-    def price_trade(self, security_id: Optional[str] = None, quantity: int = 0) -> TradePriceResponse:
+    def price_trade(self, payload: TradeCreateRequest) -> TradePriceResponse:
         return TradePriceResponse.model_validate(
             {
-                "price": self._price_trade(security_id, quantity=quantity),
+                "priceCents": self._price_trade(payload.market_id, payload.legs),
                 "pricedAt": datetime.now(timezone.utc).isoformat(),
             }
         )
 
-    def place_trade(self, payload: TradeCreate) -> TradeRecord:
-        security = self.market_service.get_security(payload.security_id)
-        market = self.market_service.get_market(security.market_id)
-        execution_price = self._price_trade(
-            payload.security_id, quantity=payload.quantity
-        )
+    def place_trade(self, payload: TradeCreate) -> TradePlaceResponse:
+        execution_price = 0.0
+        trade_group_id = str(uuid4())
 
-        record = {
-            "user_id": payload.user_id,
-            "market_id": market.id,
-            "security_id": security.id,
-            "quantity": payload.quantity,
-            "price_cents": execution_price,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
+        for leg in payload.legs:
+            price = self._price_trade(payload.market_id, [leg])
+            record = {
+                "user_id": payload.user_id,
+                "market_id": payload.market_id,
+                "trade_group_id": trade_group_id,
+                "security_id": leg.security_id,
+                "quantity": leg.quantity,
+                "price_cents": price,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            execution_price += price
 
-        # Insert trade and get the created record
-        response = self.supabase.table("trades").insert(record).execute()
-        if not response.data or len(response.data) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to book trade",
-            )
+            # Insert trade record for leg
+            response = self.supabase.table("trades").insert(record).execute()
+            if not response.data or len(response.data) == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to book trade",
+                )
 
-        created = response.data[0] if isinstance(response.data, list) else response.data
-        return TradeRecord.model_validate(
+        return TradePlaceResponse.model_validate(
             {
-                "id": created["id"],
-                "userId": created["user_id"],
-                "marketId": created["market_id"],
-                "securityId": created["security_id"],
-                "quantity": created["quantity"],
-                "priceCents": created["price_cents"],
-                "createdAt": created["created_at"],
+                "priceCents": execution_price,
+                "executedAt": datetime.now(timezone.utc).isoformat(),
             }
         )
 
@@ -96,6 +92,7 @@ class TradeService:
                     "id": row["id"],
                     "userId": row["user_id"],
                     "marketId": row["market_id"],
+                    "tradeGroupId": row["trade_group_id"],
                     "securityId": row["security_id"],
                     "quantity": row["quantity"],
                     "priceCents": row["price_cents"],
@@ -104,4 +101,4 @@ class TradeService:
             )
             for row in rows
         ]
-        return TradeListResponse(items=items, count=len(items))
+        return TradeListResponse.model_validate({"items": items, "count": len(items)})

@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS trades (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     market_id UUID NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
+    trade_group_id UUID NOT NULL DEFAULT gen_random_uuid(),
     security_id UUID NOT NULL REFERENCES securities(id) ON DELETE CASCADE,
     quantity INT NOT NULL,
     price_cents DOUBLE PRECISION NOT NULL,

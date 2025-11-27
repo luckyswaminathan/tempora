@@ -153,6 +153,7 @@ class MarketService:
                 "id": row.get("id"),
                 "user_id": row.get("user_id"),
                 "market_id": market_id,
+                "trade_group_id": row.get("trade_group_id"),
                 "security_id": row.get("security_id"),
                 "quantity": row.get("quantity"),
                 "price_cents": row.get("price_cents"),

@@ -177,15 +177,21 @@ export const marketsApi = {
 };
 
 // Trades API
-export interface TradeCreate {
-  security_id: string;
+export interface Leg {
+  securityId: string;
   quantity: number;
+}
+
+export interface TradeCreate {
+  marketId: string;
+  legs: Leg[];
 }
 
 export interface TradeRecord {
   id: string;
   userId: string;
   marketId: string;
+  tradeGroupId: string;
   securityId: string;
   quantity: number;
   priceCents: number;
@@ -198,8 +204,13 @@ export interface TradeListResponse {
 }
 
 export interface TradePriceResponse {
-  price: number;
+  priceCents: number;
   pricedAt: string;
+}
+
+export interface TradePlaceResponse {
+  priceCents: number;
+  executedAt: string;
 }
 
 export const tradesApi = {
@@ -211,20 +222,14 @@ export const tradesApi = {
     return fetchWithAuth(`/trades${query ? `?${query}` : ""}`);
   },
 
-  async priceTrade(
-    securityId: string,
-    quantity: number
-  ): Promise<TradePriceResponse> {
-    const searchParams = new URLSearchParams();
-    // Backend expects snake_case in query params
-    searchParams.set("securityId", securityId);
-    searchParams.set("quantity", quantity.toString());
-
-    const query = searchParams.toString();
-    return fetchWithAuth(`/trades/price?${query}`);
+  async priceTrade(data: TradeCreate): Promise<TradePriceResponse> {
+    return fetchWithAuth("/trades/price", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
-  async placeTrade(data: TradeCreate): Promise<TradeRecord> {
+  async placeTrade(data: TradeCreate): Promise<TradePlaceResponse> {
     return fetchWithAuth("/trades", {
       method: "POST",
       body: JSON.stringify(data),
