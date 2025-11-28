@@ -55,6 +55,7 @@ export function BetDialog({
   useEffect(() => {
     const fetchPrice = async () => {
       if (shares === 0) {
+        setFetchingPrice(false);
         setCalculatedPrice(null);
         return;
       }
@@ -114,10 +115,10 @@ export function BetDialog({
       return;
     }
 
-    if (totalCostDollars < 0.5) {
-      toast.error("Minimum trade value is $0.50");
-      return;
-    }
+    // if (totalCostDollars < 0.5) {
+    //   toast.error("Minimum trade value is $0.50");
+    //   return;
+    // }
 
     try {
       setLoading(true);
@@ -188,7 +189,10 @@ export function BetDialog({
               type="number"
               placeholder="10 (or -10 to sell)"
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
+              onChange={(e) => {
+                setFetchingPrice(true);
+                setQuantity(e.target.value);
+              }}
               step="1"
             />
             <p className="text-xs text-muted-foreground">
@@ -197,94 +201,91 @@ export function BetDialog({
             </p>
           </div>
 
-          {quantity && shares !== 0 && (
-            <div className="space-y-2 p-4 rounded-lg bg-muted/50">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Action</span>
-                <span
-                  className={`font-mono font-medium ${
-                    isBuy ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {isBuy ? `BUY ${shares}` : `SELL ${Math.abs(shares)}`}
+          <div className="space-y-2 p-4 rounded-lg bg-muted/50">
+            {fetchingPrice ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-sm text-muted-foreground">
+                  Calculating price...
                 </span>
               </div>
-
-              {fetchingPrice ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    Calculating price...
+            ) : calculatedPrice !== null ? (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Action</span>
+                  <span
+                    className={`font-mono font-medium ${
+                      isBuy ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {isBuy ? `BUY ${shares}` : `SELL ${Math.abs(shares)}`}
                   </span>
                 </div>
-              ) : calculatedPrice ? (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Avg price per share
-                    </span>
-                    <span className="font-mono font-medium">
-                      {pricePerShareCents < 100
-                        ? `${pricePerShareCents.toFixed(2)}¢`
-                        : `$${(pricePerShareCents / 100).toFixed(2)}`}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm border-t pt-2">
-                    <span className="text-muted-foreground font-medium">
-                      {isBuy ? "Total cost" : "You receive"}
-                    </span>
-                    <span className="font-mono font-bold text-lg">
-                      ${totalCostDollars.toFixed(2)}
-                    </span>
-                  </div>
-                  {isBuy && (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          If outcome wins
-                        </span>
-                        <span className="font-mono font-medium text-green-600">
-                          ${potentialReturnDollars.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Potential profit
-                        </span>
-                        <span
-                          className={`font-mono font-medium ${
-                            potentialProfitDollars > 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {potentialProfitDollars > 0 ? "+" : ""}$
-                          {potentialProfitDollars.toFixed(2)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  {isSell && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Avg price per share
+                  </span>
+                  <span className="font-mono font-medium">
+                    {pricePerShareCents < 100
+                      ? `${pricePerShareCents.toFixed(2)}¢`
+                      : `$${(pricePerShareCents / 100).toFixed(2)}`}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm border-t pt-2">
+                  <span className="text-muted-foreground font-medium">
+                    {isBuy ? "Total cost" : "You receive"}
+                  </span>
+                  <span className="font-mono font-bold text-lg">
+                    ${totalCostDollars.toFixed(2)}
+                  </span>
+                </div>
+                {isBuy && (
+                  <>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        Profit if sold
+                        If outcome wins
                       </span>
                       <span className="font-mono font-medium text-green-600">
-                        +${potentialProfitDollars.toFixed(2)}
+                        ${potentialReturnDollars.toFixed(2)}
                       </span>
                     </div>
-                  )}
-                  <div className="pt-2 border-t text-xs text-muted-foreground">
-                    ✓ Real-time price from LMSR market maker
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Potential profit
+                      </span>
+                      <span
+                        className={`font-mono font-medium ${
+                          potentialProfitDollars > 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {potentialProfitDollars > 0 ? "+" : ""}$
+                        {potentialProfitDollars.toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {isSell && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Profit if sold
+                    </span>
+                    <span className="font-mono font-medium text-green-600">
+                      +${potentialProfitDollars.toFixed(2)}
+                    </span>
                   </div>
-                </>
-              ) : (
-                <div className="text-center py-4 text-sm text-muted-foreground">
-                  Enter quantity to see price
+                )}
+                <div className="pt-2 border-t text-xs text-muted-foreground">
+                  ✓ Real-time price from LMSR market maker
                 </div>
-              )}
-            </div>
-          )}
+              </>
+            ) : (
+              <div className="text-center py-4 text-sm text-muted-foreground">
+                Enter quantity to see price
+              </div>
+            )}
+          </div>
 
           {market.settlementDates.length > 0 && (
             <div className="space-y-2">
