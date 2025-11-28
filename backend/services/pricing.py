@@ -9,38 +9,8 @@ from schemas.market import MarketQuote
 USE_LS_LMSR = False
 
 
-def _lmsr_softmax_sum(quantities: List[float], b: float) -> float:
-    return sum(exp(q / b) for q in quantities)
-
-
-def _lmsr_cost(quantities: List[float], b: float) -> float:
-    return b * log(_lmsr_softmax_sum(quantities, b))
-
-
-def _lmsr_implied_probabilities(
-    quantities_map: Dict[str, float], b: float
-) -> Dict[str, float]:
-    norm = _lmsr_softmax_sum(list(quantities_map.values()), b)
-    return {s: exp(q / b) / norm for s, q in quantities_map.items()}
-
-
-def _ls_lmsr_liquidity(quantities: List[float], vig: float = 0.1) -> float:
-    n = len(quantities)
-    if n == 0:
-        return 1.0
-    alpha = vig / (n * log(n))
+def _ls_lmsr_liquidity(quantities: List[float], alpha: float = 0.3) -> float:
     return alpha * sum(abs(q) for q in quantities)
-
-
-def _lmsr_price_cents(
-    quantities_map: Dict[str, float], trade_map: Dict[str, float], b: float
-) -> float:
-    post_trade_quantities = [
-        quantities_map[s] + trade_map.get(s, 0.0) for s in quantities_map
-    ]
-    post_trade_cost = _lmsr_cost(post_trade_quantities, b)
-    base_cost = _lmsr_cost(list(quantities_map.values()), b)
-    return 100.0 * (post_trade_cost - base_cost)
 
 
 def _lmsr_b(quantities: List[float], liquidity: Optional[float] = None) -> float:
@@ -49,12 +19,44 @@ def _lmsr_b(quantities: List[float], liquidity: Optional[float] = None) -> float
     return max(liquidity, 1.0)
 
 
+def _lmsr_softmax_sum(quantities: List[float], b: float) -> float:
+    return sum(exp(q / b) for q in quantities)
+
+
+def _lmsr_cost(quantities: List[float], liquidity: Optional[float] = None) -> float:
+    b = _lmsr_b(quantities, liquidity)
+    return b * log(_lmsr_softmax_sum(quantities, b))
+
+
+def _lmsr_implied_probabilities(
+    quantities_map: Dict[str, float], liquidity: Optional[float] = None
+) -> Dict[str, float]:
+    quantities = list(quantities_map.values())
+    b = _lmsr_b(quantities, liquidity)
+    norm = _lmsr_softmax_sum(quantities, b)
+    return {s: exp(q / b) / norm for s, q in quantities_map.items()}
+
+
+def _lmsr_price_cents(
+    quantities_map: Dict[str, float],
+    trade_map: Dict[str, float],
+    liquidity: Optional[float] = None,
+) -> float:
+    quantities = list(quantities_map.values())
+    base_cost = _lmsr_cost(quantities, liquidity)
+
+    post_trade_quantities = [
+        quantities_map[s] + trade_map.get(s, 0.0) for s in quantities_map
+    ]
+    post_trade_cost = _lmsr_cost(post_trade_quantities, liquidity)
+
+    return 100.0 * (post_trade_cost - base_cost)
+
+
 def calculate_market_quotes(
     quantities_map: Dict[str, float], liquidity: Optional[float] = None
 ) -> List[MarketQuote]:
-    quantities = list(quantities_map.values())
-    b = _lmsr_b(quantities, liquidity)
-    probs = _lmsr_implied_probabilities(quantities_map, b)
+    probs = _lmsr_implied_probabilities(quantities_map, liquidity)
 
     quotes = []
     for security_id, quantity in quantities_map.items():
@@ -62,10 +64,10 @@ def calculate_market_quotes(
             "security_id": security_id,
             "quantity_traded": quantity,
             "buy_unit_price_cents": _lmsr_price_cents(
-                quantities_map, {security_id: 1}, b
+                quantities_map, {security_id: 1}, liquidity
             ),
             "sell_unit_price_cents": _lmsr_price_cents(
-                quantities_map, {security_id: -1}, b
+                quantities_map, {security_id: -1}, liquidity
             ),
             "implied_probability": probs[security_id],
             "last_calculated_at": datetime.now(timezone.utc),
@@ -80,6 +82,4 @@ def calculate_market_price_cents(
     trade_map: Dict[str, float],
     liquidity: Optional[float] = None,
 ) -> float:
-    quantities = list(quantities_map.values())
-    b = _lmsr_b(quantities, liquidity)
-    return _lmsr_price_cents(quantities_map, trade_map, b)
+    return _lmsr_price_cents(quantities_map, trade_map, liquidity)
