@@ -79,7 +79,9 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
         setIntervalRange([Math.min(start, index), Math.max(start, index)]);
       }
     } else {
-      setSelectedOutcome(outcomes[index].id);
+      // Individual mode - open dialog immediately with single outcome
+      const outcome = outcomes[index];
+      setSelectedOutcome(outcome.id);
       setDialogOpen(true);
     }
   };
@@ -327,15 +329,13 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         market={market}
-        securityId={
-          viewMode === "individual" ? selectedOutcome || undefined : undefined
-        }
         selectedOutcomes={
-          viewMode === "interval" && selectedOutcomes.length > 0
+          viewMode === "interval"
             ? selectedOutcomes
-            : undefined
+            : selectedOutcome
+            ? [outcomes.find((o) => o.id === selectedOutcome)!]
+            : []
         }
-        intervalText={viewMode === "interval" ? intervalText : undefined}
         onSuccess={handleTradeSuccess}
       />
     </>

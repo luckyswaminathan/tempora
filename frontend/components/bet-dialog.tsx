@@ -22,13 +22,11 @@ interface BetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   market: Market;
-  securityId?: string;
-  selectedOutcomes?: Array<{
+  selectedOutcomes: Array<{
     id: string;
     outcome: string;
     probability: number;
   }>;
-  intervalText?: string;
   onSuccess?: () => void;
 }
 
@@ -36,32 +34,30 @@ export function BetDialog({
   open,
   onOpenChange,
   market,
-  securityId,
-  selectedOutcomes = [],
-  intervalText = "",
+  selectedOutcomes,
   onSuccess,
 }: BetDialogProps) {
   const { user } = useAuth();
-  const isInterval = selectedOutcomes.length > 0;
+  const isInterval = selectedOutcomes.length > 1;
+  const isSingle = selectedOutcomes.length === 1;
 
   const [quantity, setQuantity] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetchingPrice, setFetchingPrice] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
 
-  // For single-outcome intervals, use the security directly
-  const effectiveSecurityId =
-    isInterval && selectedOutcomes.length === 1
-      ? selectedOutcomes[0].id
-      : securityId;
+  // For single outcome, get the security directly
+  const securityId = isSingle ? selectedOutcomes[0].id : undefined;
 
   const selectedSecurity = useMemo(() => {
-    return market.securities.find((s) => s.id === effectiveSecurityId);
-  }, [market.securities, effectiveSecurityId]);
+    if (!securityId) return null;
+    return market.securities.find((s) => s.id === securityId);
+  }, [market.securities, securityId]);
 
   const quote = useMemo(() => {
-    return market.quotes.find((q) => q.securityId === effectiveSecurityId);
-  }, [market.quotes, effectiveSecurityId]);
+    if (!securityId) return null;
+    return market.quotes.find((q) => q.securityId === securityId);
+  }, [market.quotes, securityId]);
 
   const shares = quantity ? Number.parseInt(quantity) : 0;
   const isBuy = shares > 0;
@@ -69,7 +65,7 @@ export function BetDialog({
 
   useEffect(() => {
     const fetchPrice = async () => {
-      if (shares === 0) {
+      if (shares === 0 || selectedOutcomes.length === 0) {
         setFetchingPrice(false);
         setCalculatedPrice(null);
         return;
@@ -77,18 +73,11 @@ export function BetDialog({
 
       setFetchingPrice(true);
       try {
-        let legs;
-
-        if (isInterval) {
-          // Interval mode: same quantity for each outcome
-          legs = selectedOutcomes.map((outcome) => ({
-            securityId: outcome.id,
-            quantity: shares,
-          }));
-        } else {
-          // Single mode: one outcome
-          legs = [{ securityId: securityId!, quantity: shares }];
-        }
+        // Build legs from selectedOutcomes
+        const legs = selectedOutcomes.map((outcome) => ({
+          securityId: outcome.id,
+          quantity: shares,
+        }));
 
         const priceData = await tradesApi.priceTrade({
           marketId: market.id,
@@ -106,16 +95,26 @@ export function BetDialog({
 
     const timer = setTimeout(fetchPrice, 500);
     return () => clearTimeout(timer);
-  }, [shares, securityId, selectedOutcomes, market.id, isInterval]);
+  }, [shares, selectedOutcomes, market.id]);
 
   const totalCostCents = Math.abs(calculatedPrice || 0);
   const totalCostDollars = totalCostCents / 100;
   const pricePerShareCents =
     shares !== 0 ? totalCostCents / Math.abs(shares) : 0;
-  const numOutcomes = isInterval ? selectedOutcomes.length : 1;
-  const intervalProbability = isInterval
-    ? selectedOutcomes.reduce((sum, o) => sum + o.probability, 0)
-    : 0;
+  const numOutcomes = selectedOutcomes.length;
+
+  // Compute interval text from selected outcomes
+  const intervalText =
+    numOutcomes > 1
+      ? `${selectedOutcomes[0].outcome} - ${
+          selectedOutcomes[numOutcomes - 1].outcome
+        }`
+      : selectedOutcomes[0]?.outcome || "";
+
+  const intervalProbability = selectedOutcomes.reduce(
+    (sum, o) => sum + o.probability,
+    0
+  );
 
   const potentialReturnDollars = isBuy ? Math.abs(shares) : 0;
   const potentialProfitDollars = isBuy
@@ -133,12 +132,7 @@ export function BetDialog({
       return;
     }
 
-    if (!isInterval && !selectedSecurity) {
-      toast.error("Invalid outcome selected");
-      return;
-    }
-
-    if (isInterval && selectedOutcomes.length === 0) {
+    if (selectedOutcomes.length === 0) {
       toast.error("No outcomes selected");
       return;
     }
@@ -151,15 +145,10 @@ export function BetDialog({
     try {
       setLoading(true);
 
-      let legs;
-      if (isInterval) {
-        legs = selectedOutcomes.map((outcome) => ({
-          securityId: outcome.id,
-          quantity: shares,
-        }));
-      } else {
-        legs = [{ securityId: securityId!, quantity: shares }];
-      }
+      const legs = selectedOutcomes.map((outcome) => ({
+        securityId: outcome.id,
+        quantity: shares,
+      }));
 
       await tradesApi.placeTrade({
         marketId: market.id,
