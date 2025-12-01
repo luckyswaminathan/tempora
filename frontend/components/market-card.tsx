@@ -138,10 +138,46 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
   return (
     <>
       <Card
-        className={`p-6 hover:shadow-lg transition-shadow ${
+        className={`p-6 hover:shadow-lg transition-shadow relative ${
           isRefreshing ? "opacity-70" : ""
         }`}
       >
+        {/* Floating interval selection overlay - stick to top of this card */}
+        {viewMode === "interval" && rangeStart >= 0 && (
+          <div className="absolute -top-3 left-4 right-4 z-10 animate-in slide-in-from-top-2 duration-300">
+            <div className="bg-gradient-to-r from-green-500 to-green-400 text-white px-4 py-3 rounded-lg shadow-lg border-2 border-green-400">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold mb-1 truncate">
+                    {intervalText}
+                  </div>
+                  <div className="text-xs opacity-90">
+                    {selectedOutcomes.length} outcome
+                    {selectedOutcomes.length !== 1 ? "s" : ""} selected
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    onClick={handleOpenIntervalDialog}
+                    className="h-9 bg-white text-green-600 hover:bg-green-50"
+                  >
+                    Trade
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleResetInterval}
+                    className="h-9 w-9 p-0 text-white hover:bg-green-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-start justify-between mb-4">
           <Badge variant="secondary" className="text-xs">
             {market.category || "Uncategorized"}
@@ -190,39 +226,6 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
             ? "Click to select interval start"
             : "Click another outcome to adjust interval range"}
         </div>
-
-        {viewMode === "interval" && rangeStart >= 0 && (
-          <div className="mb-3 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1">
-                <div className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">
-                  Selected: {intervalText}
-                </div>
-                <div className="text-xs text-green-700 dark:text-green-300">
-                  {selectedOutcomes.length} outcome
-                  {selectedOutcomes.length !== 1 ? "s" : ""} selected
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleOpenIntervalDialog}
-                  className="h-8"
-                >
-                  Trade
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleResetInterval}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="mb-4">
           <div className="space-y-2">
