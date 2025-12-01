@@ -68,8 +68,8 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
   }, [market?.securities, market?.quotes]);
 
   const maxProbability = Math.max(...outcomes.map((o) => o.probability), 0);
-  const endDate = market?.resolutionDate
-    ? format(new Date(market.resolutionDate), "MMM d, yyyy")
+  const creationDate = market?.createdAt
+    ? format(new Date(market.createdAt), "MMM d, yyyy")
     : "—";
 
   const handleBarClick = (index: number) => {
@@ -190,7 +190,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           </Badge>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar className="w-3 h-3" />
-            <span>{endDate}</span>
+            <span>{creationDate}</span>
           </div>
         </div>
 
@@ -285,24 +285,20 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           </div>
         </div>
 
-        {market.settlementDates && market.settlementDates.length > 0 && (
+        {/* {market.settlementDates && market.settlementDates.length > 0 && (
           <div className="mb-4">
             <div className="text-xs text-muted-foreground mb-2">
               Settlement Dates
             </div>
             <div className="flex flex-wrap gap-2">
               {market.settlementDates.map((settlement, idx) => (
-                <Badge
-                  key={idx}
-                  variant="outline"
-                  className="text-xs font-mono"
-                >
+                <Badge key={idx} variant="outline" className="text-xs">
                   {settlement.label}
                 </Badge>
               ))}
             </div>
           </div>
-        )}
+        )} */}
 
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t">
           <div className="flex items-center gap-1">
