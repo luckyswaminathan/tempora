@@ -22,6 +22,12 @@ interface MarketCardProps {
 
 type ViewMode = "individual" | "interval";
 
+const Pill = ({ children }: { children: React.ReactNode }) => (
+  <span className="px-2 py-1 rounded-full bg-white/60 backdrop-blur text-black text-xs font-semibold shadow-md">
+    {children}
+  </span>
+);
+
 export function MarketCard({ initialMarket }: MarketCardProps) {
   const [market, setMarket] = useState(initialMarket);
   const [viewMode, setViewMode] = useState<ViewMode>("individual");
@@ -234,7 +240,6 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
                 maxProbability > 0
                   ? (outcome.probability / maxProbability) * 100
                   : 0;
-              const showInside = widthPercent > 50;
               const isInInterval =
                 viewMode === "interval" &&
                 rangeStart >= 0 &&
@@ -247,12 +252,13 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
                   onClick={() => handleBarClick(index)}
                   onMouseEnter={() => setHoveredOutcome(outcome.id)}
                   onMouseLeave={() => setHoveredOutcome(null)}
-                  className={`w-full h-12 rounded-lg transition-all duration-200 relative hover:ring-2 hover:ring-offset-2 overflow-visible ${
+                  className={`w-full h-12 rounded-lg relative overflow-visible transition ring-offset-2 ${
                     isInInterval
                       ? "ring-2 ring-green-500"
-                      : "hover:ring-primary"
+                      : "hover:ring-2 hover:ring-primary"
                   }`}
                 >
+                  {/* bar fill */}
                   <div
                     className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${getBarColor(
                       index
@@ -260,36 +266,18 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
                     style={{ width: `${widthPercent}%` }}
                   />
 
-                  <div className="absolute left-3 top-0 h-full flex items-center text-sm font-medium z-10">
-                    <span
-                      className={showInside ? "text-white" : "text-foreground"}
-                    >
-                      {outcome.outcome}
-                    </span>
+                  {/* outcome pill (left) */}
+                  <div className="absolute left-3 top-0 h-full flex items-center z-10">
+                    <Pill>{outcome.outcome}</Pill>
                   </div>
 
+                  {/* probability + qty pills (right) */}
                   <div
-                    className="absolute top-0 h-full flex items-center gap-3 text-sm z-10 transition-all duration-300"
-                    style={
-                      showInside
-                        ? { right: "12px" }
-                        : { left: `calc(${widthPercent}% + 12px)` }
-                    }
+                    className="absolute top-0 h-full flex items-center gap-2 z-10"
+                    style={{ right: "12px" }}
                   >
-                    <span
-                      className={
-                        showInside ? "text-white/90" : "text-muted-foreground"
-                      }
-                    >
-                      {(outcome.probability * 100).toFixed(1)}%
-                    </span>
-                    <span
-                      className={`text-xs font-mono ${
-                        showInside ? "text-white/80" : "text-muted-foreground"
-                      }`}
-                    >
-                      {outcome.quantityTraded}
-                    </span>
+                    <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
+                    <Pill>{outcome.quantityTraded}</Pill>
                   </div>
                 </button>
               );
