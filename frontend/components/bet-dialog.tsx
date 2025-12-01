@@ -22,7 +22,13 @@ interface BetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   market: Market;
-  securityId: string;
+  securityId?: string;
+  selectedOutcomes?: Array<{
+    id: string;
+    outcome: string;
+    probability: number;
+  }>;
+  intervalText?: string;
   onSuccess?: () => void;
 }
 
@@ -31,27 +37,36 @@ export function BetDialog({
   onOpenChange,
   market,
   securityId,
+  selectedOutcomes = [],
+  intervalText = "",
   onSuccess,
 }: BetDialogProps) {
   const { user } = useAuth();
+  const isInterval = selectedOutcomes.length > 0;
+
   const [quantity, setQuantity] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetchingPrice, setFetchingPrice] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
 
+  // For single-outcome intervals, use the security directly
+  const effectiveSecurityId =
+    isInterval && selectedOutcomes.length === 1
+      ? selectedOutcomes[0].id
+      : securityId;
+
   const selectedSecurity = useMemo(() => {
-    return market.securities.find((s) => s.id === securityId);
-  }, [market.securities, securityId]);
+    return market.securities.find((s) => s.id === effectiveSecurityId);
+  }, [market.securities, effectiveSecurityId]);
 
   const quote = useMemo(() => {
-    return market.quotes.find((q) => q.securityId === securityId);
-  }, [market.quotes, securityId]);
+    return market.quotes.find((q) => q.securityId === effectiveSecurityId);
+  }, [market.quotes, effectiveSecurityId]);
 
   const shares = quantity ? Number.parseInt(quantity) : 0;
   const isBuy = shares > 0;
   const isSell = shares < 0;
 
-  // Fetch price from backend whenever quantity changes
   useEffect(() => {
     const fetchPrice = async () => {
       if (shares === 0) {
@@ -62,11 +77,24 @@ export function BetDialog({
 
       setFetchingPrice(true);
       try {
-        // Backend handles negative quantities for sells
+        let legs;
+
+        if (isInterval) {
+          // Interval mode: same quantity for each outcome
+          legs = selectedOutcomes.map((outcome) => ({
+            securityId: outcome.id,
+            quantity: shares,
+          }));
+        } else {
+          // Single mode: one outcome
+          legs = [{ securityId: securityId!, quantity: shares }];
+        }
+
         const priceData = await tradesApi.priceTrade({
           marketId: market.id,
-          legs: [{ securityId: securityId, quantity: shares }],
+          legs,
         });
+
         setCalculatedPrice(priceData.priceCents);
       } catch (error) {
         console.error("Failed to fetch price:", error);
@@ -76,23 +104,23 @@ export function BetDialog({
       }
     };
 
-    // Debounce the price fetch
     const timer = setTimeout(fetchPrice, 500);
     return () => clearTimeout(timer);
-  }, [shares, securityId]);
+  }, [shares, securityId, selectedOutcomes, market.id, isInterval]);
 
-  // Calculate costs (price is always positive, sign is in quantity)
   const totalCostCents = Math.abs(calculatedPrice || 0);
   const totalCostDollars = totalCostCents / 100;
   const pricePerShareCents =
     shares !== 0 ? totalCostCents / Math.abs(shares) : 0;
+  const numOutcomes = isInterval ? selectedOutcomes.length : 1;
+  const intervalProbability = isInterval
+    ? selectedOutcomes.reduce((sum, o) => sum + o.probability, 0)
+    : 0;
 
-  // For buy: pay cost, get shares worth $1 each if win
-  // For sell: receive cost, lose shares worth $1 each if win
   const potentialReturnDollars = isBuy ? Math.abs(shares) : 0;
   const potentialProfitDollars = isBuy
     ? potentialReturnDollars - totalCostDollars
-    : totalCostDollars; // For sell, you receive the money
+    : totalCostDollars;
 
   const handlePlaceTrade = async () => {
     if (!user) {
@@ -105,8 +133,13 @@ export function BetDialog({
       return;
     }
 
-    if (!selectedSecurity) {
+    if (!isInterval && !selectedSecurity) {
       toast.error("Invalid outcome selected");
+      return;
+    }
+
+    if (isInterval && selectedOutcomes.length === 0) {
+      toast.error("No outcomes selected");
       return;
     }
 
@@ -115,30 +148,39 @@ export function BetDialog({
       return;
     }
 
-    // if (totalCostDollars < 0.5) {
-    //   toast.error("Minimum trade value is $0.50");
-    //   return;
-    // }
-
     try {
       setLoading(true);
 
+      let legs;
+      if (isInterval) {
+        legs = selectedOutcomes.map((outcome) => ({
+          securityId: outcome.id,
+          quantity: shares,
+        }));
+      } else {
+        legs = [{ securityId: securityId!, quantity: shares }];
+      }
+
       await tradesApi.placeTrade({
         marketId: market.id,
-        legs: [
-          {
-            securityId: securityId,
-            quantity: shares, // Negative for sell, positive for buy
-          },
-        ],
+        legs,
       });
 
       const action = isBuy ? "Bought" : "Sold";
-      toast.success(
-        `Trade placed! ${action} ${Math.abs(shares)} shares of ${
-          selectedSecurity.outcome
-        }`
-      );
+      if (isInterval) {
+        toast.success(
+          `Interval trade placed! ${action} ${Math.abs(
+            shares
+          )} shares across ${numOutcomes} outcomes`
+        );
+      } else {
+        toast.success(
+          `Trade placed! ${action} ${Math.abs(shares)} shares of ${
+            selectedSecurity?.outcome
+          }`
+        );
+      }
+
       onOpenChange(false);
       setQuantity("");
       setCalculatedPrice(null);
@@ -156,34 +198,65 @@ export function BetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-balance">Place Your Trade</DialogTitle>
+          <DialogTitle className="text-balance">
+            {isInterval ? "Trade Interval" : "Place Your Trade"}
+          </DialogTitle>
           <DialogDescription className="text-balance">
             {market.question}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-            <div>
-              <div className="text-sm text-muted-foreground mb-1">Trading</div>
-              <div className="text-2xl font-bold">
-                {selectedSecurity?.outcome || "UNKNOWN"}
-              </div>
-            </div>
-            <div className="text-right">
+          {/* Header card */}
+          {isInterval ? (
+            <div className="p-4 rounded-lg bg-muted">
               <div className="text-sm text-muted-foreground mb-1">
-                Current price
+                Trading interval
               </div>
-              <div className="text-lg font-mono">
-                {quote?.buyUnitPriceCents
-                  ? `${quote.buyUnitPriceCents.toFixed(2)}¢`
-                  : "—"}
+              <div className="text-2xl font-bold mb-2">{intervalText}</div>
+              <div className="flex items-center gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Outcomes: </span>
+                  <span className="font-medium">{numOutcomes}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Combined prob: </span>
+                  <span className="font-medium">
+                    {(intervalProbability * 100).toFixed(1)}%
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">
+                  Trading
+                </div>
+                <div className="text-2xl font-bold">
+                  {selectedSecurity?.outcome || "UNKNOWN"}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground mb-1">
+                  Current price
+                </div>
+                <div className="text-lg font-mono">
+                  {quote?.buyUnitPriceCents
+                    ? `${quote.buyUnitPriceCents.toFixed(2)}¢`
+                    : "—"}
+                </div>
+              </div>
+            </div>
+          )}
 
+          {/* Quantity input */}
           <div className="space-y-2">
-            <Label htmlFor="quantity">Quantity (shares)</Label>
+            <Label htmlFor="quantity">
+              {isInterval
+                ? "Quantity per outcome (shares)"
+                : "Quantity (shares)"}
+            </Label>
             <Input
               id="quantity"
               type="number"
@@ -196,17 +269,27 @@ export function BetDialog({
               step="1"
             />
             <p className="text-xs text-muted-foreground">
-              Positive = buy (long), Negative = sell (short). Each share pays $1
-              if outcome occurs.
+              {isInterval ? (
+                <>
+                  You'll trade {shares !== 0 ? Math.abs(shares) : "N"} shares of
+                  EACH of the {numOutcomes} outcomes. Only one outcome can win,
+                  paying $1 per share.
+                </>
+              ) : (
+                "Positive = buy (long), Negative = sell (short). Each share pays $1 if outcome occurs."
+              )}
             </p>
           </div>
 
+          {/* Price display */}
           <div className="space-y-2 p-4 rounded-lg bg-muted/50">
             {fetchingPrice ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 <span className="ml-2 text-sm text-muted-foreground">
-                  Calculating price...
+                  {isInterval
+                    ? "Calculating basket price..."
+                    : "Calculating price..."}
                 </span>
               </div>
             ) : calculatedPrice !== null ? (
@@ -218,9 +301,18 @@ export function BetDialog({
                       isBuy ? "text-green-600" : "text-red-600"
                     }`}
                   >
-                    {isBuy ? `BUY ${shares}` : `SELL ${Math.abs(shares)}`}
+                    {isBuy ? "BUY" : "SELL"} {Math.abs(shares)}
+                    {isInterval && ` × ${numOutcomes}`}
                   </span>
                 </div>
+                {isInterval && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total shares</span>
+                    <span className="font-mono font-medium">
+                      {Math.abs(shares) * numOutcomes} shares
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
                     Avg price per share
@@ -243,7 +335,7 @@ export function BetDialog({
                   <>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        If outcome wins
+                        {isInterval ? "If ANY outcome wins" : "If outcome wins"}
                       </span>
                       <span className="font-mono font-medium text-green-600">
                         ${potentialReturnDollars.toFixed(2)}
@@ -277,7 +369,8 @@ export function BetDialog({
                   </div>
                 )}
                 <div className="pt-2 border-t text-xs text-muted-foreground">
-                  ✓ Real-time price from LMSR market maker
+                  ✓ Real-time {isInterval ? "basket " : ""}price from LMSR
+                  market maker
                 </div>
               </>
             ) : (
@@ -287,26 +380,43 @@ export function BetDialog({
             )}
           </div>
 
-          {market.settlementDates.length > 0 && (
+          {/* Interval outcomes list */}
+          {isInterval && selectedOutcomes.length > 0 && (
             <div className="space-y-2">
-              <div className="text-sm font-medium">Settlement Dates</div>
-              <div className="flex flex-wrap gap-2">
-                {market.settlementDates.map((settlement, idx) => (
-                  <Badge
-                    key={idx}
-                    variant="outline"
-                    className="text-xs font-mono"
-                  >
-                    {settlement.label}
+              <div className="text-sm font-medium">Outcomes in basket</div>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                {selectedOutcomes.map((outcome) => (
+                  <Badge key={outcome.id} variant="outline" className="text-xs">
+                    {outcome.outcome}
                   </Badge>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Market evaluated at multiple dates. Cash out at any settlement
-                if favorable.
-              </p>
             </div>
           )}
+
+          {/* Settlement dates */}
+          {!isInterval &&
+            market.settlementDates &&
+            market.settlementDates.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Settlement Dates</div>
+                <div className="flex flex-wrap gap-2">
+                  {market.settlementDates.map((settlement, idx) => (
+                    <Badge
+                      key={idx}
+                      variant="outline"
+                      className="text-xs font-mono"
+                    >
+                      {settlement.label}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Market evaluated at multiple dates. Cash out at any settlement
+                  if favorable.
+                </p>
+              </div>
+            )}
         </div>
 
         <div className="flex gap-3">

@@ -3,7 +3,15 @@
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Users, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  TrendingUp,
+  Users,
+  Calendar,
+  BarChart3,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { BetDialog } from "@/components/bet-dialog";
 import { marketsApi, type Market } from "@/lib/api";
 import { format } from "date-fns";
@@ -12,14 +20,19 @@ interface MarketCardProps {
   initialMarket: Market;
 }
 
+type ViewMode = "individual" | "interval";
+
 export function MarketCard({ initialMarket }: MarketCardProps) {
   const [market, setMarket] = useState(initialMarket);
-  const [betDialogOpen, setBetDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("individual");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null);
   const [hoveredOutcome, setHoveredOutcome] = useState<string | null>(null);
+  const [intervalRange, setIntervalRange] = useState<[number, number]>([
+    -1, -1,
+  ]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Refetch market data after trade
   const refreshMarket = async () => {
     setIsRefreshing(true);
     try {
@@ -32,7 +45,6 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
     }
   };
 
-  // Combine securities with their quotes
   const outcomes = useMemo(() => {
     if (!market?.securities || !market?.quotes) return [];
 
@@ -54,39 +66,53 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
     ? format(new Date(market.resolutionDate), "MMM d, yyyy")
     : "—";
 
-  const handleOutcomeClick = (outcomeId: string) => {
-    setSelectedOutcome(outcomeId);
-    setBetDialogOpen(true);
+  const handleBarClick = (index: number) => {
+    if (viewMode === "interval") {
+      const [start, end] = intervalRange;
+
+      if (start === -1) {
+        // First click - set both start and end to same index
+        setIntervalRange([index, index]);
+      } else {
+        // Already have a selection - update the range
+        // User can click anywhere to extend/shrink the range
+        setIntervalRange([Math.min(start, index), Math.max(start, index)]);
+      }
+    } else {
+      setSelectedOutcome(outcomes[index].id);
+      setDialogOpen(true);
+    }
+  };
+
+  const handleOpenIntervalDialog = () => {
+    if (intervalRange[0] >= 0) {
+      setDialogOpen(true);
+    }
+  };
+
+  const handleResetInterval = () => {
+    setIntervalRange([-1, -1]);
   };
 
   const handleTradeSuccess = () => {
-    setBetDialogOpen(false);
-    refreshMarket(); // ← Update probabilities after trade
+    setDialogOpen(false);
+    setIntervalRange([-1, -1]);
+    refreshMarket();
   };
 
-  const getBarColor = (outcome: (typeof outcomes)[0]) => {
-    if (hoveredOutcome === outcome.id) {
+  const getBarColor = (index: number) => {
+    if (viewMode === "interval") {
+      const [start, end] = intervalRange;
+      if (start >= 0 && end >= 0 && index >= start && index <= end) {
+        return "bg-green-500/70 hover:bg-green-500";
+      }
+    }
+    if (hoveredOutcome === outcomes[index]?.id) {
       return "bg-blue-400";
     }
     return "bg-blue-500/70 hover:bg-blue-500";
   };
 
-  // Smart text color based on bar width
-  const getTextColor = (widthPercent: number) => {
-    // If bar is wide enough (>40%), use white text
-    // Otherwise use foreground color
-    return widthPercent > 40 ? "text-black" : "text-foreground";
-  };
-
-  const getProbabilityTextColor = (widthPercent: number) => {
-    return widthPercent > 40 ? "text-black/90" : "text-muted-foreground";
-  };
-
-  const getPriceTextColor = (widthPercent: number) => {
-    return widthPercent > 40 ? "text-black/80" : "text-muted-foreground";
-  };
-
-  // Show loading state if market is not available
   if (!market) {
     return (
       <Card className="p-6 animate-pulse">
@@ -94,6 +120,18 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
       </Card>
     );
   }
+
+  const [rangeStart, rangeEnd] = intervalRange;
+  const selectedOutcomes =
+    rangeStart >= 0 && rangeEnd >= 0
+      ? outcomes.slice(rangeStart, rangeEnd + 1)
+      : [];
+  const intervalText =
+    rangeStart >= 0 && rangeEnd >= 0
+      ? rangeStart === rangeEnd
+        ? outcomes[rangeStart]?.outcome
+        : `${outcomes[rangeStart]?.outcome} - ${outcomes[rangeEnd]?.outcome}`
+      : "";
 
   return (
     <>
@@ -116,74 +154,146 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           {market.question || "Untitled Market"}
         </h3>
 
-        {/* Probability Distribution Chart */}
-        <div className="mb-4">
-          <div className="text-xs text-muted-foreground mb-3 font-medium">
-            Click to trade
-          </div>
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant={viewMode === "individual" ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setViewMode("individual");
+              setIntervalRange([-1, -1]);
+            }}
+            className="flex-1"
+          >
+            <BarChart3 className="w-4 h-4 mr-1" />
+            Individual
+          </Button>
+          <Button
+            variant={viewMode === "interval" ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setViewMode("interval");
+              setIntervalRange([-1, -1]);
+            }}
+            className="flex-1"
+          >
+            <SlidersHorizontal className="w-4 h-4 mr-1" />
+            Interval
+          </Button>
+        </div>
 
+        <div className="text-xs text-muted-foreground mb-3 font-medium">
+          {viewMode === "individual"
+            ? "Click to trade individual outcomes"
+            : rangeStart === -1
+            ? "Click to select interval start"
+            : "Click another outcome to adjust interval range"}
+        </div>
+
+        {viewMode === "interval" && rangeStart >= 0 && (
+          <div className="mb-3 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1">
+                <div className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">
+                  Selected: {intervalText}
+                </div>
+                <div className="text-xs text-green-700 dark:text-green-300">
+                  {selectedOutcomes.length} outcome
+                  {selectedOutcomes.length !== 1 ? "s" : ""} selected
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleOpenIntervalDialog}
+                  className="h-8"
+                >
+                  Trade
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleResetInterval}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-4">
           <div className="space-y-2">
-            {outcomes.map((outcome) => {
-              const heightPercent =
+            {outcomes.map((outcome, index) => {
+              const widthPercent =
                 maxProbability > 0
                   ? (outcome.probability / maxProbability) * 100
                   : 0;
-
-              const isHovered = hoveredOutcome === outcome.id;
+              const showInside = widthPercent > 50;
+              const isInInterval =
+                viewMode === "interval" &&
+                rangeStart >= 0 &&
+                index >= rangeStart &&
+                index <= rangeEnd;
 
               return (
-                <div
+                <button
                   key={outcome.id}
-                  className="relative"
+                  onClick={() => handleBarClick(index)}
                   onMouseEnter={() => setHoveredOutcome(outcome.id)}
                   onMouseLeave={() => setHoveredOutcome(null)}
+                  className={`w-full h-12 rounded-lg transition-all duration-200 relative hover:ring-2 hover:ring-offset-2 overflow-visible ${
+                    isInInterval
+                      ? "ring-2 ring-green-500"
+                      : "hover:ring-primary"
+                  }`}
                 >
-                  {/* Bar */}
-                  <button
-                    onClick={() => handleOutcomeClick(outcome.id)}
-                    className="w-full rounded-lg transition-all duration-200 relative overflow-hidden hover:ring-2 hover:ring-primary hover:ring-offset-2"
-                    style={{ height: "48px" }}
-                  >
-                    {/* Background bar */}
-                    <div
-                      className={`absolute inset-0 transition-all duration-300 ${getBarColor(
-                        outcome
-                      )}`}
-                      style={{
-                        width: `${heightPercent}%`,
-                      }}
-                    />
+                  <div
+                    className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${getBarColor(
+                      index
+                    )}`}
+                    style={{ width: `${widthPercent}%` }}
+                  />
 
-                    {/* Content overlay - smart text colors based on bar width */}
-                    <div className="absolute inset-0 flex items-center justify-between px-3 text-sm font-medium">
-                      <span className={getTextColor(heightPercent)}>
-                        {outcome.outcome}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={getProbabilityTextColor(heightPercent)}
-                        >
-                          {(outcome.probability * 100).toFixed(1)}%
-                        </span>
-                        <span
-                          className={`text-xs font-mono ${getPriceTextColor(
-                            heightPercent
-                          )}`}
-                        >
-                          {outcome.quantityTraded}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                </div>
+                  <div className="absolute left-3 top-0 h-full flex items-center text-sm font-medium z-10">
+                    <span
+                      className={showInside ? "text-white" : "text-foreground"}
+                    >
+                      {outcome.outcome}
+                    </span>
+                  </div>
+
+                  <div
+                    className="absolute top-0 h-full flex items-center gap-3 text-sm z-10 transition-all duration-300"
+                    style={
+                      showInside
+                        ? { right: "12px" }
+                        : { left: `calc(${widthPercent}% + 12px)` }
+                    }
+                  >
+                    <span
+                      className={
+                        showInside ? "text-white/90" : "text-muted-foreground"
+                      }
+                    >
+                      {(outcome.probability * 100).toFixed(1)}%
+                    </span>
+                    <span
+                      className={`text-xs font-mono ${
+                        showInside ? "text-white/80" : "text-muted-foreground"
+                      }`}
+                    >
+                      {outcome.quantityTraded}
+                    </span>
+                  </div>
+                </button>
               );
             })}
           </div>
         </div>
 
-        {/* Settlement Dates */}
         {market.settlementDates && market.settlementDates.length > 0 && (
-          <div>
+          <div className="mb-4">
             <div className="text-xs text-muted-foreground mb-2">
               Settlement Dates
             </div>
@@ -201,7 +311,6 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           </div>
         )}
 
-        {/* Market Stats */}
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t">
           <div className="flex items-center gap-1">
             <TrendingUp className="w-3 h-3" />
@@ -215,10 +324,18 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
       </Card>
 
       <BetDialog
-        open={betDialogOpen}
-        onOpenChange={setBetDialogOpen}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         market={market}
-        securityId={selectedOutcome || ""}
+        securityId={
+          viewMode === "individual" ? selectedOutcome || undefined : undefined
+        }
+        selectedOutcomes={
+          viewMode === "interval" && selectedOutcomes.length > 0
+            ? selectedOutcomes
+            : undefined
+        }
+        intervalText={viewMode === "interval" ? intervalText : undefined}
         onSuccess={handleTradeSuccess}
       />
     </>
