@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  db:
+    image: nouchka/sqlite3
+    volumes:
+      - ./backend/.data/sqlite:/data
+    command: tail -f /dev/null
+
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: sqlite:////data/tempora.db
+    volumes:
+      - ./backend:/app
+      - ./backend/.data/sqlite:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload

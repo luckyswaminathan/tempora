@@ -1,92 +1,99 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import List, Optional
+from uuid import uuid4
 
 from fastapi import HTTPException, status
-from supabase import Client
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from schemas.market import MarketWithQuote
-from schemas.trade import TradeCreate, TradeListResponse, TradeRecord
+from core import models
+from schemas.trade import (
+    Leg,
+    TradeCreate,
+    TradeCreateRequest,
+    TradeListResponse,
+    TradePriceResponse,
+    TradePlaceResponse,
+    TradeRecord,
+)
 from services.markets import MarketService
+from services.pricing import calculate_market_price_cents
 
 
 class TradeService:
-    def __init__(self, supabase: Client) -> None:
-        self.supabase = supabase
-        self.market_service = MarketService(supabase)
+    def __init__(self, session: Session) -> None:
+        self.session = session
+        self.market_service = MarketService(session)
 
-    def place_trade(self, payload: TradeCreate) -> TradeRecord:
-        market = self.market_service.get_market(payload.market_id)
-        execution_price = self._determine_price(market, payload)
-        shares = round((payload.stake / execution_price) * 100.0, 4)
-
-        record = {
-            "user_id": payload.user_id,
-            "market_id": payload.market_id,
-            "side": payload.side,
-            "price_cents": execution_price,
-            "shares": shares,
-            "stake": round(payload.stake, 2),
-            "created_at": datetime.now(timezone.utc).isoformat(),
+    def _price_trade(self, market_id: str, legs: List[Leg]) -> float:
+        market = self.market_service.get_market(market_id)
+        quantities_map = {
+            quote.security_id: quote.quantity_traded for quote in market.quotes
         }
+        trade_map = {leg.security_id: leg.quantity for leg in legs}
+        return calculate_market_price_cents(
+            quantities_map, trade_map, market.liquidity_parameter
+        )
 
-        # Insert trade and get the created record
-        response = self.supabase.table("trades").insert(record).execute()
-        if not response.data or len(response.data) == 0:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to book trade")
-        
-        created = response.data[0] if isinstance(response.data, list) else response.data
-        return TradeRecord.model_validate(
+    def price_trade(self, payload: TradeCreateRequest) -> TradePriceResponse:
+        return TradePriceResponse.model_validate(
             {
-                "id": created["id"],
-                "userId": created["user_id"],
-                "marketId": created["market_id"],
-                "side": created["side"],
-                "priceCents": created["price_cents"],
-                "shares": created["shares"],
-                "stake": created["stake"],
-                "createdAt": created["created_at"],
+                "priceCents": self._price_trade(payload.market_id, payload.legs),
+                "pricedAt": datetime.now(timezone.utc).isoformat(),
             }
         )
 
-    def list_trades(self, *, user_id: Optional[str] = None, market_id: Optional[str] = None) -> TradeListResponse:
-        query = self.supabase.table("trades").select("*").order("created_at", desc=True)
-        if user_id:
-            query = query.eq("user_id", user_id)
-        if market_id:
-            query = query.eq("market_id", market_id)
+    def place_trade(self, payload: TradeCreate) -> TradePlaceResponse:
+        execution_price = 0.0
+        trade_group_id = str(uuid4())
 
-        response = query.execute()
-        rows = response.data or []
+        for leg in payload.legs:
+            price = self._price_trade(payload.market_id, [leg])
+            record = models.Trade(
+                user_id=payload.user_id,
+                market_id=payload.market_id,
+                trade_group_id=trade_group_id,
+                security_id=leg.security_id,
+                quantity=leg.quantity,
+                price_cents=price,
+                created_at=datetime.now(timezone.utc),
+            )
+            execution_price += price
+            self.session.add(record)
+
+        self.session.commit()
+        return TradePlaceResponse.model_validate(
+            {
+                "priceCents": execution_price,
+                "executedAt": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
+    def list_trades(
+        self, *, user_id: Optional[str] = None, market_id: Optional[str] = None
+    ) -> TradeListResponse:
+        stmt = select(models.Trade).order_by(models.Trade.created_at.desc())
+        if user_id:
+            stmt = stmt.where(models.Trade.user_id == user_id)
+        if market_id:
+            stmt = stmt.where(models.Trade.market_id == market_id)
+
+        rows = self.session.scalars(stmt).all()
         items = [
             TradeRecord.model_validate(
                 {
-                    "id": row["id"],
-                    "userId": row["user_id"],
-                    "marketId": row["market_id"],
-                    "side": row["side"],
-                    "priceCents": row["price_cents"],
-                    "shares": row["shares"],
-                    "stake": row["stake"],
-                    "createdAt": row["created_at"],
+                    "id": row.id,
+                    "userId": row.user_id,
+                    "marketId": row.market_id,
+                    "tradeGroupId": row.trade_group_id,
+                    "securityId": row.security_id,
+                    "quantity": row.quantity,
+                    "priceCents": row.price_cents,
+                    "createdAt": row.created_at,
                 }
             )
             for row in rows
         ]
-        return TradeListResponse(items=items, count=len(items))
-
-    def _determine_price(self, market: MarketWithQuote, payload: TradeCreate) -> float:
-        quote = market.quote
-        if payload.side == "YES":
-            market_price = quote.yes_price_cents
-        else:
-            market_price = quote.no_price_cents
-
-        if payload.limit_price_cents is not None:
-            if payload.side == "YES" and payload.limit_price_cents < market_price:
-                # Will execute at limit if price is better for user
-                return payload.limit_price_cents
-            if payload.side == "NO" and payload.limit_price_cents < market_price:
-                return payload.limit_price_cents
-        return market_price
+        return TradeListResponse.model_validate({"items": items, "count": len(items)})

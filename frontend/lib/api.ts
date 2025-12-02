@@ -1,70 +1,77 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const TOKEN_KEY = "tempora_access_token";
 
 export interface ApiError {
-  detail: string
+  detail: string;
 }
 
 async function fetchWithAuth<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = await getAccessToken()
+  const token = getAccessToken();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...options.headers,
-  }
+  };
 
   if (token) {
-    headers.Authorization = `Bearer ${token}`
+    headers.Authorization = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
-  })
+  });
 
   if (!response.ok) {
-    const error: ApiError = await response.json().catch(() => ({ detail: response.statusText }))
-    throw new Error(error.detail || `HTTP ${response.status}`)
+    const error: ApiError = await response
+      .json()
+      .catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
   }
 
-  return response.json()
+  return response.json();
 }
 
-async function getAccessToken(): Promise<string | null> {
-  try {
-    const { supabase } = await import("./supabase")
-    const { data } = await supabase.auth.getSession()
-    return data.session?.access_token || null
-  } catch {
-    return null
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setAccessToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  if (!token) {
+    localStorage.removeItem(TOKEN_KEY);
+  } else {
+    localStorage.setItem(TOKEN_KEY, token);
   }
 }
 
 // Auth API
 export interface RegisterRequest {
-  email: string
-  password: string
-  displayName?: string
+  email: string;
+  password: string;
+  displayName?: string;
 }
 
 export interface LoginRequest {
-  email: string
-  password: string
+  email: string;
+  password: string;
 }
 
 export interface AuthResponse {
   user: {
-    id: string
-    email: string
-    displayName?: string
-    createdAt?: string
-  }
+    id: string;
+    email: string;
+    displayName?: string;
+    createdAt?: string;
+  };
   tokens: {
-    accessToken: string
-    refreshToken: string
-    tokenType: "bearer"
-  }
+    accessToken: string;
+    refreshToken: string;
+    tokenType: "bearer";
+  };
 }
 
 export const authApi = {
@@ -76,171 +83,210 @@ export const authApi = {
         password: data.password,
         displayName: data.displayName,
       }),
-    })
-    return response
+    });
+    setAccessToken(response.tokens.accessToken);
+    return response;
   },
 
   async login(data: LoginRequest): Promise<AuthResponse> {
     const response = await fetchWithAuth<AuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify(data),
-    })
-    return response
+    });
+    setAccessToken(response.tokens.accessToken);
+    return response;
   },
 
   async getCurrentUser(): Promise<AuthResponse["user"]> {
-    return fetchWithAuth("/auth/me")
+    return fetchWithAuth("/auth/me");
   },
-}
+
+  logout(): void {
+    setAccessToken(null);
+  },
+};
 
 // Markets API
-export interface MarketWithQuote {
-  id: string
-  question: string
-  category: string
-  status: "open" | "closed" | "resolved" | "suspended"
-  resolutionDate: string
-  createdAt: string
-  updatedAt: string
-  description?: string
-  tags: string[]
-  quote: {
-    yesPriceCents: number
-    noPriceCents: number
-    impliedProbability: number
-    lastCalculatedAt: string
-  }
-  totalVolume: number
-  openInterest: number
+export interface Market {
+  id: string;
+  question: string;
+  category: string;
+  status: "open" | "closed" | "resolved" | "suspended";
+  resolutionDate: string;
+  createdAt: string;
+  updatedAt: string;
+  description?: string;
+  tags: string[];
+  quotes: Array<{
+    securityId: string;
+    quantityTraded: number;
+    buyUnitPriceCents: number;
+    sellUnitPriceCents: number;
+    impliedProbability: number;
+    lastCalculatedAt: string;
+  }>;
+  securities: Array<{
+    id: string;
+    marketId: string;
+    outcome: string;
+    createdAt: string;
+  }>;
+  openInterest: number;
+  totalVolume: number;
+  liquidityParameter: number | null;
   settlementDates: Array<{
-    label: string
-    date: string
-  }>
+    label: string;
+    date: string;
+  }>;
 }
 
 export interface MarketListResponse {
-  items: MarketWithQuote[]
-  count: number
+  items: Market[];
+  count: number;
 }
 
 export interface MarketCreate {
-  question: string
-  category: string
-  resolutionDate: string
-  description?: string
-  tags?: string[]
-  initialLiquidity?: number
+  question: string;
+  outcomes: string[];
+  category: string;
+  resolutionDate: string;
+  description?: string;
+  tags?: string[];
+  initialLiquidity?: number;
 }
 
 export const marketsApi = {
-  async listMarkets(params?: { category?: string; status?: string }): Promise<MarketListResponse> {
-    const searchParams = new URLSearchParams()
-    if (params?.category) searchParams.set("category", params.category)
-    if (params?.status) searchParams.set("status", params.status)
+  async listMarkets(params?: {
+    category?: string;
+    status?: string;
+  }): Promise<MarketListResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.category) searchParams.set("category", params.category);
+    if (params?.status) searchParams.set("status", params.status);
 
-    const query = searchParams.toString()
-    return fetchWithAuth(`/markets${query ? `?${query}` : ""}`)
+    const query = searchParams.toString();
+    return fetchWithAuth(`/markets${query ? `?${query}` : ""}`);
   },
 
-  async getMarket(id: string): Promise<MarketWithQuote> {
-    return fetchWithAuth(`/markets/${id}`)
+  async getMarket(id: string): Promise<Market> {
+    return fetchWithAuth(`/markets/${id}`);
   },
 
-  async createMarket(data: MarketCreate): Promise<MarketWithQuote> {
+  async createMarket(data: MarketCreate): Promise<Market> {
     return fetchWithAuth("/markets", {
       method: "POST",
       body: JSON.stringify(data),
-    })
+    });
   },
 
-  async updateMarket(id: string, data: Partial<MarketCreate>): Promise<MarketWithQuote> {
+  async updateMarket(id: string, data: Partial<MarketCreate>): Promise<Market> {
     return fetchWithAuth(`/markets/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
-    })
+    });
   },
-}
+};
 
 // Trades API
+export interface Leg {
+  securityId: string;
+  quantity: number;
+}
+
 export interface TradeCreate {
-  marketId: string
-  side: "YES" | "NO"
-  stake: number
-  limitPriceCents?: number
+  marketId: string;
+  legs: Leg[];
 }
 
 export interface TradeRecord {
-  id: string
-  userId: string
-  marketId: string
-  side: "YES" | "NO"
-  priceCents: number
-  shares: number
-  stake: number
-  createdAt: string
+  id: string;
+  userId: string;
+  marketId: string;
+  tradeGroupId: string;
+  securityId: string;
+  quantity: number;
+  priceCents: number;
+  createdAt: string;
 }
 
 export interface TradeListResponse {
-  items: TradeRecord[]
-  count: number
+  items: TradeRecord[];
+  count: number;
+}
+
+export interface TradePriceResponse {
+  priceCents: number;
+  pricedAt: string;
+}
+
+export interface TradePlaceResponse {
+  priceCents: number;
+  executedAt: string;
 }
 
 export const tradesApi = {
   async listTrades(params?: { marketId?: string }): Promise<TradeListResponse> {
-    const searchParams = new URLSearchParams()
-    if (params?.marketId) searchParams.set("marketId", params.marketId)
+    const searchParams = new URLSearchParams();
+    if (params?.marketId) searchParams.set("marketId", params.marketId);
 
-    const query = searchParams.toString()
-    return fetchWithAuth(`/trades${query ? `?${query}` : ""}`)
+    const query = searchParams.toString();
+    return fetchWithAuth(`/trades${query ? `?${query}` : ""}`);
   },
 
-  async placeTrade(data: TradeCreate): Promise<TradeRecord> {
+  async priceTrade(data: TradeCreate): Promise<TradePriceResponse> {
+    return fetchWithAuth("/trades/price", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async placeTrade(data: TradeCreate): Promise<TradePlaceResponse> {
     return fetchWithAuth("/trades", {
       method: "POST",
       body: JSON.stringify(data),
-    })
+    });
   },
-}
+};
 
 // Users API
 export interface UserProfile {
-  id: string
-  email: string
-  displayName?: string
-  joinedAt: string
-  lastSeenAt?: string
-  totalTrades: number
-  openPositions: number
-  realisedPnL: number
+  id: string;
+  email: string;
+  displayName?: string;
+  joinedAt: string;
+  lastSeenAt?: string;
+  totalTrades: number;
+  openPositions: number;
+  realisedPnL: number;
 }
 
 export interface PortfolioSnapshot {
   holdings: Array<{
-    marketId: string
-    question: string
-    outcome: "YES" | "NO"
-    avgPriceCents: number
-    quantity: number
-    markPriceCents: number
-    endDate: string
-    pnl: number
-  }>
+    marketId: string;
+    securityId: string;
+    question: string;
+    outcome: string;
+    avgPriceCents: number;
+    quantity: number;
+    markPriceCents: number;
+    endDate: string;
+    pnl: number;
+  }>;
   summary: {
-    costBasis: number
-    marketValue: number
-    unrealisedPnL: number
-    roi: number
-  }
+    costBasis: number;
+    marketValue: number;
+    unrealisedPnL: number;
+    roi: number;
+  };
 }
 
 export const usersApi = {
   async getProfile(userId?: string): Promise<UserProfile> {
-    const endpoint = userId ? `/users/${userId}/profile` : "/users/me/profile"
-    return fetchWithAuth(endpoint)
+    const endpoint = userId ? `/users/${userId}/profile` : "/users/me/profile";
+    return fetchWithAuth(endpoint);
   },
 
   async getPortfolio(): Promise<PortfolioSnapshot> {
-    return fetchWithAuth("/users/me/portfolio")
+    return fetchWithAuth("/users/me/portfolio");
   },
-}
-
+};

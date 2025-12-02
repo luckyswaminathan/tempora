@@ -1,65 +1,76 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any
 
-from supabase import Client
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from schemas.market import MarketWithQuote
+from core import models
 from schemas.portfolio import Holding, PortfolioSnapshot, PortfolioSummary
 from services.markets import MarketService
 
 
 class PortfolioService:
-    def __init__(self, supabase: Client) -> None:
-        self.supabase = supabase
-        self.market_service = MarketService(supabase)
+    def __init__(self, session: Session) -> None:
+        self.session = session
+        self.market_service = MarketService(session)
 
     def get_portfolio(self, user_id: str) -> PortfolioSnapshot:
         trades = (
-            self.supabase.table("trades")
-            .select("market_id, side, shares, price_cents, stake")
-            .eq("user_id", user_id)
-            .execute()
-            .data
+            self.session.execute(
+                select(
+                    models.Trade.market_id,
+                    models.Trade.security_id,
+                    models.Trade.quantity,
+                    models.Trade.price_cents,
+                ).where(models.Trade.user_id == user_id)
+            ).all()
             or []
         )
 
-        grouped = defaultdict(lambda: {"shares": 0.0, "stake": 0.0})
-        for trade in trades:
-            key = (trade["market_id"], trade["side"])
-            grouped[key]["shares"] += trade.get("shares", 0.0)
-            grouped[key]["stake"] += trade.get("stake", 0.0)
+        metrics_by_security = defaultdict(lambda: {"quantity": 0, "cost_basis": 0.0})
+        for market_id, security_id, quantity, price_cents in trades:
+            key = (market_id, security_id)
+            metrics_by_security[key]["quantity"] += quantity or 0
+            metrics_by_security[key]["cost_basis"] += price_cents or 0.0
 
         holdings = []
         cost_basis = 0.0
         market_value = 0.0
 
-        for (market_id, side), metrics in grouped.items():
+        for (market_id, security_id), metrics in metrics_by_security.items():
             market = self.market_service.get_market(market_id)
-            mark_price = self._mark_price_for_side(market, side)
-            quantity = metrics["shares"]
-            if quantity:
-                avg_price = (metrics["stake"] / quantity) * 100
-            else:
-                avg_price = mark_price
+            security = self.market_service.get_security(security_id)
 
-            cost_basis += avg_price * quantity / 100
-            mark_value_dollars = mark_price * quantity / 100
-            market_value += mark_value_dollars
-            pnl = mark_value_dollars - (avg_price * quantity / 100)
+            position_cost = metrics["cost_basis"]
+            quantity = metrics["quantity"]
+
+            mark_price = 0.0
+            for quote in market.quotes:
+                if security_id == quote.security_id:
+                    mark_price = 100.0 * quote.implied_probability
+
+            avg_price = mark_price
+            if quantity:
+                avg_price = position_cost / quantity
+
+            cost_basis += position_cost
+            mark_value_cents = mark_price * quantity
+            market_value += mark_value_cents
+            pnl = mark_value_cents - position_cost
 
             holdings.append(
                 Holding.model_validate(
                     {
                         "marketId": market_id,
+                        "securityId": security_id,
                         "question": market.question,
-                        "outcome": side,
-                        "avgPriceCents": round(avg_price, 2),
-                        "quantity": round(quantity, 4),
-                        "markPriceCents": round(mark_price, 2),
+                        "outcome": security.outcome,
+                        "avgPriceCents": avg_price,
+                        "quantity": quantity,
+                        "markPriceCents": mark_price,
                         "endDate": market.resolution_date.strftime("%b %d, %Y"),
-                        "pnl": round(pnl, 2),
+                        "pnl": round(pnl, 20),
                     }
                 )
             )
@@ -77,8 +88,3 @@ class PortfolioService:
         )
 
         return PortfolioSnapshot(holdings=holdings, summary=summary)
-
-    def _mark_price_for_side(self, market: MarketWithQuote, side: str) -> float:
-        if side == "YES":
-            return market.quote.yes_price_cents
-        return market.quote.no_price_cents

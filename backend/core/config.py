@@ -1,15 +1,17 @@
 from functools import lru_cache
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     environment: str = Field(default="development", alias="ENVIRONMENT")
-    supabase_url: str | None = Field(default=None, alias="SUPABASE_URL")
-    supabase_service_role_key: str | None = Field(default=None, alias="SUPABASE_SERVICE_ROLE_KEY")
-    supabase_anon_key: str | None = Field(default=None, alias="SUPABASE_ANON_KEY")
+    database_url: str = Field(default="sqlite:///./.data/sqlite/tempora.db", alias="DATABASE_URL")
+    database_echo: bool = Field(default=False, alias="DATABASE_ECHO")
+    auth_secret_key: str = Field(default="change-me", alias="AUTH_SECRET_KEY")
+    auth_algorithm: str = Field(default="HS256", alias="AUTH_ALGORITHM")
+    auth_access_token_expire_minutes: int = Field(default=60 * 24, alias="AUTH_ACCESS_TOKEN_EXPIRE_MINUTES")
     cors_allow_origins: str = Field(default="*", alias="CORS_ALLOW_ORIGINS")
     pricing_baseline: float = Field(default=50.0, alias="PRICING_BASELINE")
     pricing_sensitivity: float = Field(default=0.045, alias="PRICING_SENSITIVITY")

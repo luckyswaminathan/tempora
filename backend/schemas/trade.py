@@ -1,33 +1,30 @@
 from datetime import datetime
-from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-TradeSide = Literal["YES", "NO"]
+class Leg(BaseModel):
+    security_id: str = Field(alias="securityId")
+    quantity: int = Field(description="amount the trader is buying/selling")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class TradeCreateRequest(BaseModel):
     """Request payload from client (without userId)."""
+
     market_id: str = Field(alias="marketId")
-    side: TradeSide
-    stake: float = Field(ge=0.5, description="Dollar amount the trader is risking")
-    limit_price_cents: Optional[float] = Field(
-        default=None, alias="limitPriceCents", ge=1.0, le=99.0, description="Optional limit price override"
-    )
+    legs: list[Leg] = Field(default_factory=list)
 
     model_config = ConfigDict(populate_by_name=True)
 
 
 class TradeCreate(BaseModel):
     """Internal trade creation model (with userId)."""
-    user_id: str
+
+    user_id: str = Field(alias="userId")
     market_id: str = Field(alias="marketId")
-    side: TradeSide
-    stake: float = Field(ge=0.5, description="Dollar amount the trader is risking")
-    limit_price_cents: Optional[float] = Field(
-        default=None, alias="limitPriceCents", ge=1.0, le=99.0, description="Optional limit price override"
-    )
+    legs: list[Leg] = Field(default_factory=list)
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -36,10 +33,15 @@ class TradeRecord(BaseModel):
     id: str
     user_id: str = Field(alias="userId")
     market_id: str = Field(alias="marketId")
-    side: TradeSide
-    price_cents: float = Field(alias="priceCents")
-    shares: float
-    stake: float
+    trade_group_id: str = Field(
+        alias="tradeGroupId",
+        description="identifies the multi-leg trade that this leg belongs to",
+    )
+    security_id: str = Field(alias="securityId")
+    quantity: int = Field(description="amount the trader is buying/selling")
+    price_cents: float = Field(
+        alias="priceCents", description="price of the entire trade"
+    )
     created_at: datetime = Field(alias="createdAt")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -48,3 +50,19 @@ class TradeRecord(BaseModel):
 class TradeListResponse(BaseModel):
     items: list[TradeRecord]
     count: int
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class TradePriceResponse(BaseModel):
+    price_cents: float = Field(alias="priceCents")
+    priced_at: datetime = Field(alias="pricedAt")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class TradePlaceResponse(BaseModel):
+    price_cents: float = Field(alias="priceCents")
+    executed_at: datetime = Field(alias="executedAt")
+
+    model_config = ConfigDict(populate_by_name=True)
