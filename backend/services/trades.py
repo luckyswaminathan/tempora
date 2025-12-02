@@ -5,8 +5,10 @@ from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import HTTPException, status
-from supabase import Client
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from core import models
 from schemas.trade import (
     Leg,
     TradeCreate,
@@ -21,9 +23,9 @@ from services.pricing import calculate_market_price_cents
 
 
 class TradeService:
-    def __init__(self, supabase: Client) -> None:
-        self.supabase = supabase
-        self.market_service = MarketService(supabase)
+    def __init__(self, session: Session) -> None:
+        self.session = session
+        self.market_service = MarketService(session)
 
     def _price_trade(self, market_id: str, legs: List[Leg]) -> float:
         market = self.market_service.get_market(market_id)
@@ -49,25 +51,19 @@ class TradeService:
 
         for leg in payload.legs:
             price = self._price_trade(payload.market_id, [leg])
-            record = {
-                "user_id": payload.user_id,
-                "market_id": payload.market_id,
-                "trade_group_id": trade_group_id,
-                "security_id": leg.security_id,
-                "quantity": leg.quantity,
-                "price_cents": price,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }
+            record = models.Trade(
+                user_id=payload.user_id,
+                market_id=payload.market_id,
+                trade_group_id=trade_group_id,
+                security_id=leg.security_id,
+                quantity=leg.quantity,
+                price_cents=price,
+                created_at=datetime.now(timezone.utc),
+            )
             execution_price += price
+            self.session.add(record)
 
-            # Insert trade record for leg
-            response = self.supabase.table("trades").insert(record).execute()
-            if not response.data or len(response.data) == 0:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to book trade",
-                )
-
+        self.session.commit()
         return TradePlaceResponse.model_validate(
             {
                 "priceCents": execution_price,
@@ -78,25 +74,24 @@ class TradeService:
     def list_trades(
         self, *, user_id: Optional[str] = None, market_id: Optional[str] = None
     ) -> TradeListResponse:
-        query = self.supabase.table("trades").select("*").order("created_at", desc=True)
+        stmt = select(models.Trade).order_by(models.Trade.created_at.desc())
         if user_id:
-            query = query.eq("user_id", user_id)
+            stmt = stmt.where(models.Trade.user_id == user_id)
         if market_id:
-            query = query.eq("market_id", market_id)
+            stmt = stmt.where(models.Trade.market_id == market_id)
 
-        response = query.execute()
-        rows = response.data or []
+        rows = self.session.scalars(stmt).all()
         items = [
             TradeRecord.model_validate(
                 {
-                    "id": row["id"],
-                    "userId": row["user_id"],
-                    "marketId": row["market_id"],
-                    "tradeGroupId": row["trade_group_id"],
-                    "securityId": row["security_id"],
-                    "quantity": row["quantity"],
-                    "priceCents": row["price_cents"],
-                    "createdAt": row["created_at"],
+                    "id": row.id,
+                    "userId": row.user_id,
+                    "marketId": row.market_id,
+                    "tradeGroupId": row.trade_group_id,
+                    "securityId": row.security_id,
+                    "quantity": row.quantity,
+                    "priceCents": row.price_cents,
+                    "createdAt": row.created_at,
                 }
             )
             for row in rows

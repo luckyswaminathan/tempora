@@ -1,82 +1,88 @@
 import os
 import sys
+from pathlib import Path
+
 import pytest
-from fastapi.testclient import TestClient
 from dotenv import load_dotenv
+from fastapi.testclient import TestClient
 
-# TODO: figure out how to get rid of this ugly stuff
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-from main import create_app
-from api import deps
-from schemas.user import UserBase
-from supabase import create_client
+load_dotenv(ROOT / ".env.test")
 
-# Load test env
-load_dotenv(".env.test")
-TEST_DB_URL = os.environ["SUPABASE_URL"]
-TEST_DB_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-TEST_USER_EMAIL = os.environ["TEST_USER_EMAIL"]
-TEST_USER_PASSWORD = os.environ["TEST_USER_PASSWORD"]
+from api import deps  # noqa: E402
+from core import models  # noqa: E402
+from core.database import Base, SessionLocal, engine, init_db  # noqa: E402
+from main import create_app  # noqa: E402
+from schemas.user import UserBase  # noqa: E402
+from schemas.user import RegisterRequest  # noqa: E402
+from services.auth import AuthService  # noqa: E402
 
 
-@pytest.fixture(scope="session")
-def test_supabase():
-    """
-    Create Supabase client for test environment.
-    """
-    return create_client(TEST_DB_URL, TEST_DB_KEY)
+TEST_USER_EMAIL = os.environ.get("TEST_USER_EMAIL", "test@example.com")
+TEST_USER_PASSWORD = os.environ.get("TEST_USER_PASSWORD", "password123")
 
 
-@pytest.fixture(scope="session")
-def test_user(test_supabase):
-    """
-    Create and return a fake test user for authentication purposes.
-    """
-    existing_users = test_supabase.auth.admin.list_users()
-    for user in existing_users:
-        test_supabase.auth.admin.delete_user(user.id)
-
-    created = test_supabase.auth.admin.create_user(
-        {
-            "email": TEST_USER_EMAIL,
-            "password": TEST_USER_PASSWORD,
-            "email_confirm": True,
-            "user_metadata": {"full_name": "Test User"},
-        }
-    )
-    user = created.user
-
-    return UserBase(
-        id=user.id,
-        email=TEST_USER_EMAIL,
-        displayName=user.user_metadata["full_name"],
-        createdAt=user.created_at,
-    )
-
-
-@pytest.fixture(scope="session")
-def client(test_supabase, test_user):
-    """
-    FastAPI test client using your create_app().
-    """
-    app = create_app()
-
-    # Bypass production database and user authentication
-    app.dependency_overrides[deps.get_supabase_client] = lambda: test_supabase
-    app.dependency_overrides[deps.get_current_user] = lambda: test_user
-
-    return TestClient(app)
+@pytest.fixture(scope="session", autouse=True)
+def setup_db():
+    init_db()
+    yield
 
 
 @pytest.fixture(autouse=True)
-def reset_db(test_supabase):
-    """
-    Clears the database before every test.
-    """
-    TABLES = ["trades", "securities", "markets", "profiles"]
-    for table in TABLES:
-        test_supabase.table(table).delete().not_.is_("id", "null").execute()
+def reset_db():
+    """Clear all tables between tests to keep isolation."""
+    with SessionLocal() as session:
+        for table in reversed(Base.metadata.sorted_tables):
+            session.execute(table.delete())
+        session.commit()
     yield
+
+
+@pytest.fixture()
+def db_session():
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+@pytest.fixture()
+def test_user(db_session) -> UserBase:
+    service = AuthService(db_session)
+    existing = (
+        db_session.query(models.User)
+        .filter(models.User.email == TEST_USER_EMAIL)
+        .one_or_none()
+    )
+    if not existing:
+        service.register(
+            RegisterRequest(
+                email=TEST_USER_EMAIL,
+                password=TEST_USER_PASSWORD,
+                display_name="Test User",
+            )
+        )
+        existing = (
+            db_session.query(models.User)
+            .filter(models.User.email == TEST_USER_EMAIL)
+            .one()
+        )
+    return UserBase.model_validate(
+        {
+            "id": existing.id,
+            "email": existing.email,
+            "displayName": existing.display_name,
+            "createdAt": existing.created_at,
+        }
+    )
+
+
+@pytest.fixture()
+def client(test_user):
+    app = create_app()
+    app.dependency_overrides[deps.get_current_user] = lambda: test_user
+    return TestClient(app)

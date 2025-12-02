@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import auth, markets, trades, users
 from core.config import settings
+from core.database import init_db
 
 
 def create_app() -> FastAPI:
@@ -24,6 +25,10 @@ def create_app() -> FastAPI:
     app.include_router(users.router)
     app.include_router(markets.router)
     app.include_router(trades.router)
+
+    @app.on_event("startup")
+    def _init_db() -> None:
+        init_db()
 
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:

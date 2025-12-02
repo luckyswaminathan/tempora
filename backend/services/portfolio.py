@@ -2,32 +2,37 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from supabase import Client
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from core import models
 from schemas.portfolio import Holding, PortfolioSnapshot, PortfolioSummary
 from services.markets import MarketService
 
 
 class PortfolioService:
-    def __init__(self, supabase: Client) -> None:
-        self.supabase = supabase
-        self.market_service = MarketService(supabase)
+    def __init__(self, session: Session) -> None:
+        self.session = session
+        self.market_service = MarketService(session)
 
     def get_portfolio(self, user_id: str) -> PortfolioSnapshot:
         trades = (
-            self.supabase.table("trades")
-            .select("market_id, security_id, quantity, price_cents")
-            .eq("user_id", user_id)
-            .execute()
-            .data
+            self.session.execute(
+                select(
+                    models.Trade.market_id,
+                    models.Trade.security_id,
+                    models.Trade.quantity,
+                    models.Trade.price_cents,
+                ).where(models.Trade.user_id == user_id)
+            ).all()
             or []
         )
 
         metrics_by_security = defaultdict(lambda: {"quantity": 0, "cost_basis": 0.0})
-        for trade in trades:
-            key = (trade["market_id"], trade["security_id"])
-            metrics_by_security[key]["quantity"] += trade.get("quantity", 0)
-            metrics_by_security[key]["cost_basis"] += trade.get("price_cents", 0.0)
+        for market_id, security_id, quantity, price_cents in trades:
+            key = (market_id, security_id)
+            metrics_by_security[key]["quantity"] += quantity or 0
+            metrics_by_security[key]["cost_basis"] += price_cents or 0.0
 
         holdings = []
         cost_basis = 0.0

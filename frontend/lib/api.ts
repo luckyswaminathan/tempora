@@ -1,4 +1,5 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const TOKEN_KEY = "tempora_access_token";
 
 export interface ApiError {
   detail: string;
@@ -8,7 +9,7 @@ async function fetchWithAuth<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = await getAccessToken();
+  const token = getAccessToken();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...options.headers,
@@ -33,13 +34,17 @@ async function fetchWithAuth<T>(
   return response.json();
 }
 
-async function getAccessToken(): Promise<string | null> {
-  try {
-    const { supabase } = await import("./supabase");
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token || null;
-  } catch {
-    return null;
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setAccessToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  if (!token) {
+    localStorage.removeItem(TOKEN_KEY);
+  } else {
+    localStorage.setItem(TOKEN_KEY, token);
   }
 }
 
@@ -79,6 +84,7 @@ export const authApi = {
         displayName: data.displayName,
       }),
     });
+    setAccessToken(response.tokens.accessToken);
     return response;
   },
 
@@ -87,11 +93,16 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify(data),
     });
+    setAccessToken(response.tokens.accessToken);
     return response;
   },
 
   async getCurrentUser(): Promise<AuthResponse["user"]> {
     return fetchWithAuth("/auth/me");
+  },
+
+  logout(): void {
+    setAccessToken(null);
   },
 };
 
