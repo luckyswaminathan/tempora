@@ -94,6 +94,43 @@ def seed_markets() -> None:
                 {"outcome": "2027 Q4"},
             ],
         },
+        {
+            "market": {
+                "question": "When will the next Constitutional amendment be ratified?",
+                "category": "Politics",
+                "description": "",
+                "resolution_date": (
+                    datetime.now(timezone.utc) + timedelta(days=365)
+                ).isoformat(),
+                "status": "open",
+                "tags": ["constitution", "congress", "law"],
+                "liquidity_parameter": 100000,
+                "settlement_dates": [
+                    {
+                        "label": "2026",
+                        "date": (
+                            datetime.now(timezone.utc) + timedelta(days=180)
+                        ).isoformat(),
+                    },
+                    {
+                        "label": "2030",
+                        "date": (
+                            datetime.now(timezone.utc) + timedelta(days=365)
+                        ).isoformat(),
+                    },
+                ],
+            },
+            "securities": [
+                {"outcome": "2026"},
+                {"outcome": "2027"},
+                {"outcome": "2028"},
+                {"outcome": "2029"},
+                {"outcome": "2030"},
+                {"outcome": "2031"},
+                {"outcome": "2032"},
+                {"outcome": "2033"},
+            ],
+        },
     ]
 
     print("Creating markets...")
