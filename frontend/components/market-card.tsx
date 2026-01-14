@@ -37,6 +37,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
   const [intervalRange, setIntervalRange] = useState<[number, number]>([
     -1, -1,
   ]);
+  const [lastSelected, setLastSelected] = useState<number>(-1);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const refreshMarket = async () => {
@@ -74,16 +75,18 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
 
   const handleBarClick = (index: number) => {
     if (viewMode === "interval") {
-      const [start, end] = intervalRange;
-
-      if (start === -1) {
+      if (lastSelected === -1) {
         // First click - set both start and end to same index
         setIntervalRange([index, index]);
       } else {
         // Already have a selection - update the range
         // User can click anywhere to extend/shrink the range
-        setIntervalRange([Math.min(start, index), Math.max(start, index)]);
+        setIntervalRange([
+          Math.min(lastSelected, index),
+          Math.max(lastSelected, index),
+        ]);
       }
+      setLastSelected(index);
     } else {
       // Individual mode - open dialog immediately with single outcome
       const outcome = outcomes[index];
@@ -100,11 +103,13 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
 
   const handleResetInterval = () => {
     setIntervalRange([-1, -1]);
+    setLastSelected(-1);
   };
 
   const handleTradeSuccess = () => {
     setDialogOpen(false);
     setIntervalRange([-1, -1]);
+    setLastSelected(-1);
     refreshMarket();
   };
 
@@ -205,6 +210,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
             onClick={() => {
               setViewMode("individual");
               setIntervalRange([-1, -1]);
+              setLastSelected(-1);
             }}
             className="flex-1"
           >
@@ -217,6 +223,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
             onClick={() => {
               setViewMode("interval");
               setIntervalRange([-1, -1]);
+              setLastSelected(-1);
             }}
             className="flex-1"
           >
@@ -258,7 +265,6 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
                       : "hover:ring-2 hover:ring-primary"
                   }`}
                 >
-                  {/* bar fill */}
                   <div
                     className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${getBarColor(
                       index
@@ -266,18 +272,19 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
                     style={{ width: `${widthPercent}%` }}
                   />
 
-                  {/* outcome pill (left) */}
                   <div className="absolute left-3 top-0 h-full flex items-center z-10">
                     <Pill>{outcome.outcome}</Pill>
                   </div>
 
-                  {/* probability + qty pills (right) */}
                   <div
                     className="absolute top-0 h-full flex items-center gap-2 z-10"
                     style={{ right: "12px" }}
                   >
                     <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
-                    <Pill>{outcome.quantityTraded}</Pill>
+                  </div>
+
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full px-2 py-1 rounded-md bg-gray-900 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg">
+                    <Pill>{outcome.quantityTraded} shares traded</Pill>
                   </div>
                 </button>
               );

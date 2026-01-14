@@ -77,36 +77,84 @@ def seed_markets() -> None:
                     "2027 Q4",
                 ],
             },
-        ]
-
-        for market in markets:
-            m = models.Market(
-                question=market["question"],
-                category=market["category"],
-                description=market["description"],
-                resolution_date=market["resolution_date"],
-                status=market["status"],
-                tags=market["tags"],
-                liquidity_parameter=market["liquidity_parameter"],
-                settlement_dates=[
-                    {"label": sd["label"], "date": sd["date"].isoformat()}
-                    for sd in market["settlement_dates"]
+            "securities": [
+                {"outcome": "2026 Q1"},
+                {"outcome": "2026 Q2"},
+                {"outcome": "2026 Q3"},
+                {"outcome": "2026 Q4"},
+                {"outcome": "2027 Q1"},
+                {"outcome": "2027 Q2"},
+                {"outcome": "2027 Q3"},
+                {"outcome": "2027 Q4"},
+            ],
+        },
+        {
+            "market": {
+                "question": "When will the next Constitutional amendment be ratified?",
+                "category": "Politics",
+                "description": "",
+                "resolution_date": (
+                    datetime.now(timezone.utc) + timedelta(days=365)
+                ).isoformat(),
+                "status": "open",
+                "tags": ["constitution", "congress", "law"],
+                "liquidity_parameter": 100000,
+                "settlement_dates": [
+                    {
+                        "label": "2026",
+                        "date": (
+                            datetime.now(timezone.utc) + timedelta(days=180)
+                        ).isoformat(),
+                    },
+                    {
+                        "label": "2030",
+                        "date": (
+                            datetime.now(timezone.utc) + timedelta(days=365)
+                        ).isoformat(),
+                    },
                 ],
-            )
-            session.add(m)
-            session.flush()
-            for outcome in market["securities"]:
-                session.add(
-                    models.Security(
-                        market_id=m.id,
-                        outcome=outcome,
-                        created_at=datetime.now(timezone.utc),
-                    )
-                )
-        session.commit()
-        print(f"Seeded {len(markets)} markets.")
-    finally:
-        session.close()
+            },
+            "securities": [
+                {"outcome": "2026"},
+                {"outcome": "2027"},
+                {"outcome": "2028"},
+                {"outcome": "2029"},
+                {"outcome": "2030"},
+                {"outcome": "2031"},
+                {"outcome": "2032"},
+                {"outcome": "2033"},
+            ],
+        },
+    ]
+
+    print("Creating markets...")
+    for market_obj in markets:
+        market, securities = market_obj["market"], market_obj["securities"]
+        market_id = None
+        try:
+            result = supabase.table("markets").insert(market).execute()
+            if result.data:
+                print(f"✓ Created market: {market['question']}")
+                market_id = result.data[0]["id"]
+            else:
+                print(f"✗ Failed to create market: {market['question']}")
+        except Exception as e:
+            print(f"✗ Error creating market '{market['question']}': {e}")
+
+        for security in securities:
+            security["market_id"] = market_id
+            try:
+                result = supabase.table("securities").insert(security).execute()
+                if result.data:
+                    print(f"✓ Created security: {security['outcome']}")
+                else:
+                    print(f"✗ Failed to create security: {security['outcome']}")
+            except Exception as e:
+                print(f"✗ Error creating security '{security['outcome']}': {e}")
+
+        print()
+
+    print(f"\nCreated {len(markets)} markets")
 
 
 def main() -> None:
