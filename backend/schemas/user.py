@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserBase(BaseModel):
-    id: str = Field(description="Supabase Auth user UUID")
+    id: str = Field(description="User UUID")
     email: EmailStr
     display_name: Optional[str] = Field(default=None, alias="displayName")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")

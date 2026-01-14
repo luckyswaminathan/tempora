@@ -1,4 +1,5 @@
 __pycache__
 .venv
-.env
-.env.test
+.env*
+.data
+*.db
