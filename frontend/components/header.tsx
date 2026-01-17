@@ -1,14 +1,15 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { TrendingUp, User } from "lucide-react"
-import { useAuth } from "@/contexts/auth-context"
-import { AuthDialog } from "@/components/auth-dialog"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, User } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { AuthDialog } from "@/components/auth-dialog";
 
 export function Header() {
-  const { user, signOut, loading } = useAuth()
-  const [authDialogOpen, setAuthDialogOpen] = useState(false)
+  const { user, signOut, loading } = useAuth();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
   return (
     <>
@@ -24,13 +25,22 @@ export function Header() {
               </a>
             </div>
             <nav className="hidden md:flex items-center gap-6">
-              <a href="/" className="text-sm font-medium hover:text-primary transition-colors">
+              <a
+                href="/"
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
                 Markets
               </a>
-              <a href="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+              <a
+                href="/portfolio"
+                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+              >
                 Portfolio
               </a>
-              <a href="/leaderboard" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+              <a
+                href="/leaderboard"
+                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+              >
                 Leaderboard
               </a>
             </nav>
@@ -49,10 +59,23 @@ export function Header() {
                 </>
               ) : (
                 <>
-                  <Button variant="ghost" size="sm" onClick={() => setAuthDialogOpen(true)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setAuthMode("login");
+                      setAuthDialogOpen(true);
+                    }}
+                  >
                     Sign In
                   </Button>
-                  <Button size="sm" onClick={() => setAuthDialogOpen(true)}>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setAuthMode("register");
+                      setAuthDialogOpen(true);
+                    }}
+                  >
                     Get Started
                   </Button>
                 </>
@@ -61,7 +84,11 @@ export function Header() {
           </div>
         </div>
       </header>
-      <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        defaultMode={authMode}
+      />
     </>
-  )
+  );
 }
