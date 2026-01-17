@@ -72,6 +72,7 @@ class AuthService:
         self._sync_profile(
             user_id=user.id,
             email=user.email,
+            role=user.role,
             display_name=user.display_name,
             last_seen_at=datetime.now(timezone.utc),
         )
@@ -105,13 +106,18 @@ class AuthService:
             {
                 "id": user.id,
                 "email": user.email,
+                "role": user.role,
                 "displayName": user.display_name,
                 "createdAt": user.created_at,
             }
         )
 
     def get_profile(self, user_id: str) -> UserProfile:
-        profile = self.session.query(models.Profile).filter(models.Profile.id == user_id).first()
+        profile = (
+            self.session.query(models.Profile)
+            .filter(models.Profile.id == user_id)
+            .first()
+        )
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found"
@@ -130,6 +136,7 @@ class AuthService:
         mapped = {
             "id": profile.id,
             "email": profile.email,
+            "role": profile.role,
             "displayName": profile.display_name,
             "joinedAt": profile.joined_at,
             "lastSeenAt": profile.last_seen_at,
@@ -144,22 +151,27 @@ class AuthService:
         *,
         user_id: str,
         email: str,
+        role: str,
         display_name: Optional[str],
         joined_at: Optional[datetime] = None,
         last_seen_at: Optional[datetime] = None,
     ) -> None:
         profile = (
-            self.session.query(models.Profile).filter(models.Profile.id == user_id).first()
+            self.session.query(models.Profile)
+            .filter(models.Profile.id == user_id)
+            .first()
         )
         now_ts = datetime.now(timezone.utc)
         if profile:
             profile.email = email
+            profile.role = role
             profile.display_name = display_name
             profile.last_seen_at = last_seen_at or now_ts
         else:
             profile = models.Profile(
                 id=user_id,
                 email=email,
+                role=role,
                 display_name=display_name,
                 joined_at=joined_at or now_ts,
                 last_seen_at=last_seen_at,
@@ -170,11 +182,14 @@ class AuthService:
             user.display_name = display_name or user.display_name
         self.session.commit()
 
-    def _build_auth_response(self, user, access_token: str, refresh_token: str) -> AuthResponse:
+    def _build_auth_response(
+        self, user, access_token: str, refresh_token: str
+    ) -> AuthResponse:
         base = UserBase.model_validate(
             {
                 "id": user.id,
                 "email": user.email,
+                "role": user.role,
                 "displayName": user.display_name,
                 "createdAt": getattr(user, "created_at", None),
             }

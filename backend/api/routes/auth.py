@@ -22,6 +22,7 @@ def sync_profile(
     auth_service._sync_profile(
         user_id=current_user.id,
         email=current_user.email,
+        role=current_user.role,
         display_name=payload.displayName,
         joined_at=None,
         last_seen_at=None,
@@ -29,7 +30,9 @@ def sync_profile(
     return {"status": "ok"}
 
 
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED
+)
 def register_user(
     payload: RegisterRequest,
     auth_service: AuthService = Depends(deps.get_auth_service),

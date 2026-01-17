@@ -9,7 +9,6 @@ from schemas.trade import (
     TradeListResponse,
     TradePriceResponse,
     TradePlaceResponse,
-    TradeRecord,
 )
 from schemas.user import UserBase
 from services.markets import MarketService

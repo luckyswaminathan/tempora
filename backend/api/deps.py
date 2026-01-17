@@ -49,3 +49,16 @@ def get_current_user(
             detail="Unsupported authorization scheme",
         )
     return auth_service.get_user_from_token(token)
+
+
+def get_current_admin(
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    user = get_current_user(authorization, auth_service)
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User does not have admin role",
+        )
+    return user

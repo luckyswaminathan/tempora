@@ -5,6 +5,7 @@ def test_auth_me(client):
     data = resp.json()
     assert "id" in data
     assert "email" in data
+    assert "role" in data
 
 
 def test_register_and_login_flow():
@@ -37,7 +38,10 @@ def test_register_and_login_flow():
             headers={"Authorization": f"Bearer {tokens['accessToken']}"},
         )
         assert me_resp.status_code == 200
-        assert me_resp.json()["email"] == register_payload["email"]
+
+        data = me_resp.json()
+        assert data["email"] == register_payload["email"]
+        assert data["role"] == "admin"
 
         me_resp_login = live_client.get(
             "/auth/me",

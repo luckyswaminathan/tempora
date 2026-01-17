@@ -64,7 +64,7 @@ export interface AuthResponse {
   user: {
     id: string;
     email: string;
-    role: string;
+    role: "user" | "admin";
     displayName?: string;
     createdAt?: string;
   };
@@ -262,7 +262,7 @@ export const tradesApi = {
 export interface UserProfile {
   id: string;
   email: string;
-  role: string;
+  role: "user" | "admin";
   displayName?: string;
   joinedAt: string;
   lastSeenAt?: string;
