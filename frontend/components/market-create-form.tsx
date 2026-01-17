@@ -1,17 +1,24 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card } from "@/components/ui/card"
-import { marketsApi } from "@/lib/api"
-import { toast } from "sonner"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { marketsApi } from "@/lib/api";
+import { toast } from "sonner";
 
-const CATEGORIES = ["Economics", "Politics", "Technology", "Sports", "Climate", "General"]
+const CATEGORIES = [
+  "Economics",
+  "Politics",
+  "Technology",
+  "Sports",
+  "Climate",
+  "General",
+];
 
 export function MarketCreateForm() {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     question: "",
     category: "General",
@@ -19,50 +26,52 @@ export function MarketCreateForm() {
     resolutionDate: "",
     outcomes: ["", ""],
     tags: "",
-    initialLiquidity: "1000",
-  })
+    liquidityParameter: "1000",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
       // Filter out empty outcomes
-      const outcomes = formData.outcomes.filter((o) => o.trim())
+      const outcomes = formData.outcomes.filter((o) => o.trim());
       if (outcomes.length < 2) {
-        toast.error("Please provide at least 2 outcomes")
-        setLoading(false)
-        return
+        toast.error("Please provide at least 2 outcomes");
+        setLoading(false);
+        return;
       }
 
       if (!formData.question.trim()) {
-        toast.error("Please enter a question")
-        setLoading(false)
-        return
+        toast.error("Please enter a question");
+        setLoading(false);
+        return;
       }
 
       if (!formData.resolutionDate) {
-        toast.error("Please select a resolution date")
-        setLoading(false)
-        return
+        toast.error("Please select a resolution date");
+        setLoading(false);
+        return;
       }
 
       const tags = formData.tags
         .split(",")
         .map((t) => t.trim())
-        .filter((t) => t)
+        .filter((t) => t);
 
-      const market = await marketsApi.createMarket({
+      await marketsApi.createMarket({
         question: formData.question,
         category: formData.category,
         description: formData.description,
         resolutionDate: formData.resolutionDate,
         outcomes,
         tags,
-        initialLiquidity: formData.initialLiquidity ? parseInt(formData.initialLiquidity) * 100 : 0,
-      })
+        liquidityParameter: formData.liquidityParameter
+          ? parseInt(formData.liquidityParameter)
+          : undefined,
+      });
 
-      toast.success("Market created successfully!")
+      toast.success("Market created successfully!");
       // Reset form
       setFormData({
         question: "",
@@ -71,30 +80,35 @@ export function MarketCreateForm() {
         resolutionDate: "",
         outcomes: ["", ""],
         tags: "",
-        initialLiquidity: "1000",
-      })
+        liquidityParameter: "1000",
+      });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create market")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create market",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const updateOutcome = (index: number, value: string) => {
-    const newOutcomes = [...formData.outcomes]
-    newOutcomes[index] = value
-    setFormData({ ...formData, outcomes: newOutcomes })
-  }
+    const newOutcomes = [...formData.outcomes];
+    newOutcomes[index] = value;
+    setFormData({ ...formData, outcomes: newOutcomes });
+  };
 
   const addOutcome = () => {
-    setFormData({ ...formData, outcomes: [...formData.outcomes, ""] })
-  }
+    setFormData({ ...formData, outcomes: [...formData.outcomes, ""] });
+  };
 
   const removeOutcome = (index: number) => {
     if (formData.outcomes.length > 2) {
-      setFormData({ ...formData, outcomes: formData.outcomes.filter((_, i) => i !== index) })
+      setFormData({
+        ...formData,
+        outcomes: formData.outcomes.filter((_, i) => i !== index),
+      });
     }
-  }
+  };
 
   return (
     <Card className="p-6 max-w-2xl">
@@ -107,7 +121,9 @@ export function MarketCreateForm() {
             id="question"
             placeholder="What is your prediction question?"
             value={formData.question}
-            onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, question: e.target.value })
+            }
             required
           />
         </div>
@@ -119,7 +135,9 @@ export function MarketCreateForm() {
             id="category"
             className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
             value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, category: e.target.value })
+            }
           >
             {CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>
@@ -137,7 +155,9 @@ export function MarketCreateForm() {
             placeholder="Provide additional context about this market..."
             className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground min-h-24"
             value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, description: e.target.value })
+            }
           />
         </div>
 
@@ -148,7 +168,9 @@ export function MarketCreateForm() {
             id="resolutionDate"
             type="datetime-local"
             value={formData.resolutionDate}
-            onChange={(e) => setFormData({ ...formData, resolutionDate: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, resolutionDate: e.target.value })
+            }
             required
           />
         </div>
@@ -199,15 +221,17 @@ export function MarketCreateForm() {
           />
         </div>
 
-        {/* Initial Liquidity */}
+        {/* Liquidity parameter */}
         <div>
-          <Label htmlFor="initialLiquidity">Initial Liquidity ($)</Label>
+          <Label htmlFor="liquidityParameter">Liquidity parameter</Label>
           <Input
-            id="initialLiquidity"
+            id="liquidityParameter"
             type="number"
             placeholder="1000"
-            value={formData.initialLiquidity}
-            onChange={(e) => setFormData({ ...formData, initialLiquidity: e.target.value })}
+            value={formData.liquidityParameter}
+            onChange={(e) =>
+              setFormData({ ...formData, liquidityParameter: e.target.value })
+            }
           />
         </div>
 
@@ -216,5 +240,5 @@ export function MarketCreateForm() {
         </Button>
       </form>
     </Card>
-  )
+  );
 }
