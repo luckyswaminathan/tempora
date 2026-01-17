@@ -1,62 +1,84 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useAuth } from "@/contexts/auth-context"
+import { useEffect, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/auth-context";
 
 interface AuthDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  defaultMode?: "login" | "register"
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  defaultMode?: "login" | "register";
 }
 
-export function AuthDialog({ open, onOpenChange, defaultMode = "login" }: AuthDialogProps) {
-  const [mode, setMode] = useState<"login" | "register">(defaultMode)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [displayName, setDisplayName] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const { signIn, signUp } = useAuth()
+export function AuthDialog({
+  open,
+  onOpenChange,
+  defaultMode = "login",
+}: AuthDialogProps) {
+  const [mode, setMode] = useState<"login" | "register">(defaultMode);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { signIn, signUp } = useAuth();
+
+  useEffect(() => {
+    if (open) {
+      setMode(defaultMode);
+      setError(null);
+    }
+  }, [open, defaultMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
 
     try {
       if (mode === "login") {
-        await signIn(email, password)
-        onOpenChange(false)
-        setEmail("")
-        setPassword("")
+        await signIn(email, password);
+        onOpenChange(false);
+        setEmail("");
+        setPassword("");
       } else {
-        await signUp(email, password, displayName || undefined)
+        await signUp(email, password, displayName || undefined);
         // If signUp succeeds without throwing, user is logged in
-        onOpenChange(false)
-        setEmail("")
-        setPassword("")
-        setDisplayName("")
+        onOpenChange(false);
+        setEmail("");
+        setPassword("");
+        setDisplayName("");
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An error occurred"
-      setError(errorMessage)
-      console.error("Auth error:", err)
+      const errorMessage =
+        err instanceof Error ? err.message : "An error occurred";
+      setError(errorMessage);
+      console.error("Auth error:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{mode === "login" ? "Sign In" : "Create Account"}</DialogTitle>
+          <DialogTitle>
+            {mode === "login" ? "Sign In" : "Create Account"}
+          </DialogTitle>
           <DialogDescription>
-            {mode === "login" ? "Sign in to your account to continue" : "Create a new account to get started"}
+            {mode === "login"
+              ? "Sign in to your account to continue"
+              : "Create a new account to get started"}
           </DialogDescription>
         </DialogHeader>
 
@@ -103,24 +125,29 @@ export function AuthDialog({ open, onOpenChange, defaultMode = "login" }: AuthDi
 
           <div className="flex flex-col gap-2">
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Loading..." : mode === "login" ? "Sign In" : "Create Account"}
+              {loading
+                ? "Loading..."
+                : mode === "login"
+                  ? "Sign In"
+                  : "Create Account"}
             </Button>
 
             <Button
               type="button"
               variant="ghost"
               onClick={() => {
-                setMode(mode === "login" ? "register" : "login")
-                setError(null)
+                setMode(mode === "login" ? "register" : "login");
+                setError(null);
               }}
               className="w-full"
             >
-              {mode === "login" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              {mode === "login"
+                ? "Don't have an account? Sign up"
+                : "Already have an account? Sign in"}
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-
