@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/contexts/auth-context"
-import { Card } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MarketCreateForm } from "@/components/market-create-form"
-import { MarketSettleTab } from "@/components/market-settle-tab"
+import { useAuth } from "@/contexts/auth-context";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MarketCreateForm } from "@/components/market-create-form";
+import { MarketSettleTab } from "@/components/market-settle-tab";
 
 export default function AdminPage() {
-  const { user, loading } = useAuth()
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -16,27 +16,31 @@ export default function AdminPage() {
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Please sign in to access admin panel</p>
+          <p className="text-muted-foreground">
+            Please sign in to access admin panel
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   if (user.role !== "admin") {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center py-12">
-          <p className="text-muted-foreground">You don't have permission to access this page</p>
+          <p className="text-muted-foreground">
+            You don't have permission to access this page
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -63,5 +67,5 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

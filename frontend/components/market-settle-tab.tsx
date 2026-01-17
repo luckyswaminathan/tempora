@@ -1,63 +1,63 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { marketsApi } from "@/lib/api"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { MarketSettleForm } from "@/components/market-settle-form"
-import { Badge } from "@/components/ui/badge"
+import { useEffect, useState } from "react";
+import { marketsApi } from "@/lib/api";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { MarketSettleForm } from "@/components/market-settle-form";
+import { Badge } from "@/components/ui/badge";
 
 interface Market {
-  id: string
-  question: string
-  status: string
-  category: string
+  id: string;
+  question: string;
+  status: string;
+  category: string;
   securities: Array<{
-    id: string
-    outcome: string
-  }>
+    id: string;
+    outcome: string;
+  }>;
 }
 
 export const MarketSettleTab = () => {
-  const [markets, setMarkets] = useState<Market[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [settlingMarket, setSettlingMarket] = useState<string | null>(null)
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [settlingMarket, setSettlingMarket] = useState<string | null>(null);
 
   useEffect(() => {
-    loadMarkets()
-  }, [])
+    loadMarkets();
+  }, []);
 
   const loadMarkets = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      const response = await marketsApi.listMarkets()
+      setLoading(true);
+      setError(null);
+      const response = await marketsApi.listMarkets();
       // Filter for open and closed markets (not yet resolved)
-      const unsettledMarkets = response.filter(
-        (m: Market) => m.status === "open" || m.status === "closed"
-      )
-      setMarkets(unsettledMarkets)
+      const unsettledMarkets = response.items.filter(
+        (m: Market) => m.status === "open" || m.status === "closed",
+      );
+      setMarkets(unsettledMarkets);
     } catch (err) {
-      setError("Failed to load markets")
-      console.error(err)
+      setError("Failed to load markets");
+      console.error(err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSettled = (marketId: string) => {
-    setSettlingMarket(null)
+    setSettlingMarket(null);
     // Reload markets to reflect the settled status
-    loadMarkets()
-  }
+    loadMarkets();
+  };
 
   if (loading) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">Loading markets...</p>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -68,7 +68,7 @@ export const MarketSettleTab = () => {
           Retry
         </Button>
       </Card>
-    )
+    );
   }
 
   if (markets.length === 0) {
@@ -76,7 +76,7 @@ export const MarketSettleTab = () => {
       <Card className="p-6 text-center">
         <p className="text-muted-foreground">No markets available to settle</p>
       </Card>
-    )
+    );
   }
 
   return (
@@ -131,5 +131,5 @@ export const MarketSettleTab = () => {
         ))}
       </div>
     </div>
-  )
-}
+  );
+};
