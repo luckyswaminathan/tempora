@@ -153,7 +153,7 @@ export interface MarketCreate {
   resolutionDate: string;
   description?: string;
   tags?: string[];
-  initialLiquidity?: number;
+  liquidityParameter?: number;
 }
 
 export const marketsApi = {
@@ -187,7 +187,10 @@ export const marketsApi = {
     });
   },
 
-  async settleMarket(id: string, data: { winning_outcome?: string; winningOutcome?: string }): Promise<any> {
+  async settleMarket(
+    id: string,
+    data: { winning_outcome?: string; winningOutcome?: string },
+  ): Promise<any> {
     return fetchWithAuth(`/markets/${id}/settle`, {
       method: "POST",
       body: JSON.stringify({

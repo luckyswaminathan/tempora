@@ -26,7 +26,7 @@ export function MarketCreateForm() {
     resolutionDate: "",
     outcomes: ["", ""],
     tags: "",
-    initialLiquidity: "1000",
+    liquidityParameter: "1000",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,16 +59,16 @@ export function MarketCreateForm() {
         .map((t) => t.trim())
         .filter((t) => t);
 
-      const market = await marketsApi.createMarket({
+      await marketsApi.createMarket({
         question: formData.question,
         category: formData.category,
         description: formData.description,
         resolutionDate: formData.resolutionDate,
         outcomes,
         tags,
-        initialLiquidity: formData.initialLiquidity
-          ? parseInt(formData.initialLiquidity) * 100
-          : 0,
+        liquidityParameter: formData.liquidityParameter
+          ? parseInt(formData.liquidityParameter)
+          : undefined,
       });
 
       toast.success("Market created successfully!");
@@ -80,7 +80,7 @@ export function MarketCreateForm() {
         resolutionDate: "",
         outcomes: ["", ""],
         tags: "",
-        initialLiquidity: "1000",
+        liquidityParameter: "1000",
       });
     } catch (error) {
       toast.error(
@@ -221,16 +221,16 @@ export function MarketCreateForm() {
           />
         </div>
 
-        {/* Initial Liquidity */}
+        {/* Liquidity parameter */}
         <div>
-          <Label htmlFor="initialLiquidity">Initial Liquidity ($)</Label>
+          <Label htmlFor="liquidityParameter">Liquidity parameter</Label>
           <Input
-            id="initialLiquidity"
+            id="liquidityParameter"
             type="number"
             placeholder="1000"
-            value={formData.initialLiquidity}
+            value={formData.liquidityParameter}
             onChange={(e) =>
-              setFormData({ ...formData, initialLiquidity: e.target.value })
+              setFormData({ ...formData, liquidityParameter: e.target.value })
             }
           />
         </div>
