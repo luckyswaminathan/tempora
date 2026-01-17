@@ -28,7 +28,7 @@ def list_markets(
 def create_market(
     payload: MarketCreate,
     service: MarketService = Depends(deps.get_market_service),
-    _: UserBase = Depends(deps.get_current_user),
+    _: UserBase = Depends(deps.get_current_admin),
 ) -> Market:
     return service.create_market(payload)
 

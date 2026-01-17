@@ -1,12 +1,19 @@
 from datetime import datetime
+from enum import StrEnum
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
+class UserRole(StrEnum):
+    USER = "user"
+    ADMIN = "admin"
+
+
 class UserBase(BaseModel):
     id: str = Field(description="User UUID")
     email: EmailStr
+    role: UserRole
     display_name: Optional[str] = Field(default=None, alias="displayName")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
 
@@ -15,7 +22,9 @@ class UserBase(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6, description="Minimum 6 characters per Supabase requirements")
+    password: str = Field(
+        min_length=6, description="Minimum 6 characters per Supabase requirements"
+    )
     display_name: Optional[str] = Field(default=None, alias="displayName")
 
 
@@ -40,6 +49,7 @@ class AuthResponse(BaseModel):
 class UserProfile(BaseModel):
     id: str
     email: EmailStr
+    role: UserRole
     display_name: Optional[str] = Field(default=None, alias="displayName")
     joined_at: datetime = Field(alias="joinedAt")
     last_seen_at: Optional[datetime] = Field(default=None, alias="lastSeenAt")

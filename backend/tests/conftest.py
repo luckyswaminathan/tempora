@@ -75,6 +75,7 @@ def test_user(db_session) -> UserBase:
         {
             "id": existing.id,
             "email": existing.email,
+            "role": existing.role,
             "displayName": existing.display_name,
             "createdAt": existing.created_at,
         }
@@ -85,4 +86,5 @@ def test_user(db_session) -> UserBase:
 def client(test_user):
     app = create_app()
     app.dependency_overrides[deps.get_current_user] = lambda: test_user
+    app.dependency_overrides[deps.get_current_admin] = lambda: test_user
     return TestClient(app)

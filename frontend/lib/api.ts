@@ -7,7 +7,7 @@ export interface ApiError {
 
 async function fetchWithAuth<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const token = getAccessToken();
   const headers: HeadersInit = {
@@ -64,6 +64,7 @@ export interface AuthResponse {
   user: {
     id: string;
     email: string;
+    role: "user" | "admin";
     displayName?: string;
     createdAt?: string;
   };
@@ -252,6 +253,7 @@ export const tradesApi = {
 export interface UserProfile {
   id: string;
   email: string;
+  role: "user" | "admin";
   displayName?: string;
   joinedAt: string;
   lastSeenAt?: string;

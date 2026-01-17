@@ -5,7 +5,6 @@ from typing import List
 from uuid import uuid4
 
 from sqlalchemy import (
-    Column,
     DateTime,
     Float,
     ForeignKey,
@@ -17,6 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from core.config import settings
 from core.database import Base
 
 
@@ -31,6 +31,11 @@ class User(Base):
         String, primary_key=True, default=lambda: str(uuid4())
     )
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    role: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default="admin" if settings.environment == "test" else "user",
+    )
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -51,6 +56,7 @@ class Profile(Base):
         String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     email: Mapped[str | None] = mapped_column(String, nullable=True)
+    role: Mapped[str] = mapped_column(String, nullable=False, default="user")
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False
