@@ -9,6 +9,7 @@ from services.markets import MarketService
 from services.trades import TradeService
 from services.auth import AuthService
 from services.portfolio import PortfolioService
+from services.leaderboard import LeaderboardService
 
 
 def get_auth_service(session: Session = Depends(get_session)) -> AuthService:
@@ -25,6 +26,12 @@ def get_trade_service(session: Session = Depends(get_session)) -> TradeService:
 
 def get_portfolio_service(session: Session = Depends(get_session)) -> PortfolioService:
     return PortfolioService(session)
+
+
+def get_leaderboard_service(
+    session: Session = Depends(get_session),
+) -> LeaderboardService:
+    return LeaderboardService(session)
 
 
 def get_current_user(

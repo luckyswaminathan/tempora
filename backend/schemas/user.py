@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -41,7 +41,7 @@ class AuthResponse(BaseModel):
     tokens: AuthTokens
 
 
-class UserProfile(BaseModel):
+class BaseUserProfile(BaseModel):
     id: str
     email: EmailStr
     role: UserRole
@@ -49,8 +49,17 @@ class UserProfile(BaseModel):
     wallet: int
     joined_at: datetime = Field(alias="joinedAt")
     last_seen_at: Optional[datetime] = Field(default=None, alias="lastSeenAt")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class UserProfile(BaseUserProfile):
     total_trades: int = Field(default=0, alias="totalTrades")
     open_positions: int = Field(default=0, alias="openPositions")
     realised_pnl: float = Field(default=0.0, alias="realisedPnL")
+
+
+class LeaderboardResponse(BaseModel):
+    leaderboard: List[BaseUserProfile]
 
     model_config = ConfigDict(populate_by_name=True)

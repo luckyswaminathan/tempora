@@ -292,6 +292,18 @@ export interface PortfolioSnapshot {
   };
 }
 
+export interface LeaderboardResponse {
+  leaderboard: Array<{
+    id: string;
+    email: string;
+    role: "user" | "admin";
+    displayName?: string;
+    wallet: number;
+    joinedAt: string;
+    lastSeenAt?: string;
+  }>;
+}
+
 export const usersApi = {
   async getProfile(userId?: string): Promise<UserProfile> {
     const endpoint = userId ? `/users/${userId}/profile` : "/users/me/profile";
@@ -300,5 +312,15 @@ export const usersApi = {
 
   async getPortfolio(): Promise<PortfolioSnapshot> {
     return fetchWithAuth("/users/me/portfolio");
+  },
+
+  async getLeaderboard(params: {
+    limit: number;
+  }): Promise<LeaderboardResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.set("limit", params.limit.toString());
+
+    const query = searchParams.toString();
+    return fetchWithAuth(`/users/leaderboard?${query}`);
   },
 };

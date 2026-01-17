@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from api import deps
 from schemas.portfolio import PortfolioSnapshot
-from schemas.user import UserBase, UserProfile
+from schemas.user import UserBase, UserProfile, LeaderboardResponse
 from services.auth import AuthService
 from services.portfolio import PortfolioService
+from services.leaderboard import LeaderboardService
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -30,3 +31,11 @@ def get_my_portfolio(
     portfolio_service: PortfolioService = Depends(deps.get_portfolio_service),
 ) -> PortfolioSnapshot:
     return portfolio_service.get_portfolio(current_user.id)
+
+
+@router.get("/leaderboard", response_model=LeaderboardResponse)
+def get_leaderboard(
+    limit: int = Query(gt=0),
+    leaderboard_service: LeaderboardService = Depends(deps.get_leaderboard_service),
+) -> LeaderboardResponse:
+    return leaderboard_service.get_leaderboard(limit)

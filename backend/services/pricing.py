@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from math import exp, log
 from typing import Dict, List, Optional
 
+from fastapi import HTTPException, status
+
 from schemas.market import MarketQuote
 
 USE_LS_LMSR = False
@@ -85,4 +87,10 @@ def calculate_market_price_cents(
     trade_map: Dict[str, float],
     liquidity: Optional[float] = None,
 ) -> int:
-    return _lmsr_price_cents(quantities_map, trade_map, liquidity)
+    try:
+        return _lmsr_price_cents(quantities_map, trade_map, liquidity)
+    except OverflowError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot process quantity size",
+        )
