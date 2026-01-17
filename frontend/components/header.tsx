@@ -20,35 +20,52 @@ export function Header() {
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-primary-foreground">
                 <TrendingUp className="w-6 h-6" />
               </div>
-              <a href="/" className="text-xl font-bold hover:opacity-90">
+              <a
+                id="logo-tempora"
+                href="/"
+                className="text-xl font-bold hover:opacity-90"
+              >
                 tempora
               </a>
             </div>
             <nav className="hidden md:flex items-center gap-6">
               <a
+                id="nav-markets"
                 href="/"
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 Markets
               </a>
               <a
+                id="nav-portfolio"
                 href="/portfolio"
                 className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
               >
                 Portfolio
               </a>
               <a
+                id="nav-leaderboard"
                 href="/leaderboard"
                 className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
               >
                 Leaderboard
               </a>
               <a
+                id="nav-tutorial"
                 href="/tutorial"
                 className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
               >
                 Tutorial
               </a>
+              {user?.role === "admin" && (
+                <a
+                  id="nav-admin"
+                  href="/admin"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Admin
+                </a>
+              )}
             </nav>
             <div className="flex items-center gap-3">
               {loading ? (

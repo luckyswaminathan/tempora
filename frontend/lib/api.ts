@@ -7,7 +7,7 @@ export interface ApiError {
 
 async function fetchWithAuth<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const token = getAccessToken();
   const headers: HeadersInit = {
@@ -64,6 +64,7 @@ export interface AuthResponse {
   user: {
     id: string;
     email: string;
+    role: string;
     displayName?: string;
     createdAt?: string;
   };
@@ -185,6 +186,15 @@ export const marketsApi = {
       body: JSON.stringify(data),
     });
   },
+
+  async settleMarket(id: string, data: { winning_outcome?: string; winningOutcome?: string }): Promise<any> {
+    return fetchWithAuth(`/markets/${id}/settle`, {
+      method: "POST",
+      body: JSON.stringify({
+        winning_outcome: data.winning_outcome || data.winningOutcome,
+      }),
+    });
+  },
 };
 
 // Trades API
@@ -252,6 +262,7 @@ export const tradesApi = {
 export interface UserProfile {
   id: string;
   email: string;
+  role: string;
   displayName?: string;
   joinedAt: string;
   lastSeenAt?: string;
