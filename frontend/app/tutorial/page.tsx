@@ -73,22 +73,6 @@ const TUTORIAL_SECTIONS = [
   },
   {
     id: 4,
-    title: "Technical Analysis",
-    icon: LineChart,
-    color: "text-purple-500",
-    lessons: [
-      {
-        title: "Support & Resistance Levels",
-        duration: "18 min",
-        completed: false,
-      },
-      { title: "Trend Lines & Patterns", duration: "20 min", completed: false },
-      { title: "Moving Averages", duration: "15 min", completed: false },
-      { title: "Volume Analysis", duration: "12 min", completed: false },
-    ],
-  },
-  {
-    id: 6,
     title: "Community & Social",
     icon: Users,
     color: "text-cyan-500",

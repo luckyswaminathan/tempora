@@ -9,6 +9,7 @@ import { AuthDialog } from "@/components/auth-dialog";
 export function Header() {
   const { user, signOut, loading } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
   return (
     <>
@@ -71,7 +72,13 @@ export function Header() {
                   >
                     Sign In
                   </Button>
-                  <Button size="sm" onClick={() => setAuthDialogOpen(true)}>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setAuthMode("register");
+                      setAuthDialogOpen(true);
+                    }}
+                  >
                     Get Started
                   </Button>
                 </>
@@ -80,7 +87,11 @@ export function Header() {
           </div>
         </div>
       </header>
-      <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        defaultMode={authMode}
+      />
     </>
   );
 }
