@@ -13,7 +13,6 @@ export interface AuthUser {
   id: string;
   email: string;
   role: string;
-  displayName?: string;
   createdAt?: string;
 }
 

@@ -12,13 +12,15 @@ if str(ROOT) not in sys.path:
 
 load_dotenv(ROOT / ".env.test")
 
+from main import create_app  # noqa: E402
+
 from api import deps  # noqa: E402
 from core import models  # noqa: E402
 from core.database import Base, SessionLocal, engine, init_db  # noqa: E402
-from main import create_app  # noqa: E402
-from schemas.user import UserBase  # noqa: E402
-from schemas.user import RegisterRequest  # noqa: E402
 from services.auth import AuthService  # noqa: E402
+
+from schemas.user import UserBase, RegisterRequest  # noqa: E402
+from schemas.market import Market
 
 
 TEST_USER_EMAIL = os.environ.get("TEST_USER_EMAIL", "test@example.com")
@@ -76,15 +78,33 @@ def test_user(db_session) -> UserBase:
             "id": existing.id,
             "email": existing.email,
             "role": existing.role,
-            "displayName": existing.display_name,
             "createdAt": existing.created_at,
         }
     )
 
 
 @pytest.fixture()
-def client(test_user):
+def client(test_user) -> TestClient:
     app = create_app()
     app.dependency_overrides[deps.get_current_user] = lambda: test_user
     app.dependency_overrides[deps.get_current_admin] = lambda: test_user
     return TestClient(app)
+
+
+@pytest.fixture()
+def test_market(request, client) -> Market:
+    outcomes = int(request.param)
+
+    payload = {
+        "question": "?",
+        "outcomes": [str(i) for i in range(outcomes)],
+        "category": "general",
+        "resolutionDate": "2030-01-01T00:00:00",
+        "description": "",
+        "liquidityParameter": "1000",
+    }
+
+    resp = client.post("/markets", json=payload)
+    assert resp.status_code == 201
+
+    return Market.model_validate(resp.json())

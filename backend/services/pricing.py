@@ -41,7 +41,7 @@ def _lmsr_price_cents(
     quantities_map: Dict[str, float],
     trade_map: Dict[str, float],
     liquidity: Optional[float] = None,
-) -> float:
+) -> int:
     quantities = list(quantities_map.values())
     base_cost = _lmsr_cost(quantities, liquidity)
 
@@ -50,7 +50,7 @@ def _lmsr_price_cents(
     ]
     post_trade_cost = _lmsr_cost(post_trade_quantities, liquidity)
 
-    return 100.0 * (post_trade_cost - base_cost)
+    return round(100 * (post_trade_cost - base_cost))
 
 
 def calculate_market_quotes(
@@ -60,19 +60,22 @@ def calculate_market_quotes(
 
     quotes = []
     for security_id, quantity in quantities_map.items():
-        mapped = {
-            "security_id": security_id,
-            "quantity_traded": quantity,
-            "buy_unit_price_cents": _lmsr_price_cents(
-                quantities_map, {security_id: 1}, liquidity
-            ),
-            "sell_unit_price_cents": _lmsr_price_cents(
-                quantities_map, {security_id: -1}, liquidity
-            ),
-            "implied_probability": probs[security_id],
-            "last_calculated_at": datetime.now(timezone.utc),
-        }
-        quotes.append(MarketQuote.model_validate(mapped))
+        quotes.append(
+            MarketQuote.model_validate(
+                {
+                    "security_id": security_id,
+                    "quantity_traded": quantity,
+                    "buy_unit_price_cents": _lmsr_price_cents(
+                        quantities_map, {security_id: 1}, liquidity
+                    ),
+                    "sell_unit_price_cents": _lmsr_price_cents(
+                        quantities_map, {security_id: -1}, liquidity
+                    ),
+                    "implied_probability": probs[security_id],
+                    "last_calculated_at": datetime.now(timezone.utc),
+                }
+            )
+        )
 
     return quotes
 
@@ -81,5 +84,5 @@ def calculate_market_price_cents(
     quantities_map: Dict[str, float],
     trade_map: Dict[str, float],
     liquidity: Optional[float] = None,
-) -> float:
+) -> int:
     return _lmsr_price_cents(quantities_map, trade_map, liquidity)

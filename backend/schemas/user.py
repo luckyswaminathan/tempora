@@ -1,20 +1,15 @@
 from datetime import datetime
-from enum import StrEnum
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-
-class UserRole(StrEnum):
-    USER = "user"
-    ADMIN = "admin"
+from core.models import UserRole
 
 
 class UserBase(BaseModel):
     id: str = Field(description="User UUID")
     email: EmailStr
     role: UserRole
-    display_name: Optional[str] = Field(default=None, alias="displayName")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -51,6 +46,7 @@ class UserProfile(BaseModel):
     email: EmailStr
     role: UserRole
     display_name: Optional[str] = Field(default=None, alias="displayName")
+    wallet: int
     joined_at: datetime = Field(alias="joinedAt")
     last_seen_at: Optional[datetime] = Field(default=None, alias="lastSeenAt")
     total_trades: int = Field(default=0, alias="totalTrades")

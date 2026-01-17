@@ -16,10 +16,7 @@ class Settings(BaseSettings):
         default=60 * 24, alias="AUTH_ACCESS_TOKEN_EXPIRE_MINUTES"
     )
     cors_allow_origins: str = Field(default="*", alias="CORS_ALLOW_ORIGINS")
-    pricing_baseline: float = Field(default=50.0, alias="PRICING_BASELINE")
-    pricing_sensitivity: float = Field(default=0.045, alias="PRICING_SENSITIVITY")
-    pricing_floor: float = Field(default=5.0, alias="PRICING_FLOOR")
-    pricing_ceiling: float = Field(default=95.0, alias="PRICING_CEILING")
+    starting_amount: int = Field(default="100000", alias="STARTING_AMOUNT")
 
     model_config = SettingsConfigDict(
         env_file=(".env",),

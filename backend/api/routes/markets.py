@@ -7,6 +7,7 @@ from schemas.market import (
     MarketCreate,
     MarketListResponse,
     MarketUpdate,
+    MarketSettlement,
     Market,
 )
 from schemas.user import UserBase
@@ -49,3 +50,12 @@ def update_market(
     _: UserBase = Depends(deps.get_current_user),
 ) -> Market:
     return service.update_market(market_id, payload)
+
+
+@router.put("/settle", response_model=Market)
+def settle_market(
+    payload: MarketSettlement,
+    service: MarketService = Depends(deps.get_market_service),
+    _: UserBase = Depends(deps.get_current_admin),
+) -> Market:
+    return service.settle_market(payload)

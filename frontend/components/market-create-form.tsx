@@ -115,7 +115,7 @@ export function MarketCreateForm() {
       <h2 className="text-2xl font-bold mb-6">Create New Market</h2>
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Question */}
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="question">Question</Label>
           <Input
             id="question"
@@ -129,7 +129,7 @@ export function MarketCreateForm() {
         </div>
 
         {/* Category */}
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="category">Category</Label>
           <select
             id="category"
@@ -148,7 +148,7 @@ export function MarketCreateForm() {
         </div>
 
         {/* Description */}
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="description">Description (Optional)</Label>
           <textarea
             id="description"
@@ -162,7 +162,7 @@ export function MarketCreateForm() {
         </div>
 
         {/* Resolution Date */}
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="resolutionDate">Resolution Date</Label>
           <Input
             id="resolutionDate"
@@ -176,7 +176,7 @@ export function MarketCreateForm() {
         </div>
 
         {/* Outcomes */}
-        <div>
+        <div className="space-y-2">
           <Label>Outcomes</Label>
           <div className="space-y-2">
             {formData.outcomes.map((outcome, idx) => (
@@ -211,7 +211,7 @@ export function MarketCreateForm() {
         </div>
 
         {/* Tags */}
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="tags">Tags (Optional, comma-separated)</Label>
           <Input
             id="tags"
@@ -222,7 +222,7 @@ export function MarketCreateForm() {
         </div>
 
         {/* Liquidity parameter */}
-        <div>
+        <div className="space-y-2">
           <Label htmlFor="liquidityParameter">Liquidity parameter</Label>
           <Input
             id="liquidityParameter"

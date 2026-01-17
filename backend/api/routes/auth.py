@@ -21,8 +21,6 @@ def sync_profile(
     """Sync user profile after signup/login."""
     auth_service._sync_profile(
         user_id=current_user.id,
-        email=current_user.email,
-        role=current_user.role,
         display_name=payload.displayName,
         joined_at=None,
         last_seen_at=None,

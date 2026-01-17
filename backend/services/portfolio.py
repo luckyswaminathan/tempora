@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
 from core import models
 from schemas.portfolio import Holding, PortfolioSnapshot, PortfolioSummary
@@ -16,26 +17,30 @@ class PortfolioService:
         self.market_service = MarketService(session)
 
     def get_portfolio(self, user_id: str) -> PortfolioSnapshot:
-        trades = (
-            self.session.execute(
-                select(
-                    models.Trade.market_id,
-                    models.Trade.security_id,
-                    models.Trade.quantity,
-                    models.Trade.price_cents,
-                ).where(models.Trade.user_id == user_id)
-            ).all()
-            or []
-        )
+        profile = self.session.get(models.Profile, user_id)
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
+            )
 
-        metrics_by_security = defaultdict(lambda: {"quantity": 0, "cost_basis": 0.0})
-        for market_id, security_id, quantity, price_cents in trades:
-            key = (market_id, security_id)
-            metrics_by_security[key]["quantity"] += quantity or 0
-            metrics_by_security[key]["cost_basis"] += price_cents or 0.0
+        stmt = (
+            select(models.Trade)
+            .join(models.Market, models.Trade.market_id == models.Market.id)
+            .where(
+                models.Trade.user_id == user_id,
+                models.Market.status != models.MarketStatus.RESOLVED,
+            )
+        )
+        open_trades = self.session.scalars(stmt).all()
+
+        metrics_by_security = defaultdict(lambda: {"quantity": 0, "cost_basis": 0})
+        for trade in open_trades:
+            key = (trade.market_id, trade.security_id)
+            metrics_by_security[key]["quantity"] += trade.quantity or 0
+            metrics_by_security[key]["cost_basis"] += trade.price_cents or 0
 
         holdings = []
-        cost_basis = 0.0
+        cost_basis = 0
         market_value = 0.0
 
         for (market_id, security_id), metrics in metrics_by_security.items():
@@ -66,11 +71,11 @@ class PortfolioService:
                         "securityId": security_id,
                         "question": market.question,
                         "outcome": security.outcome,
-                        "avgPriceCents": avg_price,
+                        "avgPriceCents": round(avg_price, 2),
                         "quantity": quantity,
-                        "markPriceCents": mark_price,
+                        "markPriceCents": round(mark_price, 2),
                         "endDate": market.resolution_date.strftime("%b %d, %Y"),
-                        "pnl": round(pnl, 20),
+                        "pnl": round(pnl),
                     }
                 )
             )
@@ -80,11 +85,13 @@ class PortfolioService:
 
         summary = PortfolioSummary.model_validate(
             {
-                "costBasis": round(cost_basis, 2),
+                "costBasis": cost_basis,
                 "marketValue": round(market_value, 2),
                 "unrealisedPnL": round(unrealised_pnl, 2),
                 "roi": round(roi, 2),
             }
         )
 
-        return PortfolioSnapshot(holdings=holdings, summary=summary)
+        return PortfolioSnapshot(
+            wallet=profile.wallet, holdings=holdings, summary=summary
+        )

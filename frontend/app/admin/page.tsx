@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuth } from "@/contexts/auth-context";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MarketCreateForm } from "@/components/market-create-form";
 import { MarketSettleTab } from "@/components/market-settle-tab";
@@ -50,22 +49,7 @@ export default function AdminPage() {
         <p className="text-muted-foreground mt-1">Manage prediction markets</p>
       </div>
 
-      <Tabs defaultValue="create" className="w-full">
-        <TabsList>
-          <TabsTrigger value="create">Create Market</TabsTrigger>
-          <TabsTrigger value="settle">Settle Markets</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="create" className="mt-6">
-          <div className="max-w-2xl">
-            <MarketCreateForm />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="settle" className="mt-6">
-          <MarketSettleTab />
-        </TabsContent>
-      </Tabs>
+      <MarketCreateForm />
     </div>
   );
 }

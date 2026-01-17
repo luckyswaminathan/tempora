@@ -5,6 +5,7 @@ from typing import Optional
 from uuid import uuid4
 
 from fastapi import HTTPException, status
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from core import models
@@ -40,17 +41,13 @@ class AuthService:
             id=user_id,
             email=payload.email,
             password_hash=hash_password(payload.password),
-            display_name=payload.display_name,
             created_at=datetime.now(timezone.utc),
         )
-        profile = models.Profile(
-            id=user_id,
-            email=payload.email,
+        user.profile = models.Profile(
             display_name=payload.display_name,
             joined_at=datetime.now(timezone.utc),
             last_seen_at=None,
         )
-        user.profile = profile
         self.session.add(user)
         self.session.commit()
         self.session.refresh(user)
@@ -69,13 +66,7 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
             )
 
-        self._sync_profile(
-            user_id=user.id,
-            email=user.email,
-            role=user.role,
-            display_name=user.display_name,
-            last_seen_at=datetime.now(timezone.utc),
-        )
+        self._sync_profile(user_id=user.id, last_seen_at=datetime.now(timezone.utc))
 
         token = create_access_token(user.id)
         return self._build_auth_response(user, token, token)
@@ -107,52 +98,51 @@ class AuthService:
                 "id": user.id,
                 "email": user.email,
                 "role": user.role,
-                "displayName": user.display_name,
                 "createdAt": user.created_at,
             }
         )
 
     def get_profile(self, user_id: str) -> UserProfile:
-        profile = (
-            self.session.query(models.Profile)
-            .filter(models.Profile.id == user_id)
-            .first()
-        )
+        profile = self.session.get(models.Profile, user_id)
         if not profile:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
             )
 
-        trades = (
-            self.session.query(models.Trade)
-            .filter(models.Trade.user_id == user_id)
-            .all()
-        )
+        total_trades = len(profile.user.trades)
 
-        total_trades = len(trades)
-        open_positions = len({trade.market_id for trade in trades})
+        stmt = (
+            select(func.count(func.distinct(models.Trade.market_id)))
+            .join(models.Market, models.Trade.market_id == models.Market.id)
+            .where(
+                models.Trade.user_id == user_id,
+                models.Market.status != models.MarketStatus.RESOLVED,
+            )
+        )
+        open_positions = self.session.scalar(stmt) or 0
+
         realised_pnl = 0.0  # Placeholder until settlement logic exists
 
-        mapped = {
-            "id": profile.id,
-            "email": profile.email,
-            "role": profile.role,
-            "displayName": profile.display_name,
-            "joinedAt": profile.joined_at,
-            "lastSeenAt": profile.last_seen_at,
-            "totalTrades": total_trades,
-            "openPositions": open_positions,
-            "realisedPnL": round(realised_pnl, 2),
-        }
-        return UserProfile.model_validate(mapped)
+        return UserProfile.model_validate(
+            {
+                "id": profile.user.id,
+                "email": profile.user.email,
+                "role": profile.user.role,
+                "displayName": profile.display_name,
+                "wallet": profile.wallet,
+                "joinedAt": profile.joined_at,
+                "lastSeenAt": profile.last_seen_at,
+                "totalTrades": total_trades,
+                "openPositions": open_positions,
+                "realisedPnL": round(realised_pnl, 2),
+            }
+        )
 
     def _sync_profile(
         self,
-        *,
         user_id: str,
-        email: str,
-        role: str,
-        display_name: Optional[str],
+        *,
+        display_name: Optional[str] = None,
         joined_at: Optional[datetime] = None,
         last_seen_at: Optional[datetime] = None,
     ) -> None:
@@ -162,24 +152,25 @@ class AuthService:
             .first()
         )
         now_ts = datetime.now(timezone.utc)
+
         if profile:
-            profile.email = email
-            profile.role = role
-            profile.display_name = display_name
             profile.last_seen_at = last_seen_at or now_ts
         else:
+            user = self.session.get(models.User, user_id)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                )
+
             profile = models.Profile(
                 id=user_id,
-                email=email,
-                role=role,
                 display_name=display_name,
                 joined_at=joined_at or now_ts,
-                last_seen_at=last_seen_at,
+                last_seen_at=last_seen_at or now_ts,
             )
             self.session.add(profile)
-        user = self.session.get(models.User, user_id)
-        if user:
-            user.display_name = display_name or user.display_name
+            user.profile = profile
+
         self.session.commit()
 
     def _build_auth_response(
@@ -190,7 +181,6 @@ class AuthService:
                 "id": user.id,
                 "email": user.email,
                 "role": user.role,
-                "displayName": user.display_name,
                 "createdAt": getattr(user, "created_at", None),
             }
         )

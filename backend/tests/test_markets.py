@@ -15,7 +15,6 @@ def test_create_market(client):
     }
 
     resp = client.post("/markets", json=payload)
-    print(resp.json())
     assert resp.status_code == 201
 
     data = resp.json()

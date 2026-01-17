@@ -18,7 +18,9 @@ def get_my_profile(
 
 
 @router.get("/{user_id}/profile", response_model=UserProfile)
-def get_user_profile(user_id: str, auth_service: AuthService = Depends(deps.get_auth_service)) -> UserProfile:
+def get_user_profile(
+    user_id: str, auth_service: AuthService = Depends(deps.get_auth_service)
+) -> UserProfile:
     return auth_service.get_profile(user_id)
 
 

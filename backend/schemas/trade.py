@@ -39,7 +39,7 @@ class TradeRecord(BaseModel):
     )
     security_id: str = Field(alias="securityId")
     quantity: int = Field(description="amount the trader is buying/selling")
-    price_cents: float = Field(
+    price_cents: int = Field(
         alias="priceCents", description="price of the entire trade"
     )
     created_at: datetime = Field(alias="createdAt")
@@ -55,14 +55,14 @@ class TradeListResponse(BaseModel):
 
 
 class TradePriceResponse(BaseModel):
-    price_cents: float = Field(alias="priceCents")
+    price_cents: int = Field(alias="priceCents")
     priced_at: datetime = Field(alias="pricedAt")
 
     model_config = ConfigDict(populate_by_name=True)
 
 
 class TradePlaceResponse(BaseModel):
-    price_cents: float = Field(alias="priceCents")
+    price_cents: int = Field(alias="priceCents")
     executed_at: datetime = Field(alias="executedAt")
 
     model_config = ConfigDict(populate_by_name=True)

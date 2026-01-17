@@ -232,7 +232,7 @@ export function BetDialog({
                 </div>
                 <div className="text-lg font-mono">
                   {quote?.buyUnitPriceCents
-                    ? `${quote.buyUnitPriceCents.toFixed(2)}¢`
+                    ? `${quote.buyUnitPriceCents}¢`
                     : "—"}
                 </div>
               </div>

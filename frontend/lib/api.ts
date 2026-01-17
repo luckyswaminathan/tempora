@@ -65,7 +65,6 @@ export interface AuthResponse {
     id: string;
     email: string;
     role: "user" | "admin";
-    displayName?: string;
     createdAt?: string;
   };
   tokens: {
@@ -187,14 +186,11 @@ export const marketsApi = {
     });
   },
 
-  async settleMarket(
-    id: string,
-    data: { winning_outcome?: string; winningOutcome?: string },
-  ): Promise<any> {
-    return fetchWithAuth(`/markets/${id}/settle`, {
+  async settleMarket(winningSecurityId: string): Promise<any> {
+    return fetchWithAuth(`/markets/settle`, {
       method: "POST",
       body: JSON.stringify({
-        winning_outcome: data.winning_outcome || data.winningOutcome,
+        winningSecurityId: winningSecurityId,
       }),
     });
   },
@@ -267,6 +263,7 @@ export interface UserProfile {
   email: string;
   role: "user" | "admin";
   displayName?: string;
+  wallet: number;
   joinedAt: string;
   lastSeenAt?: string;
   totalTrades: number;
@@ -275,6 +272,7 @@ export interface UserProfile {
 }
 
 export interface PortfolioSnapshot {
+  wallet: number;
   holdings: Array<{
     marketId: string;
     securityId: string;

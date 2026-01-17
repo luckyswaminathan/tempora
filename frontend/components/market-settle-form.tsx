@@ -29,17 +29,13 @@ export function MarketSettleForm({
 
   const handleSettle = async () => {
     if (!selectedOutcome) {
-      toast.error("Please select an outcome");
+      toast.error("Please select a winning outcome");
       return;
     }
 
     setLoading(true);
     try {
-      await marketsApi.settleMarket(market.id, {
-        winning_outcome: selectedOutcome,
-        winningOutcome: selectedOutcome,
-      } as any);
-
+      await marketsApi.settleMarket(selectedOutcome);
       toast.success(`Market settled with outcome: ${selectedOutcome}`);
       setSettled(true);
       onSettled?.();

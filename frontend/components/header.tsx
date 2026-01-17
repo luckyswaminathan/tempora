@@ -85,7 +85,10 @@ export function Header() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setAuthDialogOpen(true)}
+                    onClick={() => {
+                      setAuthMode("login");
+                      setAuthDialogOpen(true);
+                    }}
                   >
                     Sign In
                   </Button>
