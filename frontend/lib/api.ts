@@ -255,6 +255,15 @@ export interface TradePlaceResponse {
   executedAt: string;
 }
 
+export interface PriceHistoryData {
+  priceCents: number;
+  time: string;
+}
+
+export interface PriceHistoryResponse {
+  history: PriceHistoryData[];
+}
+
 export const tradesApi = {
   async listTrades(params?: { marketId?: string }): Promise<TradeListResponse> {
     const searchParams = new URLSearchParams();
@@ -352,5 +361,11 @@ export const usersApi = {
       method: "PUT",
       body: JSON.stringify({ lessonKey, completed }),
     });
+  },
+
+  async get_security_price_history(
+    securityId  : string,
+  ): Promise<PriceHistoryResponse> {
+    return fetchWithAuth(`/trades/price-history/${securityId}`);
   },
 };
