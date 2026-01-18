@@ -20,8 +20,6 @@ class TutorialService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
             )
 
-        print(f"Updating {lesson_key}: {completed}")
-
         profile.tutorial_completions[lesson_key] = completed
         self.session.commit()
         self.session.refresh(profile)

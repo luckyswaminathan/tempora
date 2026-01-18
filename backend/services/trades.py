@@ -17,6 +17,8 @@ from schemas.trade import (
     TradePriceResponse,
     TradePlaceResponse,
     TradeRecord,
+    PriceHistoryData,
+    PriceHistoryResponse,
 )
 from services.markets import MarketService
 from services.pricing import calculate_market_price_cents
@@ -112,3 +114,23 @@ class TradeService:
             for row in rows
         ]
         return TradeListResponse.model_validate({"items": items, "count": len(items)})
+
+    def get_price_history(self, security_id: str) -> PriceHistoryResponse:
+        stmt = (
+            select(models.Trade)
+            .where(models.Trade.security_id == security_id)
+            .order_by(models.Trade.created_at)
+        )
+        trades = self.session.scalars(stmt).all()
+
+        history = [
+            PriceHistoryData.model_validate(
+                {
+                    "price_cents": round(trade.price_cents / trade.quantity),
+                    "date": trade.created_at,
+                }
+            )
+            for trade in trades
+        ]
+
+        return PriceHistoryResponse.model_validate({"history": history})

@@ -66,3 +66,16 @@ class TradePlaceResponse(BaseModel):
     executed_at: datetime = Field(alias="executedAt")
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class PriceHistoryData(BaseModel):
+    price_cents: int = Field(alias="priceCents")
+    date: datetime
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class PriceHistoryResponse(BaseModel):
+    history: list[PriceHistoryData]
+
+    model_config = ConfigDict(populate_by_name=True)
