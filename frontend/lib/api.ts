@@ -206,7 +206,9 @@ export const marketsApi = {
     });
   },
 
-  async settleMarket(winningSecurityId: string): Promise<MarketSettlementResponse> {
+  async settleMarket(
+    winningSecurityId: string,
+  ): Promise<MarketSettlementResponse> {
     return fetchWithAuth(`/markets/settle`, {
       method: "PUT",
       body: JSON.stringify({
@@ -286,9 +288,7 @@ export interface UserProfile {
   wallet: number;
   joinedAt: string;
   lastSeenAt?: string;
-  totalTrades: number;
-  openPositions: number;
-  realisedPnL: number;
+  tutorialCompletions?: Record<string, boolean>;
 }
 
 export interface PortfolioSnapshot {
@@ -342,5 +342,15 @@ export const usersApi = {
 
     const query = searchParams.toString();
     return fetchWithAuth(`/users/leaderboard?${query}`);
+  },
+
+  async updateTutorialCompletion(
+    lessonKey: string,
+    completed: boolean,
+  ): Promise<UserProfile> {
+    return fetchWithAuth("/users/me/tutorial", {
+      method: "PUT",
+      body: JSON.stringify({ lessonKey, completed }),
+    });
   },
 };

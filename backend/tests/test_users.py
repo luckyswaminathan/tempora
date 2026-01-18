@@ -14,9 +14,6 @@ def test_profile(client):
     assert "wallet" in data
     assert "joinedAt" in data
     assert "lastSeenAt" in data
-    assert "totalTrades" in data
-    assert "openPositions" in data
-    assert "realisedPnL" in data
 
 
 def test_portfolio(client):

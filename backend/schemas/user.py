@@ -15,6 +15,21 @@ class UserBase(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class UserProfile(BaseModel):
+    id: str
+    email: EmailStr
+    role: UserRole
+    display_name: Optional[str] = Field(default=None, alias="displayName")
+    wallet: int
+    joined_at: datetime = Field(alias="joinedAt")
+    last_seen_at: Optional[datetime] = Field(default=None, alias="lastSeenAt")
+    tutorial_completions: Optional[dict] = Field(
+        default_factory=dict, alias="tutorialCompletions"
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(
@@ -41,25 +56,14 @@ class AuthResponse(BaseModel):
     tokens: AuthTokens
 
 
-class BaseUserProfile(BaseModel):
-    id: str
-    email: EmailStr
-    role: UserRole
-    display_name: Optional[str] = Field(default=None, alias="displayName")
-    wallet: int
-    joined_at: datetime = Field(alias="joinedAt")
-    last_seen_at: Optional[datetime] = Field(default=None, alias="lastSeenAt")
+class UpdateTutorialRequest(BaseModel):
+    lesson_key: str = Field(alias="lessonKey")
+    completed: bool
 
     model_config = ConfigDict(populate_by_name=True)
 
 
-class UserProfile(BaseUserProfile):
-    total_trades: int = Field(default=0, alias="totalTrades")
-    open_positions: int = Field(default=0, alias="openPositions")
-    realised_pnl: float = Field(default=0.0, alias="realisedPnL")
-
-
 class LeaderboardResponse(BaseModel):
-    leaderboard: List[BaseUserProfile]
+    leaderboard: List[UserProfile]
 
     model_config = ConfigDict(populate_by_name=True)
