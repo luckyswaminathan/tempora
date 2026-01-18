@@ -3,7 +3,7 @@
 import { useAuth } from "@/contexts/auth-context";
 import { MarketCreateForm } from "@/components/market-create-form";
 
-export default function AdminPage() {
+export default function CreatePage() {
   const { user, loading } = useAuth();
 
   if (loading) {
