@@ -12,11 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import type { Market } from "@/lib/api";
 import { tradesApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { PriceHistoryChart } from "@/components/price-history-chart";
 
 interface BetDialogProps {
   open: boolean;
@@ -45,6 +47,7 @@ export function BetDialog({
   const [loading, setLoading] = useState(false);
   const [fetchingPrice, setFetchingPrice] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("trade");
 
   // For single outcome, get the security directly
   const securityId = isSingle ? selectedOutcomes[0].id : undefined;
@@ -197,218 +200,250 @@ export function BetDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Header card */}
-          {isInterval ? (
-            <div className="p-4 rounded-lg bg-muted">
-              <div className="text-sm text-muted-foreground mb-1">
-                Trading interval
-              </div>
-              <div className="text-2xl font-bold mb-2">{intervalText}</div>
-              <div className="flex items-center gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Outcomes: </span>
-                  <span className="font-medium">{numOutcomes}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Combined prob: </span>
-                  <span className="font-medium">
-                    {(intervalProbability * 100).toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">
-                  Trading
-                </div>
-                <div className="text-2xl font-bold">
-                  {selectedSecurity?.outcome || "UNKNOWN"}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm text-muted-foreground mb-1">
-                  Current price
-                </div>
-                <div className="text-lg font-mono">
-                  {quote?.buyUnitPriceCents
-                    ? `${quote.buyUnitPriceCents}¢`
-                    : "—"}
-                </div>
-              </div>
-            </div>
-          )}
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          defaultValue="trade"
+        >
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="trade">Trade Details</TabsTrigger>
+            {!isInterval && securityId && (
+              <TabsTrigger value="history">Price History</TabsTrigger>
+            )}
+          </TabsList>
 
-          {/* Quantity input */}
-          <div className="space-y-2">
-            <Label htmlFor="quantity">
-              {isInterval
-                ? "Quantity per outcome (shares)"
-                : "Quantity (shares)"}
-            </Label>
-            <Input
-              id="quantity"
-              type="number"
-              placeholder="10 (or -10 to sell)"
-              value={quantity}
-              onChange={(e) => {
-                setFetchingPrice(true);
-                setQuantity(e.target.value);
-              }}
-              step="1"
-            />
-            <p className="text-xs text-muted-foreground">
-              {isInterval ? (
-                <>
-                  You'll trade {shares !== 0 ? Math.abs(shares) : "N"} shares of
-                  EACH of the {numOutcomes} outcomes. Only one outcome can win,
-                  paying $1 per share.
-                </>
-              ) : (
-                "Positive = buy (long), Negative = sell (short). Each share pays $1 if outcome occurs."
-              )}
-            </p>
-          </div>
-
-          {/* Price display */}
-          <div className="space-y-2 p-4 rounded-lg bg-muted/50">
-            {fetchingPrice ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-sm text-muted-foreground">
-                  {isInterval
-                    ? "Calculating basket price..."
-                    : "Calculating price..."}
-                </span>
-              </div>
-            ) : calculatedPrice !== null ? (
-              <>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Action</span>
-                  <span
-                    className={`font-mono font-medium ${
-                      isBuy ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {isBuy ? "BUY" : "SELL"} {Math.abs(shares)}
-                    {isInterval && ` × ${numOutcomes}`}
-                  </span>
+          <TabsContent value="trade" className="space-y-4 py-4">
+            {/* Header card */}
+            {isInterval ? (
+              <div className="p-4 rounded-lg bg-muted">
+                <div className="text-sm text-muted-foreground mb-1">
+                  Trading interval
                 </div>
-                {isInterval && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total shares</span>
-                    <span className="font-mono font-medium">
-                      {Math.abs(shares) * numOutcomes} shares
-                    </span>
+                <div className="text-2xl font-bold mb-2">{intervalText}</div>
+                <div className="flex items-center gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Outcomes: </span>
+                    <span className="font-medium">{numOutcomes}</span>
                   </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Avg price per share
-                  </span>
-                  <span className="font-mono font-medium">
-                    {pricePerShareCents < 100
-                      ? `${pricePerShareCents.toFixed(2)}¢`
-                      : `$${(pricePerShareCents / 100).toFixed(2)}`}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm border-t pt-2">
-                  <span className="text-muted-foreground font-medium">
-                    {isBuy ? "Total cost" : "You receive"}
-                  </span>
-                  <span className="font-mono font-bold text-lg">
-                    ${totalCostDollars.toFixed(2)}
-                  </span>
-                </div>
-                {isBuy && (
-                  <>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {isInterval ? "If ANY outcome wins" : "If outcome wins"}
-                      </span>
-                      <span className="font-mono font-medium text-green-600">
-                        ${potentialReturnDollars.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Potential profit
-                      </span>
-                      <span
-                        className={`font-mono font-medium ${
-                          potentialProfitDollars > 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {potentialProfitDollars > 0 ? "+" : ""}$
-                        {potentialProfitDollars.toFixed(2)}
-                      </span>
-                    </div>
-                  </>
-                )}
-                {isSell && (
-                  <div className="flex justify-between text-sm">
+                  <div>
                     <span className="text-muted-foreground">
-                      Profit if sold
+                      Combined prob:{" "}
                     </span>
-                    <span className="font-mono font-medium text-green-600">
-                      +${potentialProfitDollars.toFixed(2)}
+                    <span className="font-medium">
+                      {(intervalProbability * 100).toFixed(1)}%
                     </span>
                   </div>
-                )}
-                <div className="pt-2 border-t text-xs text-muted-foreground">
-                  ✓ Real-time {isInterval ? "basket " : ""}price from LMSR
-                  market maker
                 </div>
-              </>
+              </div>
             ) : (
-              <div className="text-center py-4 text-sm text-muted-foreground">
-                Enter quantity to see price
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">
+                    Trading
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {selectedSecurity?.outcome || "UNKNOWN"}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-muted-foreground mb-1">
+                    Current price
+                  </div>
+                  <div className="text-lg font-mono">
+                    {quote?.buyUnitPriceCents
+                      ? `${quote.buyUnitPriceCents}¢`
+                      : "—"}
+                  </div>
+                </div>
               </div>
             )}
-          </div>
 
-          {/* Interval outcomes list */}
-          {isInterval && selectedOutcomes.length > 0 && (
+            {/* Quantity input */}
             <div className="space-y-2">
-              <div className="text-sm font-medium">Outcomes in basket</div>
-              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                {selectedOutcomes.map((outcome) => (
-                  <Badge key={outcome.id} variant="outline" className="text-xs">
-                    {outcome.outcome}
-                  </Badge>
-                ))}
-              </div>
+              <Label htmlFor="quantity">
+                {isInterval
+                  ? "Quantity per outcome (shares)"
+                  : "Quantity (shares)"}
+              </Label>
+              <Input
+                id="quantity"
+                type="number"
+                placeholder="10 (or -10 to sell)"
+                value={quantity}
+                onChange={(e) => {
+                  setFetchingPrice(true);
+                  setQuantity(e.target.value);
+                }}
+                step="1"
+              />
+              <p className="text-xs text-muted-foreground">
+                {isInterval ? (
+                  <>
+                    You'll trade {shares !== 0 ? Math.abs(shares) : "N"} shares
+                    of EACH of the {numOutcomes} outcomes. Only one outcome can
+                    win, paying $1 per share.
+                  </>
+                ) : (
+                  "Positive = buy (long), Negative = sell (short). Each share pays $1 if outcome occurs."
+                )}
+              </p>
             </div>
-          )}
 
-          {/* Settlement dates */}
-          {!isInterval &&
-            market.settlementDates &&
-            market.settlementDates.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Settlement Dates</div>
-                <div className="flex flex-wrap gap-2">
-                  {market.settlementDates.map((settlement, idx) => (
-                    <Badge
-                      key={idx}
-                      variant="outline"
-                      className="text-xs font-mono"
+            {/* Price display */}
+            <div className="space-y-2 p-4 rounded-lg bg-muted/50">
+              {fetchingPrice ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    {isInterval
+                      ? "Calculating basket price..."
+                      : "Calculating price..."}
+                  </span>
+                </div>
+              ) : calculatedPrice !== null ? (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Action</span>
+                    <span
+                      className={`font-mono font-medium ${
+                        isBuy ? "text-green-600" : "text-red-600"
+                      }`}
                     >
-                      {settlement.label}
+                      {isBuy ? "BUY" : "SELL"} {Math.abs(shares)}
+                      {isInterval && ` × ${numOutcomes}`}
+                    </span>
+                  </div>
+                  {isInterval && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Total shares
+                      </span>
+                      <span className="font-mono font-medium">
+                        {Math.abs(shares) * numOutcomes} shares
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Avg price per share
+                    </span>
+                    <span className="font-mono font-medium">
+                      {pricePerShareCents < 100
+                        ? `${pricePerShareCents.toFixed(2)}¢`
+                        : `$${(pricePerShareCents / 100).toFixed(2)}`}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="text-muted-foreground font-medium">
+                      {isBuy ? "Total cost" : "You receive"}
+                    </span>
+                    <span className="font-mono font-bold text-lg">
+                      ${totalCostDollars.toFixed(2)}
+                    </span>
+                  </div>
+                  {isBuy && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {isInterval
+                            ? "If ANY outcome wins"
+                            : "If outcome wins"}
+                        </span>
+                        <span className="font-mono font-medium text-green-600">
+                          ${potentialReturnDollars.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Potential profit
+                        </span>
+                        <span
+                          className={`font-mono font-medium ${
+                            potentialProfitDollars > 0
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {potentialProfitDollars > 0 ? "+" : ""}$
+                          {potentialProfitDollars.toFixed(2)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {isSell && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Profit if sold
+                      </span>
+                      <span className="font-mono font-medium text-green-600">
+                        +${potentialProfitDollars.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="pt-2 border-t text-xs text-muted-foreground">
+                    ✓ Real-time {isInterval ? "basket " : ""}price from LMSR
+                    market maker
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  Enter quantity to see price
+                </div>
+              )}
+            </div>
+
+            {/* Interval outcomes list */}
+            {isInterval && selectedOutcomes.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Outcomes in basket</div>
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                  {selectedOutcomes.map((outcome) => (
+                    <Badge
+                      key={outcome.id}
+                      variant="outline"
+                      className="text-xs"
+                    >
+                      {outcome.outcome}
                     </Badge>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Market evaluated at multiple dates. Cash out at any settlement
-                  if favorable.
-                </p>
               </div>
             )}
-        </div>
+
+            {/* Settlement dates */}
+            {!isInterval &&
+              market.settlementDates &&
+              market.settlementDates.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Settlement Dates</div>
+                  <div className="flex flex-wrap gap-2">
+                    {market.settlementDates.map((settlement, idx) => (
+                      <Badge
+                        key={idx}
+                        variant="outline"
+                        className="text-xs font-mono"
+                      >
+                        {settlement.label}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Market evaluated at multiple dates. Cash out at any
+                    settlement if favorable.
+                  </p>
+                </div>
+              )}
+          </TabsContent>
+
+          {!isInterval && securityId && (
+            <TabsContent value="history" className="py-4">
+              <PriceHistoryChart
+                securityId={securityId}
+                outcome={selectedSecurity?.outcome || "Unknown"}
+              />
+            </TabsContent>
+          )}
+        </Tabs>
 
         <div className="flex gap-3">
           <Button
