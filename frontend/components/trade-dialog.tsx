@@ -142,7 +142,7 @@ export function TradeDialog({
       return;
     }
 
-    if (!calculatedPrice) {
+    if (calculatedPrice === null) {
       toast.error("Please wait for price to load");
       return;
     }
@@ -480,7 +480,7 @@ export function TradeDialog({
                     shares === 0 ||
                     loading ||
                     !user ||
-                    !calculatedPrice ||
+                    calculatedPrice === null ||
                     fetchingPrice
                   }
                   className="flex-1"
@@ -492,7 +492,7 @@ export function TradeDialog({
                       ? "Sign In Required"
                       : fetchingPrice
                         ? "Loading..."
-                        : calculatedPrice
+                        : calculatedPrice !== null
                           ? isBuy
                             ? `Buy for $${totalCostDollars.toFixed(2)}`
                             : `Sell for $${totalCostDollars.toFixed(2)}`
