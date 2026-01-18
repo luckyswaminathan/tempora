@@ -86,8 +86,9 @@ export function BetDialog({
 
         setCalculatedPrice(priceData.priceCents);
       } catch (error) {
-        // TODO: make pop up appear
-        console.error("Failed to fetch price:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to fetch price",
+        );
         setCalculatedPrice(null);
       } finally {
         setFetchingPrice(false);

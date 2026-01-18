@@ -1,35 +1,83 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 interface MarketFiltersProps {
-  category?: string | null
-  onCategoryChange: (category: string | null) => void
-  searchQuery: string
-  onSearchChange: (query: string) => void
+  category?: string | null;
+  onCategoryChange: (category: string | null) => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  status?: string | null;
+  onStatusChange: (status: string | null) => void;
 }
 
-const CATEGORIES = ["All", "Economics", "Politics", "Technology", "Sports", "Climate", "General"]
+const CATEGORIES = [
+  "All",
+  "Economics",
+  "Politics",
+  "Technology",
+  "Sports",
+  "Climate",
+  "General",
+];
+const STATUSES = [
+  { value: null, label: "Open" },
+  { value: "closed", label: "Closed" },
+  { value: "resolved", label: "Resolved" },
+  { value: "all", label: "Any Status" },
+];
 
-export function MarketFilters({ category, onCategoryChange, searchQuery, onSearchChange }: MarketFiltersProps) {
+export function MarketFilters({
+  category,
+  onCategoryChange,
+  searchQuery,
+  onSearchChange,
+  status,
+  onStatusChange,
+}: MarketFiltersProps) {
   return (
-    <div className="mb-6 flex flex-col sm:flex-row gap-4">
-      <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search markets..."
-          className="pl-10"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-        />
+    <div className="mb-6 space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search markets..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2 overflow-x-auto">
+          {STATUSES.map((st) => (
+            <Button
+              key={st.label}
+              variant={
+                status === st.value || (!status && st.value === null)
+                  ? "default"
+                  : "outline"
+              }
+              size="sm"
+              onClick={() => onStatusChange(st.value)}
+            >
+              {st.label}
+            </Button>
+          ))}
+        </div>
       </div>
       <div className="flex gap-2 overflow-x-auto">
+        <span className="text-sm text-muted-foreground flex items-center mr-2">
+          Category:
+        </span>
         {CATEGORIES.map((cat) => (
           <Button
             key={cat}
-            variant={category === cat || (cat === "All" && !category) ? "default" : "outline"}
+            variant={
+              category === cat || (cat === "All" && !category)
+                ? "default"
+                : "outline"
+            }
             size="sm"
             onClick={() => onCategoryChange(cat === "All" ? null : cat)}
           >
@@ -38,5 +86,5 @@ export function MarketFilters({ category, onCategoryChange, searchQuery, onSearc
         ))}
       </div>
     </div>
-  )
+  );
 }

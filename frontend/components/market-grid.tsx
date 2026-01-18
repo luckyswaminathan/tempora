@@ -8,9 +8,14 @@ import { marketsApi } from "@/lib/api";
 interface MarketGridProps {
   category?: string | null;
   searchQuery?: string;
+  status?: string | null;
 }
 
-export function MarketGrid({ category, searchQuery = "" }: MarketGridProps) {
+export function MarketGrid({
+  category,
+  searchQuery = "",
+  status,
+}: MarketGridProps) {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +27,7 @@ export function MarketGrid({ category, searchQuery = "" }: MarketGridProps) {
         setError(null);
         const response = await marketsApi.listMarkets({
           category: category || undefined,
-          status: "open",
+          status: status === "all" ? undefined : status || "open",
         });
 
         // Filter by search query client-side
@@ -31,7 +36,7 @@ export function MarketGrid({ category, searchQuery = "" }: MarketGridProps) {
           filtered = filtered.filter(
             (m) =>
               m.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              m.category.toLowerCase().includes(searchQuery.toLowerCase())
+              m.category.toLowerCase().includes(searchQuery.toLowerCase()),
           );
         }
 
@@ -44,7 +49,7 @@ export function MarketGrid({ category, searchQuery = "" }: MarketGridProps) {
     }
 
     fetchMarkets();
-  }, [category, searchQuery]);
+  }, [category, searchQuery, status]);
 
   if (loading) {
     return (

@@ -18,6 +18,7 @@ import { BetDialog } from "@/components/bet-dialog";
 import { marketsApi, type Market } from "@/lib/api";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/auth-context";
+import { toast } from "sonner";
 
 interface MarketCardProps {
   initialMarket: Market;
@@ -205,46 +206,50 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           </div>
         </div>
 
-        <h3 className="text-lg font-semibold mb-4 leading-snug text-balance">
+        <h3 className="text-lg font-semibold mb-2 leading-snug text-balance">
           {market.question || "Untitled Market"}
         </h3>
 
-        <div className="flex gap-2 mb-4">
-          <Button
-            variant={viewMode === "individual" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setViewMode("individual");
-              setIntervalRange([-1, -1]);
-              setLastSelected(-1);
-            }}
-            className="flex-1"
-          >
-            <BarChart3 className="w-4 h-4 mr-1" />
-            Individual
-          </Button>
-          <Button
-            variant={viewMode === "interval" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setViewMode("interval");
-              setIntervalRange([-1, -1]);
-              setLastSelected(-1);
-            }}
-            className="flex-1"
-          >
-            <SlidersHorizontal className="w-4 h-4 mr-1" />
-            Interval
-          </Button>
-        </div>
+        {market.status === "open" && (
+          <div>
+            <div className="flex gap-2 mb-2">
+              <Button
+                variant={viewMode === "individual" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setViewMode("individual");
+                  setIntervalRange([-1, -1]);
+                  setLastSelected(-1);
+                }}
+                className="flex-1"
+              >
+                <BarChart3 className="w-4 h-4 mr-1" />
+                Individual
+              </Button>
+              <Button
+                variant={viewMode === "interval" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setViewMode("interval");
+                  setIntervalRange([-1, -1]);
+                  setLastSelected(-1);
+                }}
+                className="flex-1"
+              >
+                <SlidersHorizontal className="w-4 h-4 mr-1" />
+                Interval
+              </Button>
+            </div>
 
-        <div className="text-xs text-muted-foreground mb-3 font-medium">
-          {viewMode === "individual"
-            ? "Click to trade individual outcomes"
-            : rangeStart === -1
-              ? "Click to select interval start"
-              : "Click another outcome to adjust interval range"}
-        </div>
+            <div className="text-xs text-muted-foreground mb-3 font-medium">
+              {viewMode === "individual"
+                ? "Click to trade individual outcomes"
+                : rangeStart === -1
+                  ? "Click to select interval start"
+                  : "Click another outcome to adjust interval range"}
+            </div>
+          </div>
+        )}
 
         <div className="mb-4">
           <div className="space-y-2">
@@ -262,6 +267,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
               return (
                 <button
                   key={outcome.id}
+                  disabled={market.status !== "open"}
                   onClick={() => handleBarClick(index)}
                   onMouseEnter={() => setHoveredOutcome(outcome.id)}
                   onMouseLeave={() => setHoveredOutcome(null)}
@@ -298,22 +304,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           </div>
         </div>
 
-        {/* {market.settlementDates && market.settlementDates.length > 0 && (
-          <div className="mb-4">
-            <div className="text-xs text-muted-foreground mb-2">
-              Settlement Dates
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {market.settlementDates.map((settlement, idx) => (
-                <Badge key={idx} variant="outline" className="text-xs">
-                  {settlement.label}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )} */}
-
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t">
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t mt-auto">
           <div className="flex items-center gap-1">
             <TrendingUp className="w-3 h-3" />
             <span>${(market.totalVolume / 100).toFixed(0)} volume</span>
@@ -328,14 +319,16 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
               >
                 <Pen className="w-3 h-3" />
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowSettleForm(true)}
-                className="h-8 px-2"
-              >
-                <Gavel className="w-3 h-3" />
-              </Button>
+              {(market.status === "open" || market.status === "closed") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowSettleForm(true)}
+                  className="h-8 px-2"
+                >
+                  <Gavel className="w-3 h-3" />
+                </Button>
+              )}
             </div>
           )}
           <div className="flex items-center gap-1">
@@ -410,19 +403,21 @@ function AdminSettleDialog({
 
   const handleSettle = async () => {
     if (!selectedOutcome) {
-      alert("Please select a winning outcome");
+      toast.error("Please select a winning outcome");
       return;
     }
 
     setLoading(true);
     try {
       await marketsApi.settleMarket(selectedOutcome);
-      alert("Market settled successfully");
+      toast.success("Market settled successfully");
       setSelectedOutcome("");
       onOpenChange(false);
       onSettleSuccess?.();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to settle market");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to settle market",
+      );
     } finally {
       setLoading(false);
     }
@@ -515,12 +510,12 @@ function AdminEditDialog({
 
   const handleUpdate = async () => {
     if (!question.trim()) {
-      alert("Question cannot be empty");
+      toast.error("Question cannot be empty");
       return;
     }
 
     if (!resolutionDate) {
-      alert("Please set a resolution date");
+      toast.error("Please set a resolution date");
       return;
     }
 
@@ -532,11 +527,13 @@ function AdminEditDialog({
         resolutionDate: new Date(resolutionDate).toISOString(),
         securities: outcomes,
       });
-      alert("Market updated successfully");
+      toast.success("Market updated successfully");
       onOpenChange(false);
       onEditSuccess?.();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to update market");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update market",
+      );
     } finally {
       setLoading(false);
     }

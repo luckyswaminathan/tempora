@@ -53,7 +53,7 @@ def update_market(
     return service.update_market(market_id, payload)
 
 
-@router.put("/settle", response_model=Market)
+@router.put("/settle", response_model=MarketSettlementResponse)
 def settle_market(
     payload: MarketSettlement,
     service: MarketService = Depends(deps.get_market_service),

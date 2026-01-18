@@ -49,8 +49,27 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null);
   const [tutorialActive, setTutorialActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [elementRect, setElementRect] = useState<DOMRect | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  const tutorialMode = searchParams?.get("tutorial");
+  const currentStepData = UNDERSTANDING_PNL_STEPS[currentStep];
+
+  // Ensure component is mounted on client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Update element rect whenever tutorial step changes
+  useEffect(() => {
+    if (tutorialActive && currentStepData) {
+      const element = document.getElementById(currentStepData.elementId);
+      if (element) {
+        setElementRect(element.getBoundingClientRect());
+      }
+    } else {
+      setElementRect(null);
+    }
+  }, [tutorialActive, currentStep, currentStepData]);
 
   useEffect(() => {
     async function fetchPortfolio() {
@@ -77,11 +96,14 @@ export default function PortfolioPage() {
   }, [user]);
 
   useEffect(() => {
-    if (tutorialMode === "understanding-pnl" && !loading) {
-      setTutorialActive(true);
-      setCurrentStep(0);
+    if (mounted && !loading) {
+      const tutorialMode = searchParams?.get("tutorial");
+      if (tutorialMode === "understanding-pnl") {
+        setTutorialActive(true);
+        setCurrentStep(0);
+      }
     }
-  }, [tutorialMode, loading]);
+  }, [mounted, searchParams, loading]);
 
   const handleNextStep = () => {
     if (currentStep < UNDERSTANDING_PNL_STEPS.length - 1) {
@@ -95,11 +117,10 @@ export default function PortfolioPage() {
     setTutorialActive(false);
   };
 
-  const currentStepData = UNDERSTANDING_PNL_STEPS[currentStep];
-  const targetElement = tutorialActive
-    ? document.getElementById(currentStepData?.elementId || "")
-    : null;
-  const rect = targetElement?.getBoundingClientRect();
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return null;
+  }
 
   if (!user) {
     return (
@@ -168,16 +189,16 @@ export default function PortfolioPage() {
           />
 
           {/* Highlight and tooltip */}
-          {rect && (
+          {elementRect && (
             <>
               {/* Highlighted element border */}
               <div
                 className="fixed z-50 pointer-events-none border-2 border-yellow-400 rounded-lg shadow-lg"
                 style={{
-                  top: `${rect.top - 4}px`,
-                  left: `${rect.left - 4}px`,
-                  width: `${rect.width + 8}px`,
-                  height: `${rect.height + 8}px`,
+                  top: `${elementRect.top - 4}px`,
+                  left: `${elementRect.left - 4}px`,
+                  width: `${elementRect.width + 8}px`,
+                  height: `${elementRect.height + 8}px`,
                   boxShadow: "0 0 20px rgba(250, 204, 21, 0.6)",
                 }}
               />
@@ -187,12 +208,12 @@ export default function PortfolioPage() {
                 className="fixed z-50 bg-white dark:bg-slate-900 rounded-lg shadow-2xl p-6 w-96 border border-gray-200 dark:border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-300"
                 style={{
                   top: `${Math.min(
-                    rect.bottom + 20,
+                    elementRect.bottom + 20,
                     window.innerHeight - 300,
                   )}px`,
                   left: `${Math.max(
                     Math.min(
-                      rect.left + rect.width / 2 - 192,
+                      elementRect.left + elementRect.width / 2 - 192,
                       window.innerWidth - 400,
                     ),
                     16,
@@ -241,6 +262,22 @@ export default function PortfolioPage() {
           Open positions and performance
         </p>
       </div>
+
+      <Card className="p-6 mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-muted-foreground mb-1">
+              Available Balance
+            </div>
+            <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+              ${(portfolio.wallet / 100.0).toFixed(2)}
+            </div>
+          </div>
+          <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full">
+            <Wallet className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card id="pnl-cost-basis" className="p-4">
