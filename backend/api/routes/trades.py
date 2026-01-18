@@ -9,7 +9,7 @@ from schemas.trade import (
     TradeListResponse,
     TradePriceResponse,
     TradePlaceResponse,
-    PriceHistoryResponse,
+    ProbabilityHistResponse,
 )
 from schemas.user import UserBase
 from services.markets import MarketService
@@ -66,8 +66,8 @@ def price_trade(
     return trade_service.price_trade(payload)
 
 
-@router.get("/price-history/{security_id}", response_model=PriceHistoryResponse)
-def get_price_history(
+@router.get("/probability/{security_id}", response_model=ProbabilityHistResponse)
+def get_probability_history(
     security_id: str, trade_service: TradeService = Depends(deps.get_trade_service)
-) -> PriceHistoryResponse:
-    return trade_service.get_price_history(security_id)
+) -> ProbabilityHistResponse:
+    return trade_service.get_probability_history(security_id)

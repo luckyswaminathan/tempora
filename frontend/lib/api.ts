@@ -255,13 +255,13 @@ export interface TradePlaceResponse {
   executedAt: string;
 }
 
-export interface PriceHistoryData {
-  priceCents: number;
+export interface ProbabilityHistData {
+  probability: number;
   date: string;
 }
 
-export interface PriceHistoryResponse {
-  history: PriceHistoryData[];
+export interface ProbabilityHistResponse {
+  history: ProbabilityHistData[];
 }
 
 export const tradesApi = {
@@ -363,9 +363,9 @@ export const usersApi = {
     });
   },
 
-  async get_security_price_history(
+  async get_probability_history(
     securityId: string,
-  ): Promise<PriceHistoryResponse> {
-    return fetchWithAuth(`/trades/price-history/${securityId}`);
+  ): Promise<ProbabilityHistResponse> {
+    return fetchWithAuth(`/trades/probability/${securityId}`);
   },
 };

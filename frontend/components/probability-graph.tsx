@@ -12,21 +12,21 @@ import {
 } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
-import { usersApi, type PriceHistoryData } from "@/lib/api";
+import { usersApi, type ProbabilityHistData } from "@/lib/api";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 
-interface PriceHistoryChartProps {
+interface ProbabiltiyGraphProps {
   securityId: string;
   outcome: string;
 }
 
-export function PriceHistoryChart({
+export function ProbabilityGraph({
   securityId,
   outcome,
-}: PriceHistoryChartProps) {
+}: ProbabiltiyGraphProps) {
   const [data, setData] = useState<
-    Array<PriceHistoryData & { dateFormatted: string; timestamp: number }>
+    Array<ProbabilityHistData & { dateFormatted: string; timestamp: number }>
   >([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +34,7 @@ export function PriceHistoryChart({
     const fetchHistory = async () => {
       setLoading(true);
       try {
-        const response = await usersApi.get_security_price_history(securityId);
+        const response = await usersApi.get_probability_history(securityId);
         const formattedData = response.history.map((item) => ({
           ...item,
           dateFormatted: format(parseISO(item.date), "MMM d, h:mm a"),
@@ -45,7 +45,7 @@ export function PriceHistoryChart({
         toast.error(
           error instanceof Error
             ? error.message
-            : "Failed to load price history",
+            : "Failed to load probability history",
         );
       } finally {
         setLoading(false);
@@ -60,7 +60,7 @@ export function PriceHistoryChart({
       <div className="flex items-center justify-center py-8">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         <span className="ml-2 text-sm text-muted-foreground">
-          Loading price history...
+          Loading probability history...
         </span>
       </div>
     );
@@ -69,35 +69,34 @@ export function PriceHistoryChart({
   if (data.length === 0) {
     return (
       <Card className="p-4 text-center text-sm text-muted-foreground">
-        No price history available yet
+        No probability history available yet
       </Card>
     );
   }
 
-  const minPrice = Math.min(...data.map((d) => d.priceCents));
-  const maxPrice = Math.max(...data.map((d) => d.priceCents));
-  const currentPrice = data[data.length - 1].priceCents;
-  const priceChange = currentPrice - (data[0]?.priceCents || 0);
-  const percentChange = data[0]
-    ? ((priceChange / data[0].priceCents) * 100).toFixed(1)
-    : "0";
+  const minProb = Math.min(...data.map((d) => d.probability));
+  const maxProb = Math.max(...data.map((d) => d.probability));
+  const currentProb = data[data.length - 1].probability;
+  const probChange = currentProb - (data[0]?.probability || 0);
 
   return (
     <Card className="p-4 space-y-3 border border-border bg-card">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h3 className="text-sm font-semibold">{outcome}</h3>
-          <p className="text-xs text-muted-foreground">Price History</p>
+          <p className="text-xs text-muted-foreground">History</p>
         </div>
         <div className="text-right space-y-1">
-          <div className="text-sm font-mono font-semibold">{currentPrice}¢</div>
+          <div className="text-sm font-mono font-semibold">
+            {(currentProb * 100).toFixed(2)}%
+          </div>
           <div
             className={`text-xs font-mono ${
-              priceChange >= 0 ? "text-green-600" : "text-red-600"
+              probChange >= 0 ? "text-green-600" : "text-red-600"
             }`}
           >
-            {priceChange >= 0 ? "+" : ""}
-            {priceChange}¢ ({percentChange}%)
+            {probChange >= 0 ? "+" : ""}
+            {(probChange * 100).toFixed(2)}%
           </div>
         </div>
       </div>
@@ -106,15 +105,21 @@ export function PriceHistoryChart({
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
             <span className="text-muted-foreground">Low</span>
-            <div className="font-mono font-semibold">{minPrice}¢</div>
+            <div className="font-mono font-semibold">
+              {(minProb * 100).toFixed(2)}%
+            </div>
           </div>
           <div>
             <span className="text-muted-foreground">High</span>
-            <div className="font-mono font-semibold">{maxPrice}¢</div>
+            <div className="font-mono font-semibold">
+              {(maxProb * 100).toFixed(2)}%
+            </div>
           </div>
           <div>
             <span className="text-muted-foreground">Current</span>
-            <div className="font-mono font-semibold">{currentPrice}¢</div>
+            <div className="font-mono font-semibold">
+              {(currentProb * 100).toFixed(2)}%
+            </div>
           </div>
         </div>
 
@@ -142,16 +147,16 @@ export function PriceHistoryChart({
                 tickCount={5}
               />
               <YAxis
-                dataKey="priceCents"
-                tick={{ fontSize: 11, fill: "#6b7280" }}
+                dataKey="probability"
+                tick={{ fontSize: 8, fill: "#6b7280" }}
                 stroke="#9ca3af"
                 domain={["auto", "auto"]}
-                tickFormatter={(value) => `${value}¢`}
+                tickFormatter={(value) => `${(value * 100).toFixed(2)}%`}
               />
               <Tooltip
                 formatter={(value: number) => [
-                  `${(value / 100).toFixed(2)}¢`,
-                  "Price",
+                  `${(value * 100).toFixed(2)}%`,
+                  "Prob",
                 ]}
                 labelFormatter={(timestamp) =>
                   format(new Date(timestamp), "MMM d, h:mm a")
@@ -165,7 +170,7 @@ export function PriceHistoryChart({
               />
               <Area
                 type="monotone"
-                dataKey="priceCents"
+                dataKey="probability"
                 stroke="none"
                 fill="#3b82f6"
                 fillOpacity={0.6}

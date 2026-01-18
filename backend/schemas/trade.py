@@ -68,14 +68,14 @@ class TradePlaceResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class PriceHistoryData(BaseModel):
-    price_cents: int = Field(alias="priceCents")
+class ProbabilityHistData(BaseModel):
+    probability: float
     date: UTCDateTime
 
     model_config = ConfigDict(populate_by_name=True)
 
 
-class PriceHistoryResponse(BaseModel):
-    history: list[PriceHistoryData]
+class ProbabilityHistResponse(BaseModel):
+    history: list[ProbabilityHistData]
 
     model_config = ConfigDict(populate_by_name=True)

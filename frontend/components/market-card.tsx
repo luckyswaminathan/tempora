@@ -14,7 +14,7 @@ import {
   Pen,
   Gavel,
 } from "lucide-react";
-import { BetDialog } from "@/components/bet-dialog";
+import { TradeDialog } from "@/components/trade-dialog";
 import { marketsApi, type Market } from "@/lib/api";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/auth-context";
@@ -267,7 +267,6 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
               return (
                 <button
                   key={outcome.id}
-                  disabled={market.status !== "open"}
                   onClick={() => handleBarClick(index)}
                   onMouseEnter={() => setHoveredOutcome(outcome.id)}
                   onMouseLeave={() => setHoveredOutcome(null)}
@@ -338,7 +337,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
         </div>
       </Card>
 
-      <BetDialog
+      <TradeDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         market={market}
