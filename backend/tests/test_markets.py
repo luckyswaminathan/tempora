@@ -10,7 +10,7 @@ def test_create_market(client):
         "question": "When will Bitcoin hit $100k?",
         "outcomes": ["2025", "2026", "2027", "2028"],
         "category": "crypto",
-        "resolutionDate": "2030-01-01T00:00:00",
+        "resolutionDate": "2030-01-01T00:00:00Z",
         "description": "Example",
     }
 

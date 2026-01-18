@@ -133,4 +133,19 @@ class TradeService:
             for trade in trades
         ]
 
+        # Add current price
+        security = self.market_service.get_security(security_id)
+        current_price = self._price_trade(
+            security.market_id,
+            [Leg.model_validate({"security_id": security_id, "quantity": 1})],
+        )
+        history.append(
+            PriceHistoryData.model_validate(
+                {
+                    "price_cents": current_price,
+                    "date": datetime.now(timezone.utc),
+                }
+            )
+        )
+
         return PriceHistoryResponse.model_validate({"history": history})

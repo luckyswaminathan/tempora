@@ -257,7 +257,7 @@ export interface TradePlaceResponse {
 
 export interface PriceHistoryData {
   priceCents: number;
-  time: string;
+  date: string;
 }
 
 export interface PriceHistoryResponse {
@@ -364,7 +364,7 @@ export const usersApi = {
   },
 
   async get_security_price_history(
-    securityId  : string,
+    securityId: string,
   ): Promise<PriceHistoryResponse> {
     return fetchWithAuth(`/trades/price-history/${securityId}`);
   },

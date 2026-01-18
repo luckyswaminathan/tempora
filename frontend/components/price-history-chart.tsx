@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Area,
 } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -26,7 +26,7 @@ export function PriceHistoryChart({
   outcome,
 }: PriceHistoryChartProps) {
   const [data, setData] = useState<
-    Array<PriceHistoryData & { timeFormatted: string }>
+    Array<PriceHistoryData & { dateFormatted: string; timestamp: number }>
   >([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +37,8 @@ export function PriceHistoryChart({
         const response = await usersApi.get_security_price_history(securityId);
         const formattedData = response.history.map((item) => ({
           ...item,
-          timeFormatted: format(parseISO(item.time), "MMM d, h:mm a"),
+          dateFormatted: format(parseISO(item.date), "MMM d, h:mm a"),
+          timestamp: parseISO(item.date).getTime(),
         }));
         setData(formattedData);
       } catch (error) {
@@ -89,16 +90,14 @@ export function PriceHistoryChart({
           <p className="text-xs text-muted-foreground">Price History</p>
         </div>
         <div className="text-right space-y-1">
-          <div className="text-sm font-mono font-semibold">
-            {(currentPrice / 100).toFixed(2)}¢
-          </div>
+          <div className="text-sm font-mono font-semibold">{currentPrice}¢</div>
           <div
             className={`text-xs font-mono ${
               priceChange >= 0 ? "text-green-600" : "text-red-600"
             }`}
           >
             {priceChange >= 0 ? "+" : ""}
-            {(priceChange / 100).toFixed(2)}¢ ({percentChange}%)
+            {priceChange}¢ ({percentChange}%)
           </div>
         </div>
       </div>
@@ -107,70 +106,72 @@ export function PriceHistoryChart({
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
             <span className="text-muted-foreground">Low</span>
-            <div className="font-mono font-semibold">
-              {(minPrice / 100).toFixed(2)}¢
-            </div>
+            <div className="font-mono font-semibold">{minPrice}¢</div>
           </div>
           <div>
             <span className="text-muted-foreground">High</span>
-            <div className="font-mono font-semibold">
-              {(maxPrice / 100).toFixed(2)}¢
-            </div>
+            <div className="font-mono font-semibold">{maxPrice}¢</div>
           </div>
           <div>
             <span className="text-muted-foreground">Current</span>
-            <div className="font-mono font-semibold">
-              {(currentPrice / 100).toFixed(2)}¢
-            </div>
+            <div className="font-mono font-semibold">{currentPrice}¢</div>
           </div>
         </div>
 
         <div className="w-full h-48">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
+            <AreaChart
               data={data}
               margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="hsl(var(--muted-foreground) / 0.2)"
+                stroke="#e5e7eb"
+                vertical={false}
               />
               <XAxis
-                dataKey="timeFormatted"
-                tick={{ fontSize: 12 }}
-                interval={Math.floor(data.length / 4)}
-                stroke="hsl(var(--muted-foreground))"
+                dataKey="timestamp"
+                type="number"
+                scale="time"
+                domain={["dataMin", "dataMax"]}
+                tick={{ fontSize: 11, fill: "#6b7280" }}
+                tickFormatter={(timestamp) =>
+                  format(new Date(timestamp), "MMM d")
+                }
+                stroke="#9ca3af"
+                tickCount={5}
               />
               <YAxis
                 dataKey="priceCents"
-                tick={{ fontSize: 12 }}
-                stroke="hsl(var(--muted-foreground))"
-                domain={["dataMin - 5", "dataMax + 5"]}
-                label={{
-                  value: "Price (¢)",
-                  angle: -90,
-                  position: "insideLeft",
-                }}
+                tick={{ fontSize: 11, fill: "#6b7280" }}
+                stroke="#9ca3af"
+                domain={["auto", "auto"]}
+                tickFormatter={(value) => `${value}¢`}
               />
               <Tooltip
-                formatter={(value: number) => `${(value / 100).toFixed(2)}¢`}
-                labelFormatter={(label) => `Time: ${label}`}
+                formatter={(value: number) => [
+                  `${(value / 100).toFixed(2)}¢`,
+                  "Price",
+                ]}
+                labelFormatter={(timestamp) =>
+                  format(new Date(timestamp), "MMM d, h:mm a")
+                }
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e5e7eb",
                   borderRadius: "4px",
                   padding: "8px",
                 }}
               />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="priceCents"
-                stroke="hsl(var(--primary))"
-                dot={false}
-                strokeWidth={2}
+                stroke="none"
+                fill="#3b82f6"
+                fillOpacity={0.6}
                 isAnimationActive={false}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>

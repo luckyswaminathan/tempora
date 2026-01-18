@@ -47,7 +47,7 @@ export function BetDialog({
   const [loading, setLoading] = useState(false);
   const [fetchingPrice, setFetchingPrice] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState("trade");
+  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(0);
 
   // For single outcome, get the security directly
   const securityId = isSingle ? selectedOutcomes[0].id : undefined;
@@ -200,16 +200,10 @@ export function BetDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          defaultValue="trade"
-        >
+        <Tabs defaultValue="trade">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="trade">Trade Details</TabsTrigger>
-            {!isInterval && securityId && (
-              <TabsTrigger value="history">Price History</TabsTrigger>
-            )}
+            <TabsTrigger value="history">Price History</TabsTrigger>
           </TabsList>
 
           <TabsContent value="trade" className="space-y-4 py-4">
@@ -435,14 +429,40 @@ export function BetDialog({
               )}
           </TabsContent>
 
-          {!isInterval && securityId && (
-            <TabsContent value="history" className="py-4">
-              <PriceHistoryChart
-                securityId={securityId}
-                outcome={selectedSecurity?.outcome || "Unknown"}
-              />
-            </TabsContent>
-          )}
+          <TabsContent value="history" className="py-4 space-y-4">
+            {selectedOutcomes.length > 1 && (
+              <div className="space-y-2">
+                <Label htmlFor="history-security">Select outcome</Label>
+                <select
+                  id="history-security"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={selectedHistoryIndex}
+                  onChange={(e) =>
+                    setSelectedHistoryIndex(Number(e.target.value))
+                  }
+                >
+                  {selectedOutcomes.map((outcome, idx) => (
+                    <option key={outcome.id} value={idx}>
+                      {outcome.outcome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {selectedOutcomes.map((outcome, idx) => (
+              <div
+                key={outcome.id}
+                style={{
+                  display: idx === selectedHistoryIndex ? "block" : "none",
+                }}
+              >
+                <PriceHistoryChart
+                  securityId={outcome.id}
+                  outcome={outcome.outcome}
+                />
+              </div>
+            ))}
+          </TabsContent>
         </Tabs>
 
         <div className="flex gap-3">

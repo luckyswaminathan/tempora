@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, Field
+
+from schemas.date import UTCDateTime
 
 
 class Leg(BaseModel):
@@ -42,7 +42,7 @@ class TradeRecord(BaseModel):
     price_cents: int = Field(
         alias="priceCents", description="price of the entire trade"
     )
-    created_at: datetime = Field(alias="createdAt")
+    created_at: UTCDateTime = Field(alias="createdAt")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -56,21 +56,21 @@ class TradeListResponse(BaseModel):
 
 class TradePriceResponse(BaseModel):
     price_cents: int = Field(alias="priceCents")
-    priced_at: datetime = Field(alias="pricedAt")
+    priced_at: UTCDateTime = Field(alias="pricedAt")
 
     model_config = ConfigDict(populate_by_name=True)
 
 
 class TradePlaceResponse(BaseModel):
     price_cents: int = Field(alias="priceCents")
-    executed_at: datetime = Field(alias="executedAt")
+    executed_at: UTCDateTime = Field(alias="executedAt")
 
     model_config = ConfigDict(populate_by_name=True)
 
 
 class PriceHistoryData(BaseModel):
     price_cents: int = Field(alias="priceCents")
-    date: datetime
+    date: UTCDateTime
 
     model_config = ConfigDict(populate_by_name=True)
 

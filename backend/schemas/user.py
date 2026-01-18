@@ -1,16 +1,16 @@
-from datetime import datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from core.models import UserRole
+from schemas.date import UTCDateTime
 
 
 class UserBase(BaseModel):
     id: str = Field(description="User UUID")
     email: EmailStr
     role: UserRole
-    created_at: Optional[datetime] = Field(default=None, alias="createdAt")
+    created_at: Optional[UTCDateTime] = Field(default=None, alias="createdAt")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -21,8 +21,8 @@ class UserProfile(BaseModel):
     role: UserRole
     display_name: Optional[str] = Field(default=None, alias="displayName")
     wallet: int
-    joined_at: datetime = Field(alias="joinedAt")
-    last_seen_at: Optional[datetime] = Field(default=None, alias="lastSeenAt")
+    joined_at: UTCDateTime = Field(alias="joinedAt")
+    last_seen_at: Optional[UTCDateTime] = Field(default=None, alias="lastSeenAt")
     tutorial_completions: Optional[dict] = Field(
         default_factory=dict, alias="tutorialCompletions"
     )

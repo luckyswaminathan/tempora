@@ -224,7 +224,7 @@ class MarketService:
                 "securities": securities,
                 "openInterest": open_interest,
                 "totalVolume": total_volume,
-                "liquidity_parameter": market.liquidity_parameter,
+                "liquidityParameter": market.liquidity_parameter,
                 "settlementDates": settlement_dates,
             }
         )
