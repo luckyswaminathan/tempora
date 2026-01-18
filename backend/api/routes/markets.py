@@ -4,11 +4,12 @@ from fastapi import APIRouter, Depends, Query, status
 
 from api import deps
 from schemas.market import (
+    Market,
     MarketCreate,
     MarketListResponse,
     MarketUpdate,
     MarketSettlement,
-    Market,
+    MarketSettlementResponse,
 )
 from schemas.user import UserBase
 from services.markets import MarketService
@@ -47,7 +48,7 @@ def update_market(
     market_id: str,
     payload: MarketUpdate,
     service: MarketService = Depends(deps.get_market_service),
-    _: UserBase = Depends(deps.get_current_user),
+    _: UserBase = Depends(deps.get_current_admin),
 ) -> Market:
     return service.update_market(market_id, payload)
 
@@ -57,5 +58,5 @@ def settle_market(
     payload: MarketSettlement,
     service: MarketService = Depends(deps.get_market_service),
     _: UserBase = Depends(deps.get_current_admin),
-) -> Market:
+) -> MarketSettlementResponse:
     return service.settle_market(payload)

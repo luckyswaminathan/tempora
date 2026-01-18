@@ -57,13 +57,13 @@ export function Header() {
               >
                 Tutorial
               </a>
-              {user?.role === "admin" && (
+              {!loading && user?.role === "admin" && (
                 <a
-                  id="nav-admin"
-                  href="/admin"
+                  id="nav-create"
+                  href="/create"
                   className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
                 >
-                  Admin
+                  Create Market
                 </a>
               )}
             </nav>

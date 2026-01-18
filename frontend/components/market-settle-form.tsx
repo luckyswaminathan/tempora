@@ -90,7 +90,7 @@ export function MarketSettleForm({
           >
             <option value="">-- Choose outcome --</option>
             {market.securities.map((security) => (
-              <option key={security.id} value={security.outcome}>
+              <option key={security.id} value={security.id}>
                 {security.outcome}
               </option>
             ))}

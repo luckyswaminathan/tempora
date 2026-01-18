@@ -155,6 +155,26 @@ export interface MarketCreate {
   liquidityParameter?: number;
 }
 
+export interface SecurityUpdate {
+  id: string;
+  outcome: string;
+}
+
+export interface MarketUpdate {
+  question: string;
+  category: string;
+  resolutionDate: string;
+  description?: string;
+  tags?: string[];
+  securities: SecurityUpdate[];
+}
+
+export interface MarketSettlementResponse {
+  id: string;
+  winningOutcome: string;
+  netPayout: number;
+}
+
 export const marketsApi = {
   async listMarkets(params?: {
     category?: string;
@@ -179,16 +199,16 @@ export const marketsApi = {
     });
   },
 
-  async updateMarket(id: string, data: Partial<MarketCreate>): Promise<Market> {
+  async updateMarket(id: string, data: Partial<MarketUpdate>): Promise<Market> {
     return fetchWithAuth(`/markets/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
   },
 
-  async settleMarket(winningSecurityId: string): Promise<any> {
+  async settleMarket(winningSecurityId: string): Promise<MarketSettlementResponse> {
     return fetchWithAuth(`/markets/settle`, {
-      method: "POST",
+      method: "PUT",
       body: JSON.stringify({
         winningSecurityId: winningSecurityId,
       }),

@@ -14,7 +14,7 @@ class SettlementDate(BaseModel):
 class Security(BaseModel):
     id: str
     market_id: str = Field(alias="marketId")
-    outcome: str
+    outcome: str = Field(min_length=1)
     created_at: datetime = Field(alias="createdAt")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -33,7 +33,7 @@ class MarketQuote(BaseModel):
 
 class Market(BaseModel):
     id: str
-    question: str
+    question: str = Field(min_length=1)
     category: str
     status: MarketStatus = MarketStatus.OPEN
     resolution_date: datetime = Field(alias="resolutionDate")
@@ -57,7 +57,7 @@ class Market(BaseModel):
 
 
 class MarketCreate(BaseModel):
-    question: str
+    question: str = Field(min_length=1)
     outcomes: List[str] = Field(default_factory=list)
     category: str
     resolution_date: datetime = Field(alias="resolutionDate")
@@ -68,13 +68,21 @@ class MarketCreate(BaseModel):
     )
 
 
+class SecurityUpdate(BaseModel):
+    id: str
+    outcome: str = Field(min_length=1)
+
+
 class MarketUpdate(BaseModel):
-    question: Optional[str] = None
+    question: Optional[str] = Field(default=None, min_length=1)
     category: Optional[str] = None
     resolution_date: Optional[datetime] = Field(default=None, alias="resolutionDate")
     description: Optional[str] = None
     status: Optional[MarketStatus] = None
     tags: Optional[List[str]] = None
+    securities: Optional[List[SecurityUpdate]] = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class MarketSettlement(BaseModel):
@@ -86,6 +94,9 @@ class MarketListResponse(BaseModel):
     count: int
 
 
-class MarketSecuritiesResponse(BaseModel):
-    items: List[Security]
-    count: int
+class MarketSettlementResponse(BaseModel):
+    id: str
+    winning_outcome: str = Field(alias="winningOutcome")
+    net_payout: int = Field(alias="netPayout")
+
+    model_config = ConfigDict(populate_by_name=True)

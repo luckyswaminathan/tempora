@@ -14,6 +14,7 @@ from schemas.market import (
     MarketListResponse,
     MarketUpdate,
     MarketSettlement,
+    MarketSettlementResponse,
     Market,
     Security,
     SettlementDate,
@@ -88,19 +89,27 @@ class MarketService:
             market.description = payload.description
         if payload.resolution_date is not None:
             market.resolution_date = payload.resolution_date
+            market.settlement_dates = self._generate_settlement_dates(
+                payload.resolution_date
+            )
         if payload.status is not None:
             market.status = payload.status
         if payload.tags is not None:
             market.tags = payload.tags
 
+        if payload.securities is not None:
+            for update in payload.securities:
+                security = self.session.get(models.Security, update.id)
+                if security:
+                    security.outcome = update.outcome
+
+        market.updated_at = datetime.now(timezone.utc)
         self.session.commit()
         self.session.refresh(market)
         return self._attach_quote(market)
 
-    def settle_market(self, payload: MarketSettlement) -> Market:
-        security = self.session.get(
-            models.Security, security_id=payload.winning_security_id
-        )
+    def settle_market(self, payload: MarketSettlement) -> MarketSettlementResponse:
+        security = self.session.get(models.Security, payload.winning_security_id)
         if not security:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -122,7 +131,7 @@ class MarketService:
 
         user_pnl = defaultdict(float)
         for trade in trades:
-            user_pnl[trade.user_id] += trade.quantity
+            user_pnl[trade.user_id] += 100 * trade.quantity
 
         if user_pnl:
             case_expr = case(
@@ -141,7 +150,14 @@ class MarketService:
 
         self.session.commit()
         self.session.refresh(market)
-        return self._attach_quote(market)
+
+        return MarketSettlementResponse.model_validate(
+            {
+                "id": market.id,
+                "winning_outcome": security.outcome,
+                "net_payout": sum(user_pnl.values()),
+            }
+        )
 
     def _attach_quote(self, market: models.Market) -> Market:
         securities = [

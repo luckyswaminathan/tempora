@@ -29,6 +29,13 @@ class TradeService:
 
     def _price_trade(self, market_id: str, legs: List[Leg]) -> int:
         market = self.market_service.get_market(market_id)
+
+        if market.status != models.MarketStatus.OPEN:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Market is not open for trading",
+            )
+
         quantities_map = {
             quote.security_id: quote.quantity_traded for quote in market.quotes
         }
