@@ -3,43 +3,13 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, Calendar, Wallet } from "lucide-react";
 import { usersApi, type PortfolioSnapshot } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { useSearchParams } from "next/navigation";
-
-// Tutorial steps data (same as in tutorial page)
-const UNDERSTANDING_PNL_STEPS = [
-  {
-    id: 1,
-    elementId: "pnl-cost-basis",
-    title: "Cost Basis",
-    description:
-      "This is the total amount you paid to acquire your positions. It's the sum of all your initial investments in the current holdings.",
-  },
-  {
-    id: 2,
-    elementId: "pnl-market-value",
-    title: "Market Value",
-    description:
-      "The current value of all your positions at today's market prices. This changes throughout the day as market prices move.",
-  },
-  {
-    id: 3,
-    elementId: "pnl-unrealized",
-    title: "Profit & Loss (P&L)",
-    description:
-      "The difference between your market value and cost basis. Green means you're making money, red means you're losing money. This is unrealized - it's the profit/loss if you close all positions now.",
-  },
-  {
-    id: 4,
-    elementId: "pnl-roi",
-    title: "Return on Investment (ROI)",
-    description:
-      "Your P&L expressed as a percentage of your initial investment. This shows your return efficiency. For example, 10% ROI means you've made 10% profit on your initial investment.",
-  },
-];
+import { TutorialOverlay } from "@/components/tutorial-overlay";
+import { useTutorial } from "@/hooks/useTutorial";
+import { UNDERSTANDING_PNL_STEPS } from "@/lib/tutorial-steps";
 
 export default function PortfolioPage() {
   const { user } = useAuth();
@@ -47,29 +17,16 @@ export default function PortfolioPage() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tutorialActive, setTutorialActive] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [elementRect, setElementRect] = useState<DOMRect | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const currentStepData = UNDERSTANDING_PNL_STEPS[currentStep];
+  const pnlTutorial = useTutorial({
+    steps: UNDERSTANDING_PNL_STEPS,
+  });
 
   // Ensure component is mounted on client
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Update element rect whenever tutorial step changes
-  useEffect(() => {
-    if (tutorialActive && currentStepData) {
-      const element = document.getElementById(currentStepData.elementId);
-      if (element) {
-        setElementRect(element.getBoundingClientRect());
-      }
-    } else {
-      setElementRect(null);
-    }
-  }, [tutorialActive, currentStep, currentStepData]);
 
   useEffect(() => {
     async function fetchPortfolio() {
@@ -99,23 +56,10 @@ export default function PortfolioPage() {
     if (mounted && !loading) {
       const tutorialMode = searchParams?.get("tutorial");
       if (tutorialMode === "understanding-pnl") {
-        setTutorialActive(true);
-        setCurrentStep(0);
+        pnlTutorial.start();
       }
     }
   }, [mounted, searchParams, loading]);
-
-  const handleNextStep = () => {
-    if (currentStep < UNDERSTANDING_PNL_STEPS.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      setTutorialActive(false);
-    }
-  };
-
-  const handleCloseTutorial = () => {
-    setTutorialActive(false);
-  };
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
@@ -179,80 +123,14 @@ export default function PortfolioPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Tutorial Overlay */}
-      {tutorialActive && (
-        <>
-          {/* Fade overlay */}
-          <div
-            className="fixed inset-0 bg-black/60 z-40 transition-opacity duration-300"
-            onClick={handleCloseTutorial}
-          />
-
-          {/* Highlight and tooltip */}
-          {elementRect && (
-            <>
-              {/* Highlighted element border */}
-              <div
-                className="fixed z-50 pointer-events-none border-2 border-yellow-400 rounded-lg shadow-lg"
-                style={{
-                  top: `${elementRect.top - 4}px`,
-                  left: `${elementRect.left - 4}px`,
-                  width: `${elementRect.width + 8}px`,
-                  height: `${elementRect.height + 8}px`,
-                  boxShadow: "0 0 20px rgba(250, 204, 21, 0.6)",
-                }}
-              />
-
-              {/* Tooltip */}
-              <div
-                className="fixed z-50 bg-white dark:bg-slate-900 rounded-lg shadow-2xl p-6 w-96 border border-gray-200 dark:border-gray-700 animate-in fade-in slide-in-from-bottom-4 duration-300"
-                style={{
-                  top: `${Math.min(
-                    elementRect.bottom + 20,
-                    window.innerHeight - 300,
-                  )}px`,
-                  left: `${Math.max(
-                    Math.min(
-                      elementRect.left + elementRect.width / 2 - 192,
-                      window.innerWidth - 400,
-                    ),
-                    16,
-                  )}px`,
-                }}
-              >
-                <div className="mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    {currentStepData?.title}
-                  </h3>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                    {currentStepData?.description}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between mt-6">
-                  <div className="text-xs text-gray-500">
-                    Step {currentStep + 1} of {UNDERSTANDING_PNL_STEPS.length}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCloseTutorial}
-                    >
-                      Skip
-                    </Button>
-                    <Button size="sm" onClick={handleNextStep}>
-                      {currentStep === UNDERSTANDING_PNL_STEPS.length - 1
-                        ? "Done"
-                        : "OK"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </>
-      )}
+      <TutorialOverlay
+        steps={UNDERSTANDING_PNL_STEPS}
+        currentStep={pnlTutorial.currentStep}
+        isActive={pnlTutorial.isActive}
+        elementRect={pnlTutorial.elementRect}
+        onNext={pnlTutorial.next}
+        onClose={pnlTutorial.close}
+      />
 
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-balance flex items-center gap-2">

@@ -46,7 +46,7 @@ class AuthService:
         user.profile = models.Profile(
             display_name=payload.display_name,
             joined_at=datetime.now(timezone.utc),
-            last_seen_at=None,
+            last_seen_at=datetime.now(timezone.utc),
         )
         self.session.add(user)
         self.session.commit()
