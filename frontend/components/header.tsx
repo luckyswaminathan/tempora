@@ -1,14 +1,15 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { TrendingUp, User } from "lucide-react"
-import { useAuth } from "@/contexts/auth-context"
-import { AuthDialog } from "@/components/auth-dialog"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, User } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { AuthDialog } from "@/components/auth-dialog";
 
 export function Header() {
-  const { user, signOut, loading } = useAuth()
-  const [authDialogOpen, setAuthDialogOpen] = useState(false)
+  const { user, signOut, loading } = useAuth();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
   return (
     <>
@@ -19,20 +20,52 @@ export function Header() {
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-primary-foreground">
                 <TrendingUp className="w-6 h-6" />
               </div>
-              <a href="/" className="text-xl font-bold hover:opacity-90">
+              <a
+                id="logo-tempora"
+                href="/"
+                className="text-xl font-bold hover:opacity-90"
+              >
                 tempora
               </a>
             </div>
             <nav className="hidden md:flex items-center gap-6">
-              <a href="/" className="text-sm font-medium hover:text-primary transition-colors">
+              <a
+                id="nav-markets"
+                href="/"
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
                 Markets
               </a>
-              <a href="/portfolio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+              <a
+                id="nav-portfolio"
+                href="/portfolio"
+                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+              >
                 Portfolio
               </a>
-              <a href="/leaderboard" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+              <a
+                id="nav-leaderboard"
+                href="/leaderboard"
+                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+              >
                 Leaderboard
               </a>
+              <a
+                id="nav-tutorial"
+                href="/tutorial"
+                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+              >
+                Tutorial
+              </a>
+              {!loading && user?.role === "admin" && (
+                <a
+                  id="nav-create"
+                  href="/create"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Create Market
+                </a>
+              )}
             </nav>
             <div className="flex items-center gap-3">
               {loading ? (
@@ -49,10 +82,23 @@ export function Header() {
                 </>
               ) : (
                 <>
-                  <Button variant="ghost" size="sm" onClick={() => setAuthDialogOpen(true)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setAuthMode("login");
+                      setAuthDialogOpen(true);
+                    }}
+                  >
                     Sign In
                   </Button>
-                  <Button size="sm" onClick={() => setAuthDialogOpen(true)}>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setAuthMode("register");
+                      setAuthDialogOpen(true);
+                    }}
+                  >
                     Get Started
                   </Button>
                 </>
@@ -61,7 +107,11 @@ export function Header() {
           </div>
         </div>
       </header>
-      <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        defaultMode={authMode}
+      />
     </>
-  )
+  );
 }

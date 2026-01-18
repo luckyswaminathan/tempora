@@ -9,6 +9,7 @@ from services.markets import MarketService
 from services.trades import TradeService
 from services.auth import AuthService
 from services.portfolio import PortfolioService
+from services.leaderboard import LeaderboardService
 
 
 def get_auth_service(session: Session = Depends(get_session)) -> AuthService:
@@ -25,6 +26,12 @@ def get_trade_service(session: Session = Depends(get_session)) -> TradeService:
 
 def get_portfolio_service(session: Session = Depends(get_session)) -> PortfolioService:
     return PortfolioService(session)
+
+
+def get_leaderboard_service(
+    session: Session = Depends(get_session),
+) -> LeaderboardService:
+    return LeaderboardService(session)
 
 
 def get_current_user(
@@ -49,3 +56,16 @@ def get_current_user(
             detail="Unsupported authorization scheme",
         )
     return auth_service.get_user_from_token(token)
+
+
+def get_current_admin(
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    user = get_current_user(authorization, auth_service)
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User does not have admin role",
+        )
+    return user

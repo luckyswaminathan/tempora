@@ -9,7 +9,9 @@ def test_profile(client):
     data = resp.json()
     assert "id" in data
     assert "email" in data
+    assert "role" in data
     assert "displayName" in data
+    assert "wallet" in data
     assert "joinedAt" in data
     assert "lastSeenAt" in data
     assert "totalTrades" in data

@@ -27,8 +27,15 @@ class TradeService:
         self.session = session
         self.market_service = MarketService(session)
 
-    def _price_trade(self, market_id: str, legs: List[Leg]) -> float:
+    def _price_trade(self, market_id: str, legs: List[Leg]) -> int:
         market = self.market_service.get_market(market_id)
+
+        if market.status != models.MarketStatus.OPEN:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Market is not open for trading",
+            )
+
         quantities_map = {
             quote.security_id: quote.quantity_traded for quote in market.quotes
         }
@@ -46,7 +53,13 @@ class TradeService:
         )
 
     def place_trade(self, payload: TradeCreate) -> TradePlaceResponse:
-        execution_price = 0.0
+        profile = self.session.get(models.Profile, payload.user_id)
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
+            )
+
+        execution_price = 0
         trade_group_id = str(uuid4())
 
         for leg in payload.legs:
@@ -62,6 +75,8 @@ class TradeService:
             )
             execution_price += price
             self.session.add(record)
+
+        profile.wallet -= execution_price
 
         self.session.commit()
         return TradePlaceResponse.model_validate(

@@ -6,12 +6,27 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Calendar, Wallet } from "lucide-react";
 import { usersApi, type PortfolioSnapshot } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
+import { useSearchParams } from "next/navigation";
+import { TutorialOverlay } from "@/components/tutorial-overlay";
+import { useTutorial } from "@/hooks/useTutorial";
+import { UNDERSTANDING_PNL_STEPS } from "@/lib/tutorial-steps";
 
 export default function PortfolioPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  const pnlTutorial = useTutorial({
+    steps: UNDERSTANDING_PNL_STEPS,
+  });
+
+  // Ensure component is mounted on client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     async function fetchPortfolio() {
@@ -27,7 +42,7 @@ export default function PortfolioPage() {
         setPortfolio(data);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to load portfolio"
+          err instanceof Error ? err.message : "Failed to load portfolio",
         );
       } finally {
         setLoading(false);
@@ -36,6 +51,20 @@ export default function PortfolioPage() {
 
     fetchPortfolio();
   }, [user]);
+
+  useEffect(() => {
+    if (mounted && !loading) {
+      const tutorialMode = searchParams?.get("tutorial");
+      if (tutorialMode === "understanding-pnl") {
+        pnlTutorial.start();
+      }
+    }
+  }, [mounted, searchParams, loading]);
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return null;
+  }
 
   if (!user) {
     return (
@@ -94,6 +123,15 @@ export default function PortfolioPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <TutorialOverlay
+        steps={UNDERSTANDING_PNL_STEPS}
+        currentStep={pnlTutorial.currentStep}
+        isActive={pnlTutorial.isActive}
+        elementRect={pnlTutorial.elementRect}
+        onNext={pnlTutorial.next}
+        onClose={pnlTutorial.close}
+      />
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-balance flex items-center gap-2">
           <Wallet className="w-7 h-7" /> Your Portfolio
@@ -103,20 +141,36 @@ export default function PortfolioPage() {
         </p>
       </div>
 
+      <Card className="p-6 mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-muted-foreground mb-1">
+              Available Balance
+            </div>
+            <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+              ${(portfolio.wallet / 100.0).toFixed(2)}
+            </div>
+          </div>
+          <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full">
+            <Wallet className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          </div>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card className="p-4">
+        <Card id="pnl-cost-basis" className="p-4">
           <div className="text-xs text-muted-foreground">Cost Basis</div>
           <div className="text-2xl font-semibold">
             ${(summary.costBasis / 100.0).toFixed(2)}
           </div>
         </Card>
-        <Card className="p-4">
+        <Card id="pnl-market-value" className="p-4">
           <div className="text-xs text-muted-foreground">Market Value</div>
           <div className="text-2xl font-semibold">
             ${(summary.marketValue / 100.0).toFixed(2)}
           </div>
         </Card>
-        <Card className="p-4">
+        <Card id="pnl-unrealized" className="p-4">
           <div className="text-xs text-muted-foreground">P&L</div>
           <div
             className={`text-2xl font-semibold ${
@@ -126,7 +180,7 @@ export default function PortfolioPage() {
             ${(summary.unrealisedPnL / 100.0).toFixed(2)}
           </div>
         </Card>
-        <Card className="p-4">
+        <Card id="pnl-roi" className="p-4">
           <div className="text-xs text-muted-foreground">ROI</div>
           <div
             className={`text-2xl font-semibold ${

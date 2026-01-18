@@ -9,21 +9,22 @@ class Holding(BaseModel):
     question: str
     outcome: str
     avg_price_cents: float = Field(alias="avgPriceCents")
-    quantity: float
+    quantity: int
     mark_price_cents: float = Field(alias="markPriceCents")
     end_date: str = Field(alias="endDate")
-    pnl: float = Field(alias="pnl", description="pnl in cents")
+    pnl: int = Field(alias="pnl", description="pnl in cents")
 
     model_config = ConfigDict(populate_by_name=True)
 
 
 class PortfolioSummary(BaseModel):
-    cost_basis: float = Field(alias="costBasis")
+    cost_basis: int = Field(alias="costBasis")
     market_value: float = Field(alias="marketValue")
     unrealised_pnl: float = Field(alias="unrealisedPnL")
     roi: float
 
 
 class PortfolioSnapshot(BaseModel):
+    wallet: int
     holdings: List[Holding]
     summary: PortfolioSummary

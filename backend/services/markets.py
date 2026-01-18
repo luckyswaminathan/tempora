@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import case, select, update
+from sqlalchemy.orm import Session, selectinload
 
 from core import models
 from schemas.market import (
     MarketCreate,
     MarketListResponse,
-    MarketStatus,
     MarketUpdate,
+    MarketSettlement,
+    MarketSettlementResponse,
     Market,
     Security,
     SettlementDate,
@@ -35,7 +37,12 @@ class MarketService:
             stmt = stmt.where(models.Market.status == status_filter)
         stmt = stmt.order_by(models.Market.created_at.desc())
 
-        markets = self.session.scalars(stmt).all()
+        markets = self.session.scalars(
+            stmt.options(
+                selectinload(models.Market.securities),
+                selectinload(models.Market.trades),
+            )
+        ).all()
         items = [self._attach_quote(market) for market in markets]
         return MarketListResponse(items=items, count=len(items))
 
@@ -53,7 +60,7 @@ class MarketService:
             category=payload.category,
             description=payload.description,
             resolution_date=payload.resolution_date,
-            status=MarketStatus.OPEN.value,
+            status=models.MarketStatus.OPEN,
             tags=payload.tags,
             liquidity_parameter=payload.liquidity_parameter,
             settlement_dates=self._generate_settlement_dates(payload.resolution_date),
@@ -82,84 +89,145 @@ class MarketService:
             market.description = payload.description
         if payload.resolution_date is not None:
             market.resolution_date = payload.resolution_date
-        if payload.status is not None:
-            market.status = (
-                payload.status.value
-                if isinstance(payload.status, MarketStatus)
-                else payload.status
+            market.settlement_dates = self._generate_settlement_dates(
+                payload.resolution_date
             )
+        if payload.status is not None:
+            market.status = payload.status
         if payload.tags is not None:
             market.tags = payload.tags
-        market.updated_at = datetime.now(timezone.utc)
 
+        if payload.securities is not None:
+            for update in payload.securities:
+                security = self.session.get(models.Security, update.id)
+                if security:
+                    security.outcome = update.outcome
+
+        market.updated_at = datetime.now(timezone.utc)
         self.session.commit()
         self.session.refresh(market)
         return self._attach_quote(market)
 
-    def _attach_quote(self, record: models.Market) -> Market:
-        trades = self._get_trades(record.id)
-        securities = self._get_market_securities(record.id)
-        quantities = self._get_quantities(trades, securities)
-        quotes = calculate_market_quotes(quantities, record.liquidity_parameter)
-        total_volume = self._get_total_volume(trades)
-        open_interest = self._get_open_interest(trades)
+    def settle_market(self, payload: MarketSettlement) -> MarketSettlementResponse:
+        security = self.session.get(models.Security, payload.winning_security_id)
+        if not security:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Winning security not found",
+            )
 
-        settlement_dates = [
-            self._map_settlement_date(entry)
-            for entry in (record.settlement_dates or [])
+        market = security.market
+
+        if market.status not in [
+            models.MarketStatus.OPEN,
+            models.MarketStatus.CLOSED,
+        ]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Market cannot be settled",
+            )
+
+        trades = security.trades
+
+        user_pnl = defaultdict(float)
+        for trade in trades:
+            user_pnl[trade.user_id] += 100 * trade.quantity
+
+        if user_pnl:
+            case_expr = case(
+                {user_id: delta for user_id, delta in user_pnl.items()},
+                value=models.Profile.id,
+            )
+
+            stmt = (
+                update(models.Profile)
+                .where(models.Profile.id.in_(user_pnl.keys()))
+                .values(wallet=models.Profile.wallet + case_expr)
+            )
+            self.session.execute(stmt)
+
+        market.status = models.MarketStatus.RESOLVED
+
+        self.session.commit()
+        self.session.refresh(market)
+
+        return MarketSettlementResponse.model_validate(
+            {
+                "id": market.id,
+                "winning_outcome": security.outcome,
+                "net_payout": sum(user_pnl.values()),
+            }
+        )
+
+    def _attach_quote(self, market: models.Market) -> Market:
+        securities = [
+            Security.model_validate(
+                {
+                    "id": s.id,
+                    "market_id": market.id,
+                    "outcome": s.outcome,
+                    "created_at": s.created_at or datetime.now(timezone.utc),
+                }
+            )
+            for s in market.securities
         ]
 
-        mapped = {
-            "id": record.id,
-            "question": record.question,
-            "category": record.category or "General",
-            "status": record.status or MarketStatus.OPEN.value,
-            "resolutionDate": record.resolution_date,
-            "createdAt": record.created_at or datetime.now(timezone.utc),
-            "updatedAt": record.updated_at or datetime.now(timezone.utc),
-            "description": record.description,
-            "tags": record.tags or [],
-            "quotes": quotes,
-            "securities": securities,
-            "openInterest": round(open_interest, 2),
-            "totalVolume": round(total_volume, 2),
-            "liquidity_parameter": record.liquidity_parameter,
-            "settlementDates": settlement_dates,
-        }
-        return Market.model_validate(mapped)
+        trades = [
+            TradeRecord.model_validate(
+                {
+                    "id": t.id,
+                    "user_id": t.user_id,
+                    "market_id": t.market_id,
+                    "trade_group_id": t.trade_group_id,
+                    "security_id": t.security_id,
+                    "quantity": t.quantity,
+                    "price_cents": t.price_cents,
+                    "created_at": t.created_at or datetime.now(timezone.utc),
+                }
+            )
+            for t in market.trades
+        ]
 
-    def _get_trades(self, market_id: str) -> List[TradeRecord]:
-        trades = []
-        stmt = select(models.Trade).where(models.Trade.market_id == market_id)
-        rows = self.session.scalars(stmt).all()
-        for row in rows:
-            mapped = {
-                "id": row.id,
-                "user_id": row.user_id,
-                "market_id": market_id,
-                "trade_group_id": row.trade_group_id,
-                "security_id": row.security_id,
-                "quantity": row.quantity,
-                "price_cents": row.price_cents,
-                "created_at": row.created_at or datetime.now(timezone.utc),
+        # Compute quantities per security
+        quantities = {s.id: 0 for s in securities}
+        for t in trades:
+            quantities[t.security_id] += t.quantity
+
+        # Compute quotes
+        quotes = calculate_market_quotes(quantities, market.liquidity_parameter)
+
+        # Compute total volume, open interest
+        user_net_volume = defaultdict(int)
+        user_net_interest = defaultdict(int)
+        for t in trades:
+            user_net_volume[(t.user_id, t.security_id)] += t.price_cents
+            user_net_interest[(t.user_id, t.security_id)] += t.quantity
+        total_volume = sum(abs(v) for v in user_net_volume.values())
+        open_interest = sum(abs(q) for q in user_net_interest.values())
+
+        settlement_dates = [
+            self._map_settlement_date(sd) for sd in (market.settlement_dates or [])
+        ]
+
+        return Market.model_validate(
+            {
+                "id": market.id,
+                "question": market.question,
+                "category": market.category or "General",
+                "status": market.status or models.MarketStatus.OPEN,
+                "resolutionDate": market.resolution_date,
+                "createdAt": market.created_at or datetime.now(timezone.utc),
+                "updatedAt": market.updated_at or datetime.now(timezone.utc),
+                "description": market.description,
+                "tags": market.tags or [],
+                "quotes": quotes,
+                "securities": securities,
+                "openInterest": open_interest,
+                "totalVolume": total_volume,
+                "liquidity_parameter": market.liquidity_parameter,
+                "settlementDates": settlement_dates,
             }
-            trades.append(TradeRecord.model_validate(mapped))
-        return trades
-
-    def _get_quantities(
-        self, trades: List[TradeRecord], securities: List[Security]
-    ) -> Dict[str, float]:
-        quantities = {security.id: 0.0 for security in securities}
-        for trade in trades:
-            if trade.security_id in quantities:
-                quantities[trade.security_id] += trade.quantity
-        return quantities
-
-    def _get_total_volume(self, trades: List[TradeRecord]) -> float:
-        return sum(abs(trade.price_cents) for trade in trades)
-
-    def _get_open_interest(self, trades: List[TradeRecord]) -> float:
-        return sum(abs(trade.quantity) for trade in trades)
+        )
 
     def _generate_settlement_dates(
         self, resolution_date: datetime
@@ -203,20 +271,6 @@ class MarketService:
             )
             self.session.add(record)
 
-    def _get_market_securities(self, market_id: str) -> List[Security]:
-        securities = []
-        stmt = select(models.Security).where(models.Security.market_id == market_id)
-        rows = self.session.scalars(stmt).all()
-        for row in rows:
-            mapped = {
-                "id": row.id,
-                "market_id": market_id,
-                "outcome": row.outcome,
-                "created_at": row.created_at or datetime.now(timezone.utc),
-            }
-            securities.append(Security.model_validate(mapped))
-        return securities
-
     def get_security(self, security_id: str) -> Security:
         record = self.session.get(models.Security, security_id)
         if not record:
@@ -224,10 +278,12 @@ class MarketService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Security not found"
             )
 
-        mapped = {
-            "id": security_id,
-            "market_id": record.market_id,
-            "outcome": record.outcome,
-            "created_at": record.created_at or datetime.now(timezone.utc).isoformat(),
-        }
-        return Security.model_validate(mapped)
+        return Security.model_validate(
+            {
+                "id": security_id,
+                "market_id": record.market_id,
+                "outcome": record.outcome,
+                "created_at": record.created_at
+                or datetime.now(timezone.utc).isoformat(),
+            }
+        )

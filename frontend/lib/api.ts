@@ -7,7 +7,7 @@ export interface ApiError {
 
 async function fetchWithAuth<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const token = getAccessToken();
   const headers: HeadersInit = {
@@ -64,7 +64,7 @@ export interface AuthResponse {
   user: {
     id: string;
     email: string;
-    displayName?: string;
+    role: "user" | "admin";
     createdAt?: string;
   };
   tokens: {
@@ -152,7 +152,27 @@ export interface MarketCreate {
   resolutionDate: string;
   description?: string;
   tags?: string[];
-  initialLiquidity?: number;
+  liquidityParameter?: number;
+}
+
+export interface SecurityUpdate {
+  id: string;
+  outcome: string;
+}
+
+export interface MarketUpdate {
+  question: string;
+  category: string;
+  resolutionDate: string;
+  description?: string;
+  tags?: string[];
+  securities: SecurityUpdate[];
+}
+
+export interface MarketSettlementResponse {
+  id: string;
+  winningOutcome: string;
+  netPayout: number;
 }
 
 export const marketsApi = {
@@ -179,10 +199,19 @@ export const marketsApi = {
     });
   },
 
-  async updateMarket(id: string, data: Partial<MarketCreate>): Promise<Market> {
+  async updateMarket(id: string, data: Partial<MarketUpdate>): Promise<Market> {
     return fetchWithAuth(`/markets/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+    });
+  },
+
+  async settleMarket(winningSecurityId: string): Promise<MarketSettlementResponse> {
+    return fetchWithAuth(`/markets/settle`, {
+      method: "PUT",
+      body: JSON.stringify({
+        winningSecurityId: winningSecurityId,
+      }),
     });
   },
 };
@@ -252,7 +281,9 @@ export const tradesApi = {
 export interface UserProfile {
   id: string;
   email: string;
+  role: "user" | "admin";
   displayName?: string;
+  wallet: number;
   joinedAt: string;
   lastSeenAt?: string;
   totalTrades: number;
@@ -261,6 +292,7 @@ export interface UserProfile {
 }
 
 export interface PortfolioSnapshot {
+  wallet: number;
   holdings: Array<{
     marketId: string;
     securityId: string;
@@ -280,6 +312,18 @@ export interface PortfolioSnapshot {
   };
 }
 
+export interface LeaderboardResponse {
+  leaderboard: Array<{
+    id: string;
+    email: string;
+    role: "user" | "admin";
+    displayName?: string;
+    wallet: number;
+    joinedAt: string;
+    lastSeenAt?: string;
+  }>;
+}
+
 export const usersApi = {
   async getProfile(userId?: string): Promise<UserProfile> {
     const endpoint = userId ? `/users/${userId}/profile` : "/users/me/profile";
@@ -288,5 +332,15 @@ export const usersApi = {
 
   async getPortfolio(): Promise<PortfolioSnapshot> {
     return fetchWithAuth("/users/me/portfolio");
+  },
+
+  async getLeaderboard(params: {
+    limit: number;
+  }): Promise<LeaderboardResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.set("limit", params.limit.toString());
+
+    const query = searchParams.toString();
+    return fetchWithAuth(`/users/leaderboard?${query}`);
   },
 };

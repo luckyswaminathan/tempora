@@ -86,7 +86,9 @@ export function BetDialog({
 
         setCalculatedPrice(priceData.priceCents);
       } catch (error) {
-        console.error("Failed to fetch price:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to fetch price",
+        );
         setCalculatedPrice(null);
       } finally {
         setFetchingPrice(false);
@@ -113,7 +115,7 @@ export function BetDialog({
 
   const intervalProbability = selectedOutcomes.reduce(
     (sum, o) => sum + o.probability,
-    0
+    0,
   );
 
   const potentialReturnDollars = isBuy ? Math.abs(shares) : 0;
@@ -159,14 +161,14 @@ export function BetDialog({
       if (isInterval) {
         toast.success(
           `Interval trade placed! ${action} ${Math.abs(
-            shares
-          )} shares across ${numOutcomes} outcomes`
+            shares,
+          )} shares across ${numOutcomes} outcomes`,
         );
       } else {
         toast.success(
           `Trade placed! ${action} ${Math.abs(shares)} shares of ${
             selectedSecurity?.outcome
-          }`
+          }`,
         );
       }
 
@@ -176,7 +178,7 @@ export function BetDialog({
       onSuccess?.();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to place trade"
+        error instanceof Error ? error.message : "Failed to place trade",
       );
     } finally {
       setLoading(false);
@@ -185,7 +187,7 @@ export function BetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md overflow-x-auto">
         <DialogHeader>
           <DialogTitle className="text-balance">
             {isInterval ? "Trade Interval" : "Place Your Trade"}
@@ -232,7 +234,7 @@ export function BetDialog({
                 </div>
                 <div className="text-lg font-mono">
                   {quote?.buyUnitPriceCents
-                    ? `${quote.buyUnitPriceCents.toFixed(2)}¢`
+                    ? `${quote.buyUnitPriceCents}¢`
                     : "—"}
                 </div>
               </div>
@@ -432,14 +434,14 @@ export function BetDialog({
             {loading
               ? "Placing..."
               : !user
-              ? "Sign In Required"
-              : fetchingPrice
-              ? "Loading..."
-              : calculatedPrice
-              ? isBuy
-                ? `Buy for $${totalCostDollars.toFixed(2)}`
-                : `Sell for $${totalCostDollars.toFixed(2)}`
-              : "Enter quantity"}
+                ? "Sign In Required"
+                : fetchingPrice
+                  ? "Loading..."
+                  : calculatedPrice
+                    ? isBuy
+                      ? `Buy for $${totalCostDollars.toFixed(2)}`
+                      : `Sell for $${totalCostDollars.toFixed(2)}`
+                    : "Enter quantity"}
           </Button>
         </div>
       </DialogContent>
