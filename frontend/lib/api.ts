@@ -343,4 +343,11 @@ export const usersApi = {
     const query = searchParams.toString();
     return fetchWithAuth(`/users/leaderboard?${query}`);
   },
+
+  async addFunds(amount: number): Promise<UserProfile> {
+    return fetchWithAuth("/users/me/wallet/add-funds", {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+  },
 };
