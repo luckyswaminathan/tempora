@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
 import { useTutorial } from "@/hooks/useTutorial";
 import { PLATFORM_OVERVIEW_STEPS } from "@/lib/tutorial-steps";
+import { useAuth } from "@/contexts/auth-context";
 
 const TUTORIAL_SECTIONS = [
   {
@@ -32,6 +33,7 @@ const TUTORIAL_SECTIONS = [
         title: "Account Setup & Verification",
         duration: "8 min",
         completed: true,
+        isInteractive: true,
       },
       {
         title: "Understanding P&L",
@@ -106,6 +108,7 @@ const TUTORIAL_SECTIONS = [
 
 export default function TutorialPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const platformTutorial = useTutorial({
     steps: PLATFORM_OVERVIEW_STEPS,
   });
@@ -121,10 +124,19 @@ export default function TutorialPage() {
   const progressPercent = Math.round((completedLessons / totalLessons) * 100);
 
   const handleStartTutorial = (
-    tutorialType: "platform-overview" | "understanding-pnl",
+    tutorialType:
+      | "platform-overview"
+      | "understanding-pnl"
+      | "account-setup"
+      | "account-verification",
   ) => {
     if (tutorialType === "understanding-pnl") {
       router.push("/portfolio?tutorial=understanding-pnl");
+    } else if (tutorialType === "account-setup") {
+      // Redirect to home page with tutorial param, user can click "Get Started" to open auth dialog
+      router.push("/?tutorial=account-setup");
+    } else if (tutorialType === "account-verification") {
+      router.push("/profile?tutorial=account-verification");
     } else {
       platformTutorial.start();
     }
@@ -245,6 +257,18 @@ export default function TutorialPage() {
                               handleStartTutorial("platform-overview");
                             } else if (lesson.title === "Understanding P&L") {
                               handleStartTutorial("understanding-pnl");
+                            } else if (lesson.title === "Account Setup & Verification") {
+                              if (user) {
+                                handleStartTutorial("account-verification");
+                              } else {
+                                handleStartTutorial("account-setup");
+                              }
+                            }
+                          } else if (lesson.title === "Account Setup & Verification") {
+                            if (user) {
+                              handleStartTutorial("account-verification");
+                            } else {
+                              handleStartTutorial("account-setup");
                             }
                           }
                         }}

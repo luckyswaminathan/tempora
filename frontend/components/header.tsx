@@ -72,10 +72,21 @@ export function Header() {
                 <div className="w-20 h-8" />
               ) : user ? (
                 <>
-                  <span className="text-sm text-muted-foreground hidden sm:inline-flex items-center gap-1">
+                  <a
+                    href="/profile"
+                    className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    id="nav-profile"
+                  >
                     <User className="w-4 h-4" />
-                    {user.email}
-                  </span>
+                    <span>{user.email}</span>
+                  </a>
+                  <a
+                    href="/profile"
+                    className="sm:hidden p-2 rounded-md hover:bg-muted transition-colors"
+                    id="nav-profile"
+                  >
+                    <User className="w-5 h-5" />
+                  </a>
                   <Button variant="ghost" size="sm" onClick={() => signOut()}>
                     Sign Out
                   </Button>
