@@ -40,7 +40,7 @@ export function MarketFilters({
   return (
     <div className="mb-6 space-y-4">
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
+        <div className="relative flex-1" id="dashboard-search">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search markets..."
@@ -49,7 +49,7 @@ export function MarketFilters({
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2 overflow-x-auto" id="dashboard-status-filters">
           {STATUSES.map((st) => (
             <Button
               key={st.label}
@@ -66,7 +66,7 @@ export function MarketFilters({
           ))}
         </div>
       </div>
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="flex gap-2 overflow-x-auto" id="dashboard-category-filters">
         <span className="text-sm text-muted-foreground flex items-center mr-2">
           Category:
         </span>
