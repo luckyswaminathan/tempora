@@ -45,6 +45,7 @@ const TUTORIAL_SECTIONS = [
         title: "Understanding the Dashboard",
         duration: "2 min",
         completed: false,
+        isInteractive: true,
       },
     ],
   },
@@ -128,7 +129,8 @@ export default function TutorialPage() {
       | "platform-overview"
       | "understanding-pnl"
       | "account-setup"
-      | "account-verification",
+      | "account-verification"
+      | "understanding-dashboard",
   ) => {
     if (tutorialType === "understanding-pnl") {
       router.push("/portfolio?tutorial=understanding-pnl");
@@ -137,6 +139,8 @@ export default function TutorialPage() {
       router.push("/?tutorial=account-setup");
     } else if (tutorialType === "account-verification") {
       router.push("/profile?tutorial=account-verification");
+    } else if (tutorialType === "understanding-dashboard") {
+      router.push("/?tutorial=understanding-dashboard");
     } else {
       platformTutorial.start();
     }
@@ -263,6 +267,8 @@ export default function TutorialPage() {
                               } else {
                                 handleStartTutorial("account-setup");
                               }
+                            } else if (lesson.title === "Understanding the Dashboard") {
+                              handleStartTutorial("understanding-dashboard");
                             }
                           } else if (lesson.title === "Account Setup & Verification") {
                             if (user) {

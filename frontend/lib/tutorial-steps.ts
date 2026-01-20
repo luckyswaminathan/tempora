@@ -144,3 +144,41 @@ export const ACCOUNT_VERIFICATION_STEPS: TutorialStep[] = [
       "Your account security settings are managed here. Password management features will be available soon. For now, your account is secured with the password you set during registration.",
   },
 ];
+
+export const UNDERSTANDING_DASHBOARD_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "dashboard-title",
+    title: "Welcome to the Markets Dashboard",
+    description:
+      "This is your main trading hub. Here you can browse all available prediction markets, search for specific topics, and filter by category or status.",
+  },
+  {
+    id: 2,
+    elementId: "dashboard-search",
+    title: "Search Markets",
+    description:
+      "Use the search bar to find markets by question or category. Type keywords to quickly locate markets you're interested in trading.",
+  },
+  {
+    id: 3,
+    elementId: "dashboard-status-filters",
+    title: "Filter by Status",
+    description:
+      "Filter markets by their status: Open (actively trading), Closed (no longer accepting trades), Resolved (outcome determined), or view All markets regardless of status.",
+  },
+  {
+    id: 4,
+    elementId: "dashboard-category-filters",
+    title: "Filter by Category",
+    description:
+      "Browse markets by category like Economics, Politics, Technology, Sports, Climate, or General. Click 'All' to see every market.",
+  },
+  {
+    id: 5,
+    elementId: "dashboard-market-card",
+    title: "Market Cards",
+    description:
+      "Each card shows a prediction market with its question, outcomes, probabilities, and trading options. Click on outcomes to place trades, or use the Individual/Interval modes for different trading strategies.",
+  },
+];
