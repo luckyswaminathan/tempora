@@ -1,0 +1,32 @@
+# Python
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
