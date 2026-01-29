@@ -15,6 +15,7 @@ import {
   Gavel,
 } from "lucide-react";
 import { TradeDialog } from "@/components/trade-dialog";
+import { IntervalPicker } from "@/components/interval-picker";
 import { marketsApi, type Market } from "@/lib/api";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/auth-context";
@@ -79,6 +80,9 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
   const creationDate = market?.createdAt
     ? format(new Date(market.createdAt), "MMM d, yyyy")
     : "—";
+
+  // Check if this market supports interval selection
+  const isTemporalMarket = market?.intervalGranularity != null;
 
   const handleBarClick = (index: number) => {
     if (viewMode === "interval") {
@@ -206,44 +210,47 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           </div>
         </div>
 
-        <h3 className="text-lg font-semibold mb-2 leading-snug text-balance">
+        <h3 className="text-lg font-semibold mb-2 leading-snug text-balance line-clamp-2 h-14">
           {market.question || "Untitled Market"}
         </h3>
 
         {market.status === "open" && (
           <div>
-            <div className="flex gap-2 mb-2">
-              <Button
-                variant={viewMode === "individual" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setViewMode("individual");
-                  setIntervalRange([-1, -1]);
-                  setLastSelected(-1);
-                }}
-                className="flex-1"
-              >
-                <BarChart3 className="w-4 h-4 mr-1" />
-                Individual
-              </Button>
-              <Button
-                variant={viewMode === "interval" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setViewMode("interval");
-                  setIntervalRange([-1, -1]);
-                  setLastSelected(-1);
-                }}
-                className="flex-1"
-              >
-                <SlidersHorizontal className="w-4 h-4 mr-1" />
-                Interval
-              </Button>
-            </div>
+            {/* Only show Individual/Interval toggle for temporal markets */}
+            {isTemporalMarket && (
+              <div className="flex gap-2 mb-2">
+                <Button
+                  variant={viewMode === "individual" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode("individual");
+                    setIntervalRange([-1, -1]);
+                    setLastSelected(-1);
+                  }}
+                  className="flex-1"
+                >
+                  <BarChart3 className="w-4 h-4 mr-1" />
+                  Individual
+                </Button>
+                <Button
+                  variant={viewMode === "interval" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode("interval");
+                    setIntervalRange([-1, -1]);
+                    setLastSelected(-1);
+                  }}
+                  className="flex-1"
+                >
+                  <SlidersHorizontal className="w-4 h-4 mr-1" />
+                  Interval
+                </Button>
+              </div>
+            )}
 
             <div className="text-xs text-muted-foreground mb-3 font-medium">
               {viewMode === "individual"
-                ? "Click to trade individual outcomes"
+                ? "Click any outcome to trade"
                 : rangeStart === -1
                   ? "Click to select interval start"
                   : "Click another outcome to adjust interval range"}
@@ -251,9 +258,27 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           </div>
         )}
 
-        <div className="mb-4">
-          <div className="space-y-2">
-            {outcomes.map((outcome, index) => {
+            <div className="mb-4">
+              {/* Always use IntervalPicker for temporal markets (both individual and interval modes) */}
+              {isTemporalMarket ? (
+                <IntervalPicker
+                  outcomes={outcomes}
+                  granularity={market.intervalGranularity!}
+                  selectedRange={intervalRange}
+                  onRangeChange={(range) => {
+                    setIntervalRange(range);
+                    setLastSelected(range[1]);
+                    // In individual mode, auto-open dialog when a single outcome is selected
+                    if (viewMode === "individual" && range[0] === range[1] && range[0] >= 0) {
+                      const outcome = outcomes[range[0]];
+                      setSelectedOutcome(outcome.id);
+                      setDialogOpen(true);
+                    }
+                  }}
+                />
+              ) : (
+                <div className="space-y-2">
+                  {outcomes.map((outcome, index) => {
               const widthPercent =
                 maxProbability > 0
                   ? (outcome.probability / maxProbability) * 100
@@ -300,7 +325,8 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
                 </button>
               );
             })}
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t mt-auto">

@@ -117,6 +117,7 @@ export interface Market {
   updatedAt: string;
   description?: string;
   tags: string[];
+  intervalGranularity?: "year" | "quarter" | "month" | "day" | null;
   quotes: Array<{
     securityId: string;
     quantityTraded: number;
@@ -153,6 +154,7 @@ export interface MarketCreate {
   description?: string;
   tags?: string[];
   liquidityParameter?: number;
+  intervalGranularity?: "year" | "quarter" | "month" | "day" | null;
 }
 
 export interface SecurityUpdate {
