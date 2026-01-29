@@ -41,6 +41,7 @@ class Market(BaseModel):
     updated_at: UTCDateTime = Field(alias="updatedAt")
     description: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
+    interval_granularity: Optional[str] = Field(default=None, alias="intervalGranularity")
 
     quotes: List[MarketQuote] = Field(default_factory=list)
     securities: List[Security] = Field(default_factory=list)
@@ -66,6 +67,7 @@ class MarketCreate(BaseModel):
     liquidity_parameter: Optional[float] = Field(
         default=None, alias="liquidityParameter", ge=0.0
     )
+    interval_granularity: Optional[str] = Field(default=None, alias="intervalGranularity")
 
 
 class SecurityUpdate(BaseModel):
