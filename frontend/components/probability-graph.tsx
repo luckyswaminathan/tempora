@@ -150,7 +150,7 @@ export function ProbabilityGraph({
                 dataKey="probability"
                 tick={{ fontSize: 8, fill: "#6b7280" }}
                 stroke="#9ca3af"
-                domain={["auto", "auto"]}
+                domain={[0, "auto"]}
                 tickFormatter={(value) => `${(value * 100).toFixed(2)}%`}
               />
               <Tooltip
