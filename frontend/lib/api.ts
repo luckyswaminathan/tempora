@@ -370,4 +370,11 @@ export const usersApi = {
   ): Promise<ProbabilityHistResponse> {
     return fetchWithAuth(`/trades/probability/${securityId}`);
   },
+  
+  async addFunds(amount: number): Promise<UserProfile> {
+    return fetchWithAuth("/users/me/wallet/add-funds", {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+  },
 };
