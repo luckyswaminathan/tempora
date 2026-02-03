@@ -258,73 +258,77 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           </div>
         )}
 
-            <div className="mb-4">
-              {/* Always use IntervalPicker for temporal markets (both individual and interval modes) */}
-              {isTemporalMarket ? (
-                <IntervalPicker
-                  outcomes={outcomes}
-                  granularity={market.intervalGranularity!}
-                  selectedRange={intervalRange}
-                  onRangeChange={(range) => {
-                    setIntervalRange(range);
-                    setLastSelected(range[1]);
-                    // In individual mode, auto-open dialog when a single outcome is selected
-                    if (viewMode === "individual" && range[0] === range[1] && range[0] >= 0) {
-                      const outcome = outcomes[range[0]];
-                      setSelectedOutcome(outcome.id);
-                      setDialogOpen(true);
-                    }
-                  }}
-                />
-              ) : (
-                <div className="space-y-2">
-                  {outcomes.map((outcome, index) => {
-              const widthPercent =
-                maxProbability > 0
-                  ? (outcome.probability / maxProbability) * 100
-                  : 0;
-              const isInInterval =
-                viewMode === "interval" &&
-                rangeStart >= 0 &&
-                index >= rangeStart &&
-                index <= rangeEnd;
+        <div className="mb-4">
+          {/* Always use IntervalPicker for temporal markets (both individual and interval modes) */}
+          {isTemporalMarket ? (
+            <IntervalPicker
+              outcomes={outcomes}
+              granularity={market.intervalGranularity!}
+              selectedRange={intervalRange}
+              onRangeChange={(range) => {
+                setIntervalRange(range);
+                setLastSelected(range[1]);
+                // In individual mode, auto-open dialog when a single outcome is selected
+                if (
+                  viewMode === "individual" &&
+                  range[0] === range[1] &&
+                  range[0] >= 0
+                ) {
+                  const outcome = outcomes[range[0]];
+                  setSelectedOutcome(outcome.id);
+                  setDialogOpen(true);
+                }
+              }}
+            />
+          ) : (
+            <div className="space-y-2">
+              {outcomes.map((outcome, index) => {
+                const widthPercent =
+                  maxProbability > 0
+                    ? (outcome.probability / maxProbability) * 100
+                    : 0;
+                const isInInterval =
+                  viewMode === "interval" &&
+                  rangeStart >= 0 &&
+                  index >= rangeStart &&
+                  index <= rangeEnd;
 
-              return (
-                <button
-                  key={outcome.id}
-                  onClick={() => handleBarClick(index)}
-                  onMouseEnter={() => setHoveredOutcome(outcome.id)}
-                  onMouseLeave={() => setHoveredOutcome(null)}
-                  className={`w-full h-12 rounded-lg relative overflow-visible transition ring-offset-2 ${
-                    isInInterval
-                      ? "ring-2 ring-green-500"
-                      : "hover:ring-2 hover:ring-primary"
-                  }`}
-                >
-                  <div
-                    className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${getBarColor(
-                      index,
-                    )}`}
-                    style={{ width: `${widthPercent}%` }}
-                  />
-
-                  <div className="absolute left-3 top-0 h-full flex items-center z-10">
-                    <Pill>{outcome.outcome}</Pill>
-                  </div>
-
-                  <div
-                    className="absolute top-0 h-full flex items-center gap-2 z-10"
-                    style={{ right: "12px" }}
+                return (
+                  <button
+                    key={outcome.id}
+                    onClick={() => handleBarClick(index)}
+                    onMouseEnter={() => setHoveredOutcome(outcome.id)}
+                    onMouseLeave={() => setHoveredOutcome(null)}
+                    className={`w-full h-12 rounded-lg relative overflow-visible transition ring-offset-2 ${
+                      isInInterval
+                        ? "ring-2 ring-green-500"
+                        : "hover:ring-2 hover:ring-primary"
+                    }`}
                   >
-                    <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
-                  </div>
+                    <div
+                      className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${getBarColor(
+                        index,
+                      )}`}
+                      style={{ width: `${widthPercent}%` }}
+                    />
 
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full px-2 py-1 rounded-md bg-gray-900 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg">
-                    <Pill>{outcome.quantityTraded} shares traded</Pill>
-                  </div>
-                </button>
-              );
-            })}
+                    <div className="absolute left-3 top-0 h-full flex items-center z-10">
+                      <Pill>{outcome.outcome}</Pill>
+                    </div>
+
+                    <div
+                      className="absolute top-0 h-full flex items-center gap-2 z-10"
+                      style={{ right: "12px" }}
+                    >
+                      <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
+                    </div>
+
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full px-2 py-1 rounded-md bg-gray-900 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg">
+                      <Pill>{outcome.quantityTraded} shares traded</Pill>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -365,7 +369,14 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
 
       <TradeDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          // In individual mode, reset lastSelected when dialog closes
+          if (!open && viewMode === "individual") {
+            setLastSelected(-1);
+            setIntervalRange([-1, -1]);
+          }
+        }}
         market={market}
         selectedOutcomes={
           viewMode === "interval"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface IntervalPickerProps {
@@ -10,7 +10,20 @@ interface IntervalPickerProps {
   onRangeChange: (range: [number, number]) => void;
 }
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 const Pill = ({ children }: { children: React.ReactNode }) => (
   <span className="px-2 py-1 rounded-full bg-white/60 backdrop-blur text-black text-xs font-semibold shadow-md">
@@ -26,6 +39,13 @@ export function IntervalPicker({
 }: IntervalPickerProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [lastSelected, setLastSelected] = useState<number>(-1);
+
+  // Reset lastSelected when selectedRange is cleared
+  useEffect(() => {
+    if (selectedRange[0] === -1 && selectedRange[1] === -1) {
+      setLastSelected(-1);
+    }
+  }, [selectedRange]);
 
   const handleCellClick = (index: number) => {
     if (lastSelected === -1) {
@@ -49,8 +69,11 @@ export function IntervalPicker({
 
   if (granularity === "year") {
     // Separate year outcomes from "other" outcomes like "Later or never"
-    const yearOutcomes: Array<{ index: number; outcome: typeof outcomes[0] }> = [];
-    const others: Array<{ index: number; outcome: typeof outcomes[0] }> = [];
+    const yearOutcomes: Array<{
+      index: number;
+      outcome: (typeof outcomes)[0];
+    }> = [];
+    const others: Array<{ index: number; outcome: (typeof outcomes)[0] }> = [];
 
     outcomes.forEach((outcome, index) => {
       // Check if it's a year (4 digits)
@@ -74,8 +97,8 @@ export function IntervalPicker({
                 isInRange(index)
                   ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
                   : hoveredIndex === index
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                    ? "border-blue-400 bg-blue-50"
+                    : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
               }`}
             >
               <div className="text-base font-bold text-center mb-2 break-words w-full">
@@ -103,8 +126,8 @@ export function IntervalPicker({
                     isInRange(index)
                       ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
                       : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                   }`}
                 >
                   <div className="text-sm font-bold text-center mb-1 break-words w-full">
@@ -126,9 +149,9 @@ export function IntervalPicker({
     // Parse quarters and group by year
     const quartersByYear: Record<
       string,
-      Array<{ index: number; quarter: string; outcome: typeof outcomes[0] }>
+      Array<{ index: number; quarter: string; outcome: (typeof outcomes)[0] }>
     > = {};
-    const others: Array<{ index: number; outcome: typeof outcomes[0] }> = [];
+    const others: Array<{ index: number; outcome: (typeof outcomes)[0] }> = [];
 
     outcomes.forEach((outcome, index) => {
       // Parse format like "2026 Q1"
@@ -165,8 +188,8 @@ export function IntervalPicker({
                     isInRange(index)
                       ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
                       : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                   }`}
                 >
                   <div className="text-xl font-bold text-center mb-2">
@@ -196,8 +219,8 @@ export function IntervalPicker({
                     isInRange(index)
                       ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
                       : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                   }`}
                 >
                   <div className="text-sm font-bold text-center mb-1 break-words w-full">
@@ -219,9 +242,9 @@ export function IntervalPicker({
     // Parse months and group by year
     const monthsByYear: Record<
       string,
-      Array<{ index: number; month: string; outcome: typeof outcomes[0] }>
+      Array<{ index: number; month: string; outcome: (typeof outcomes)[0] }>
     > = {};
-    const others: Array<{ index: number; outcome: typeof outcomes[0] }> = [];
+    const others: Array<{ index: number; outcome: (typeof outcomes)[0] }> = [];
 
     outcomes.forEach((outcome, index) => {
       // Parse format like "2026-01", "Jan 2026", "January 2026"
@@ -265,8 +288,8 @@ export function IntervalPicker({
                     isInRange(index)
                       ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
                       : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                   }`}
                 >
                   <div className="text-sm font-bold text-center mb-1">
@@ -296,8 +319,8 @@ export function IntervalPicker({
                     isInRange(index)
                       ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
                       : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                   }`}
                 >
                   <div className="text-sm font-bold text-center mb-1 break-words w-full">
@@ -317,8 +340,11 @@ export function IntervalPicker({
 
   if (granularity === "day") {
     // Parse days and create calendar view
-    const daysMap = new Map<string, { index: number; outcome: typeof outcomes[0] }>();
-    const others: Array<{ index: number; outcome: typeof outcomes[0] }> = [];
+    const daysMap = new Map<
+      string,
+      { index: number; outcome: (typeof outcomes)[0] }
+    >();
+    const others: Array<{ index: number; outcome: (typeof outcomes)[0] }> = [];
     let calendarYear = 2026;
     let calendarMonth = 1;
 
@@ -404,7 +430,10 @@ export function IntervalPicker({
           {/* Day labels */}
           <div className="grid grid-cols-7 gap-2 mb-2">
             {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
-              <div key={i} className="text-center text-sm font-semibold text-gray-600 p-2">
+              <div
+                key={i}
+                className="text-center text-sm font-semibold text-gray-600 p-2"
+              >
                 {day}
               </div>
             ))}
@@ -419,7 +448,7 @@ export function IntervalPicker({
 
               const dateKey = `${currentYear}-${String(currentMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
               const dayData = daysMap.get(dateKey);
-              
+
               if (!dayData) {
                 // Day not in outcomes - show as disabled
                 return (
@@ -446,8 +475,8 @@ export function IntervalPicker({
                     inRange
                       ? "bg-green-50 border-2 border-green-500 ring-2 ring-green-500 ring-offset-2"
                       : isHovered
-                      ? "bg-blue-50 border-2 border-blue-400"
-                      : "bg-white border-2 border-gray-200 hover:border-blue-300"
+                        ? "bg-blue-50 border-2 border-blue-400"
+                        : "bg-white border-2 border-gray-200 hover:border-blue-300"
                   }`}
                 >
                   <div className="text-base font-semibold mb-1 text-gray-900">
@@ -479,8 +508,8 @@ export function IntervalPicker({
                     isInRange(index)
                       ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
                       : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                   }`}
                 >
                   <div className="text-sm font-bold text-center mb-1 break-words w-full">
