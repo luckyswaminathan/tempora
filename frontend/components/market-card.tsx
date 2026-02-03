@@ -14,7 +14,8 @@ import {
   Pen,
   Gavel,
 } from "lucide-react";
-import { BetDialog } from "@/components/bet-dialog";
+import { TradeDialog } from "@/components/trade-dialog";
+import { IntervalPicker } from "@/components/interval-picker";
 import { marketsApi, type Market } from "@/lib/api";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/auth-context";
@@ -79,6 +80,9 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
   const creationDate = market?.createdAt
     ? format(new Date(market.createdAt), "MMM d, yyyy")
     : "—";
+
+  // Check if this market supports interval selection
+  const isTemporalMarket = market?.intervalGranularity != null;
 
   const handleBarClick = (index: number) => {
     if (viewMode === "interval") {
@@ -206,44 +210,47 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           </div>
         </div>
 
-        <h3 className="text-lg font-semibold mb-2 leading-snug text-balance">
+        <h3 className="text-lg font-semibold mb-2 leading-snug text-balance line-clamp-2 h-14">
           {market.question || "Untitled Market"}
         </h3>
 
         {market.status === "open" && (
           <div>
-            <div className="flex gap-2 mb-2">
-              <Button
-                variant={viewMode === "individual" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setViewMode("individual");
-                  setIntervalRange([-1, -1]);
-                  setLastSelected(-1);
-                }}
-                className="flex-1"
-              >
-                <BarChart3 className="w-4 h-4 mr-1" />
-                Individual
-              </Button>
-              <Button
-                variant={viewMode === "interval" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setViewMode("interval");
-                  setIntervalRange([-1, -1]);
-                  setLastSelected(-1);
-                }}
-                className="flex-1"
-              >
-                <SlidersHorizontal className="w-4 h-4 mr-1" />
-                Interval
-              </Button>
-            </div>
+            {/* Only show Individual/Interval toggle for temporal markets */}
+            {isTemporalMarket && (
+              <div className="flex gap-2 mb-2">
+                <Button
+                  variant={viewMode === "individual" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode("individual");
+                    setIntervalRange([-1, -1]);
+                    setLastSelected(-1);
+                  }}
+                  className="flex-1"
+                >
+                  <BarChart3 className="w-4 h-4 mr-1" />
+                  Individual
+                </Button>
+                <Button
+                  variant={viewMode === "interval" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setViewMode("interval");
+                    setIntervalRange([-1, -1]);
+                    setLastSelected(-1);
+                  }}
+                  className="flex-1"
+                >
+                  <SlidersHorizontal className="w-4 h-4 mr-1" />
+                  Interval
+                </Button>
+              </div>
+            )}
 
             <div className="text-xs text-muted-foreground mb-3 font-medium">
               {viewMode === "individual"
-                ? "Click to trade individual outcomes"
+                ? "Click any outcome to trade"
                 : rangeStart === -1
                   ? "Click to select interval start"
                   : "Click another outcome to adjust interval range"}
@@ -252,56 +259,78 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
         )}
 
         <div className="mb-4">
-          <div className="space-y-2">
-            {outcomes.map((outcome, index) => {
-              const widthPercent =
-                maxProbability > 0
-                  ? (outcome.probability / maxProbability) * 100
-                  : 0;
-              const isInInterval =
-                viewMode === "interval" &&
-                rangeStart >= 0 &&
-                index >= rangeStart &&
-                index <= rangeEnd;
+          {/* Always use IntervalPicker for temporal markets (both individual and interval modes) */}
+          {isTemporalMarket ? (
+            <IntervalPicker
+              outcomes={outcomes}
+              granularity={market.intervalGranularity!}
+              selectedRange={intervalRange}
+              onRangeChange={(range) => {
+                setIntervalRange(range);
+                setLastSelected(range[1]);
+                // In individual mode, auto-open dialog when a single outcome is selected
+                if (
+                  viewMode === "individual" &&
+                  range[0] === range[1] &&
+                  range[0] >= 0
+                ) {
+                  const outcome = outcomes[range[0]];
+                  setSelectedOutcome(outcome.id);
+                  setDialogOpen(true);
+                }
+              }}
+            />
+          ) : (
+            <div className="space-y-2">
+              {outcomes.map((outcome, index) => {
+                const widthPercent =
+                  maxProbability > 0
+                    ? (outcome.probability / maxProbability) * 100
+                    : 0;
+                const isInInterval =
+                  viewMode === "interval" &&
+                  rangeStart >= 0 &&
+                  index >= rangeStart &&
+                  index <= rangeEnd;
 
-              return (
-                <button
-                  key={outcome.id}
-                  disabled={market.status !== "open"}
-                  onClick={() => handleBarClick(index)}
-                  onMouseEnter={() => setHoveredOutcome(outcome.id)}
-                  onMouseLeave={() => setHoveredOutcome(null)}
-                  className={`w-full h-12 rounded-lg relative overflow-visible transition ring-offset-2 ${
-                    isInInterval
-                      ? "ring-2 ring-green-500"
-                      : "hover:ring-2 hover:ring-primary"
-                  }`}
-                >
-                  <div
-                    className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${getBarColor(
-                      index,
-                    )}`}
-                    style={{ width: `${widthPercent}%` }}
-                  />
-
-                  <div className="absolute left-3 top-0 h-full flex items-center z-10">
-                    <Pill>{outcome.outcome}</Pill>
-                  </div>
-
-                  <div
-                    className="absolute top-0 h-full flex items-center gap-2 z-10"
-                    style={{ right: "12px" }}
+                return (
+                  <button
+                    key={outcome.id}
+                    onClick={() => handleBarClick(index)}
+                    onMouseEnter={() => setHoveredOutcome(outcome.id)}
+                    onMouseLeave={() => setHoveredOutcome(null)}
+                    className={`w-full h-12 rounded-lg relative overflow-visible transition ring-offset-2 ${
+                      isInInterval
+                        ? "ring-2 ring-green-500"
+                        : "hover:ring-2 hover:ring-primary"
+                    }`}
                   >
-                    <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
-                  </div>
+                    <div
+                      className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${getBarColor(
+                        index,
+                      )}`}
+                      style={{ width: `${widthPercent}%` }}
+                    />
 
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full px-2 py-1 rounded-md bg-gray-900 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg">
-                    <Pill>{outcome.quantityTraded} shares traded</Pill>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                    <div className="absolute left-3 top-0 h-full flex items-center z-10">
+                      <Pill>{outcome.outcome}</Pill>
+                    </div>
+
+                    <div
+                      className="absolute top-0 h-full flex items-center gap-2 z-10"
+                      style={{ right: "12px" }}
+                    >
+                      <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
+                    </div>
+
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full px-2 py-1 rounded-md bg-gray-900 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap shadow-lg">
+                      <Pill>{outcome.quantityTraded} shares traded</Pill>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t mt-auto">
@@ -338,9 +367,16 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
         </div>
       </Card>
 
-      <BetDialog
+      <TradeDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          // In individual mode, reset lastSelected when dialog closes
+          if (!open && viewMode === "individual") {
+            setLastSelected(-1);
+            setIntervalRange([-1, -1]);
+          }
+        }}
         market={market}
         selectedOutcomes={
           viewMode === "interval"

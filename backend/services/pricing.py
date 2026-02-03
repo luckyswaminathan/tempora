@@ -55,6 +55,15 @@ def _lmsr_price_cents(
     return round(100 * (post_trade_cost - base_cost))
 
 
+def calculate_implied_probability(
+    quantities_map: Dict[str, float],
+    security_id: str,
+    liquidity: Optional[float] = None,
+):
+    probs = _lmsr_implied_probabilities(quantities_map, liquidity)
+    return probs[security_id]
+
+
 def calculate_market_quotes(
     quantities_map: Dict[str, float], liquidity: Optional[float] = None
 ) -> List[MarketQuote]:

@@ -7,7 +7,8 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { authApi, setAccessToken } from "@/lib/api";
+import { authApi, usersApi, setAccessToken, type UserProfile } from "@/lib/api";
+import { migrateLocalCompletions } from "@/hooks/useTutorial";
 
 export interface AuthUser {
   id: string;
@@ -18,6 +19,7 @@ export interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
+  profile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (
@@ -26,6 +28,7 @@ interface AuthContextType {
     displayName?: string,
   ) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,7 +47,19 @@ function getCachedUser(): AuthUser | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(getCachedUser());
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchProfile = async () => {
+    try {
+      const profileData = await usersApi.getProfile();
+      setProfile(profileData);
+      return profileData;
+    } catch {
+      setProfile(null);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -53,8 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const me = await authApi.getCurrentUser();
         setUser(me);
         localStorage.setItem(USER_CACHE_KEY, JSON.stringify(me));
+
+        // Also fetch profile
+        await fetchProfile();
       } catch {
         setUser(null);
+        setProfile(null);
         localStorage.removeItem(USER_CACHE_KEY);
       } finally {
         setLoading(false);
@@ -67,6 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const resp = await authApi.login({ email, password });
     setUser(resp.user);
     localStorage.setItem(USER_CACHE_KEY, JSON.stringify(resp.user));
+    await fetchProfile();
+
+    // Migrate local tutorial completions to backend after sign in
+    await migrateLocalCompletions(fetchProfile);
   };
 
   const signUp = async (
@@ -77,17 +100,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const resp = await authApi.register({ email, password, displayName });
     setUser(resp.user);
     localStorage.setItem(USER_CACHE_KEY, JSON.stringify(resp.user));
+    await fetchProfile();
+
+    // Migrate local tutorial completions to backend after sign up
+    await migrateLocalCompletions(fetchProfile);
   };
 
   const signOut = async () => {
     authApi.logout();
     setUser(null);
+    setProfile(null);
     setAccessToken(null);
     localStorage.removeItem(USER_CACHE_KEY);
   };
 
+  const refreshProfile = async () => {
+    await fetchProfile();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -5,7 +5,6 @@ from typing import Optional
 from uuid import uuid4
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from core import models
@@ -109,20 +108,6 @@ class AuthService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
             )
 
-        total_trades = len(profile.user.trades)
-
-        stmt = (
-            select(func.count(func.distinct(models.Trade.market_id)))
-            .join(models.Market, models.Trade.market_id == models.Market.id)
-            .where(
-                models.Trade.user_id == user_id,
-                models.Market.status != models.MarketStatus.RESOLVED,
-            )
-        )
-        open_positions = self.session.scalar(stmt) or 0
-
-        realised_pnl = 0.0  # Placeholder until settlement logic exists
-
         return UserProfile.model_validate(
             {
                 "id": profile.user.id,
@@ -132,9 +117,7 @@ class AuthService:
                 "wallet": profile.wallet,
                 "joinedAt": profile.joined_at,
                 "lastSeenAt": profile.last_seen_at,
-                "totalTrades": total_trades,
-                "openPositions": open_positions,
-                "realisedPnL": round(realised_pnl, 2),
+                "tutorialCompletions": profile.tutorial_completions,
             }
         )
 
@@ -155,6 +138,8 @@ class AuthService:
 
         if profile:
             profile.last_seen_at = last_seen_at or now_ts
+            if display_name is not None and len(display_name):
+                profile.display_name = display_name
         else:
             user = self.session.get(models.User, user_id)
             if not user:

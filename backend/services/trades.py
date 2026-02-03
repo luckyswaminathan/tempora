@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core import models
+from schemas.market import Market
 from schemas.trade import (
     Leg,
     TradeCreate,
@@ -17,9 +18,11 @@ from schemas.trade import (
     TradePriceResponse,
     TradePlaceResponse,
     TradeRecord,
+    ProbabilityHistData,
+    ProbabilityHistResponse,
 )
 from services.markets import MarketService
-from services.pricing import calculate_market_price_cents
+from services.pricing import calculate_market_price_cents, calculate_implied_probability
 
 
 class TradeService:
@@ -27,15 +30,7 @@ class TradeService:
         self.session = session
         self.market_service = MarketService(session)
 
-    def _price_trade(self, market_id: str, legs: List[Leg]) -> int:
-        market = self.market_service.get_market(market_id)
-
-        if market.status != models.MarketStatus.OPEN:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Market is not open for trading",
-            )
-
+    def _price_trade(self, market: Market, legs: List[Leg]) -> int:
         quantities_map = {
             quote.security_id: quote.quantity_traded for quote in market.quotes
         }
@@ -45,9 +40,10 @@ class TradeService:
         )
 
     def price_trade(self, payload: TradeCreateRequest) -> TradePriceResponse:
+        market = self.market_service.get_market(payload.market_id)
         return TradePriceResponse.model_validate(
             {
-                "priceCents": self._price_trade(payload.market_id, payload.legs),
+                "priceCents": self._price_trade(market, payload.legs),
                 "pricedAt": datetime.now(timezone.utc).isoformat(),
             }
         )
@@ -63,7 +59,17 @@ class TradeService:
         trade_group_id = str(uuid4())
 
         for leg in payload.legs:
-            price = self._price_trade(payload.market_id, [leg])
+            # Requote market after each trade leg is placed
+            market = self.market_service.get_market(payload.market_id)
+            if market.status != models.MarketStatus.OPEN:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Market is not open for trading",
+                )
+
+            price = self._price_trade(market, [leg])
+            execution_price += price
+
             record = models.Trade(
                 user_id=payload.user_id,
                 market_id=payload.market_id,
@@ -73,7 +79,6 @@ class TradeService:
                 price_cents=price,
                 created_at=datetime.now(timezone.utc),
             )
-            execution_price += price
             self.session.add(record)
 
         profile.wallet -= execution_price
@@ -112,3 +117,58 @@ class TradeService:
             for row in rows
         ]
         return TradeListResponse.model_validate({"items": items, "count": len(items)})
+
+    def get_probability_history(self, security_id: str) -> ProbabilityHistResponse:
+        security = self.market_service.get_security(security_id)
+        market = self.market_service.get_market(security.market_id)
+
+        stmt = (
+            select(models.Trade)
+            .where(models.Trade.market_id == market.id)
+            .order_by(models.Trade.created_at)
+        )
+        trades = self.session.scalars(stmt).all()
+
+        quantities_map = {quote.security_id: 0 for quote in market.quotes}
+
+        # Initial probability
+        probability = calculate_implied_probability(
+            quantities_map, security_id, market.liquidity_parameter
+        )
+        history = [
+            ProbabilityHistData.model_validate(
+                {"probability": probability, "date": market.created_at}
+            )
+        ]
+
+        # Trading history
+        for i, trade in enumerate(trades):
+            quantities_map[trade.security_id] += trade.quantity
+
+            if (
+                i == len(trades) - 1
+                or trade.trade_group_id != trades[i + 1].trade_group_id
+            ):
+                probability = calculate_implied_probability(
+                    quantities_map, security_id, market.liquidity_parameter
+                )
+                history.append(
+                    ProbabilityHistData.model_validate(
+                        {"probability": probability, "date": trade.created_at}
+                    )
+                )
+
+        # Current probability
+        history.append(
+            ProbabilityHistData.model_validate(
+                {
+                    "probability": probability,
+                    "date": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+        )
+
+        # TODO: if market status == "resolved", then add prob at resolution time instead
+        # TODO: save historical implied probabilities in table to avoid recalculation
+
+        return ProbabilityHistResponse.model_validate({"history": history})

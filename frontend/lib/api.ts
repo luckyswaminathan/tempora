@@ -117,6 +117,7 @@ export interface Market {
   updatedAt: string;
   description?: string;
   tags: string[];
+  intervalGranularity?: "year" | "quarter" | "month" | "day" | null;
   quotes: Array<{
     securityId: string;
     quantityTraded: number;
@@ -134,10 +135,6 @@ export interface Market {
   openInterest: number;
   totalVolume: number;
   liquidityParameter: number | null;
-  settlementDates: Array<{
-    label: string;
-    date: string;
-  }>;
 }
 
 export interface MarketListResponse {
@@ -153,6 +150,7 @@ export interface MarketCreate {
   description?: string;
   tags?: string[];
   liquidityParameter?: number;
+  intervalGranularity?: "year" | "quarter" | "month" | "day" | null;
 }
 
 export interface SecurityUpdate {
@@ -206,7 +204,9 @@ export const marketsApi = {
     });
   },
 
-  async settleMarket(winningSecurityId: string): Promise<MarketSettlementResponse> {
+  async settleMarket(
+    winningSecurityId: string,
+  ): Promise<MarketSettlementResponse> {
     return fetchWithAuth(`/markets/settle`, {
       method: "PUT",
       body: JSON.stringify({
@@ -253,6 +253,15 @@ export interface TradePlaceResponse {
   executedAt: string;
 }
 
+export interface ProbabilityHistData {
+  probability: number;
+  date: string;
+}
+
+export interface ProbabilityHistResponse {
+  history: ProbabilityHistData[];
+}
+
 export const tradesApi = {
   async listTrades(params?: { marketId?: string }): Promise<TradeListResponse> {
     const searchParams = new URLSearchParams();
@@ -286,9 +295,7 @@ export interface UserProfile {
   wallet: number;
   joinedAt: string;
   lastSeenAt?: string;
-  totalTrades: number;
-  openPositions: number;
-  realisedPnL: number;
+  tutorialCompletions?: Record<string, boolean>;
 }
 
 export interface PortfolioSnapshot {
@@ -334,6 +341,13 @@ export const usersApi = {
     return fetchWithAuth("/users/me/portfolio");
   },
 
+  async syncProfile(displayName: string): Promise<JSON> {
+    return fetchWithAuth("/auth/sync-profile", {
+      method: "POST",
+      body: JSON.stringify({ displayName }),
+    });
+  },
+
   async getLeaderboard(params: {
     limit: number;
   }): Promise<LeaderboardResponse> {
@@ -342,6 +356,22 @@ export const usersApi = {
 
     const query = searchParams.toString();
     return fetchWithAuth(`/users/leaderboard?${query}`);
+  },
+
+  async updateTutorialCompletion(
+    lessonKey: string,
+    completed: boolean,
+  ): Promise<UserProfile> {
+    return fetchWithAuth("/users/me/tutorial", {
+      method: "PUT",
+      body: JSON.stringify({ lessonKey, completed }),
+    });
+  },
+
+  async getProbabilityHistory(
+    securityId: string,
+  ): Promise<ProbabilityHistResponse> {
+    return fetchWithAuth(`/trades/probability/${securityId}`);
   },
 
   async addFunds(amount: number): Promise<UserProfile> {

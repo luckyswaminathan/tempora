@@ -21,6 +21,7 @@ export default function PortfolioPage() {
 
   const pnlTutorial = useTutorial({
     steps: UNDERSTANDING_PNL_STEPS,
+    lessonKey: "understanding-pnl",
   });
 
   // Ensure component is mounted on client

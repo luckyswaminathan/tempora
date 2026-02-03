@@ -12,9 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/auth-context";
-import { TutorialOverlay } from "@/components/tutorial-overlay";
-import { useTutorial } from "@/hooks/useTutorial";
-import { ACCOUNT_SETUP_STEPS } from "@/lib/tutorial-steps";
+// import { TutorialOverlay } from "@/components/tutorial-overlay";
+// import { useTutorial } from "@/hooks/useTutorial";
+// import { ACCOUNT_SETUP_STEPS } from "@/lib/tutorial-steps";
 import { useSearchParams } from "next/navigation";
 
 interface AuthDialogProps {
@@ -37,9 +37,10 @@ export function AuthDialog({
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
 
-  const accountSetupTutorial = useTutorial({
-    steps: ACCOUNT_SETUP_STEPS,
-  });
+  // const accountSetupTutorial = useTutorial({
+  //   steps: ACCOUNT_SETUP_STEPS,
+  //   lessonKey: "account-setup",
+  // });
 
   useEffect(() => {
     if (open) {
@@ -51,12 +52,12 @@ export function AuthDialog({
   useEffect(() => {
     if (open && mode === "register") {
       const tutorialMode = searchParams?.get("tutorial");
-      if (tutorialMode === "account-setup") {
-        // Small delay to ensure dialog is rendered
-        setTimeout(() => {
-          accountSetupTutorial.start();
-        }, 100);
-      }
+      // if (tutorialMode === "account-setup") {
+      //   // Small delay to ensure dialog is rendered
+      //   setTimeout(() => {
+      //     accountSetupTutorial.start();
+      //   }, 100);
+      // }
     }
   }, [open, mode, searchParams]);
 
@@ -91,99 +92,99 @@ export function AuthDialog({
 
   return (
     <>
-      <TutorialOverlay
+      {/* <TutorialOverlay
         steps={ACCOUNT_SETUP_STEPS}
         currentStep={accountSetupTutorial.currentStep}
         isActive={accountSetupTutorial.isActive && mode === "register"}
         elementRect={accountSetupTutorial.elementRect}
         onNext={accountSetupTutorial.next}
         onClose={accountSetupTutorial.close}
-      />
+      /> */}
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "login" ? "Sign In" : "Create Account"}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === "login"
-              ? "Sign in to your account to continue"
-              : "Create a new account to get started"}
-          </DialogDescription>
-        </DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {mode === "login" ? "Sign In" : "Create Account"}
+            </DialogTitle>
+            <DialogDescription>
+              {mode === "login"
+                ? "Sign in to your account to continue"
+                : "Create a new account to get started"}
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "register" && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "register" && (
+              <div className="space-y-2">
+                <Label htmlFor="displayName">Display Name (optional)</Label>
+                <Input
+                  id="auth-display-name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="displayName">Display Name (optional)</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="auth-display-name"
-                type="text"
-                placeholder="John Doe"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                id="auth-email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
               />
             </div>
-          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="auth-email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="auth-password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="auth-password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </div>
+            {error && <div className="text-sm text-red-600">{error}</div>}
 
-          {error && <div className="text-sm text-red-600">{error}</div>}
+            <div className="flex flex-col gap-2">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full"
+                id="auth-submit"
+              >
+                {loading
+                  ? "Loading..."
+                  : mode === "login"
+                    ? "Sign In"
+                    : "Create Account"}
+              </Button>
 
-          <div className="flex flex-col gap-2">
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full"
-              id="auth-submit"
-            >
-              {loading
-                ? "Loading..."
-                : mode === "login"
-                  ? "Sign In"
-                  : "Create Account"}
-            </Button>
-
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setMode(mode === "login" ? "register" : "login");
-                setError(null);
-              }}
-              className="w-full"
-            >
-              {mode === "login"
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setMode(mode === "login" ? "register" : "login");
+                  setError(null);
+                }}
+                className="w-full"
+              >
+                {mode === "login"
+                  ? "Don't have an account? Sign up"
+                  : "Already have an account? Sign in"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { AuthDialog } from "@/components/auth-dialog";
 
 export function Header() {
-  const { user, signOut, loading } = useAuth();
+  const { user, profile, signOut, loading } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
@@ -70,7 +70,7 @@ export function Header() {
             <div className="flex items-center gap-3">
               {loading ? (
                 <div className="w-20 h-8" />
-              ) : user ? (
+              ) : profile ? (
                 <>
                   <a
                     href="/profile"
@@ -78,7 +78,11 @@ export function Header() {
                     id="nav-profile"
                   >
                     <User className="w-4 h-4" />
-                    <span>{user.email}</span>
+                    <span>
+                      {profile.displayName
+                        ? profile.displayName
+                        : profile.email}
+                    </span>
                   </a>
                   <a
                     href="/profile"

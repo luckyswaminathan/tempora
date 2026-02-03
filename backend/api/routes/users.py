@@ -4,10 +4,16 @@ from sqlalchemy.orm import Session
 
 from api import deps
 from schemas.portfolio import PortfolioSnapshot
-from schemas.user import UserBase, UserProfile, LeaderboardResponse
+from schemas.user import (
+    UserBase,
+    UserProfile,
+    LeaderboardResponse,
+    UpdateTutorialRequest,
+)
 from services.auth import AuthService
 from services.portfolio import PortfolioService
 from services.leaderboard import LeaderboardService
+from services.tutorial import TutorialService
 from core import models
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -44,6 +50,16 @@ def get_leaderboard(
     return leaderboard_service.get_leaderboard(limit)
 
 
+@router.put("/me/tutorial", response_model=UserProfile)
+def update_tutorial_completion(
+    payload: UpdateTutorialRequest,
+    current_user: UserBase = Depends(deps.get_current_user),
+    tutorial_service: TutorialService = Depends(deps.get_tutorial_service),
+) -> UserProfile:
+    return tutorial_service.update_tutorial_completion(
+        current_user.id, payload.lesson_key, payload.completed
+    )
+  
 class AddFundsRequest(BaseModel):
     amount: float = Body(gt=0, description="Amount in dollars to add to the wallet")
 

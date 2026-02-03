@@ -10,6 +10,7 @@ from services.trades import TradeService
 from services.auth import AuthService
 from services.portfolio import PortfolioService
 from services.leaderboard import LeaderboardService
+from services.tutorial import TutorialService
 
 
 def get_auth_service(session: Session = Depends(get_session)) -> AuthService:
@@ -32,6 +33,10 @@ def get_leaderboard_service(
     session: Session = Depends(get_session),
 ) -> LeaderboardService:
     return LeaderboardService(session)
+
+
+def get_tutorial_service(session: Session = Depends(get_session)) -> TutorialService:
+    return TutorialService(session)
 
 
 def get_current_user(

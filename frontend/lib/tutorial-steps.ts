@@ -100,7 +100,7 @@ export const ACCOUNT_SETUP_STEPS: TutorialStep[] = [
   },
 ];
 
-export const ACCOUNT_VERIFICATION_STEPS: TutorialStep[] = [
+export const USER_PROFILE_STEPS: TutorialStep[] = [
   {
     id: 1,
     elementId: "profile-email",
