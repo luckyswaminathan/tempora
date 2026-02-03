@@ -34,7 +34,7 @@ export function ProbabilityGraph({
     const fetchHistory = async () => {
       setLoading(true);
       try {
-        const response = await usersApi.get_probability_history(securityId);
+        const response = await usersApi.getProbabilityHistory(securityId);
         const formattedData = response.history.map((item) => ({
           ...item,
           dateFormatted: format(parseISO(item.date), "MMM d, h:mm a"),

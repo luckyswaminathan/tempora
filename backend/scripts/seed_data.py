@@ -29,16 +29,6 @@ def seed_markets() -> None:
                 "tags": ["macroeconomics", "economy", "us"],
                 "liquidity_parameter": 100000,
                 "interval_granularity": "quarter",
-                "settlement_dates": [
-                    {
-                        "label": "Midpoint Review",
-                        "date": datetime.now(timezone.utc) + timedelta(days=365),
-                    },
-                    {
-                        "label": "Final Settlement",
-                        "date": datetime.now(timezone.utc) + timedelta(days=730),
-                    },
-                ],
                 "securities": [
                     "2026 Q1",
                     "2026 Q2",
@@ -59,16 +49,6 @@ def seed_markets() -> None:
                 "tags": ["cryptocurrency", "bitcoin", "crypto"],
                 "liquidity_parameter": 100000,
                 "interval_granularity": "quarter",
-                "settlement_dates": [
-                    {
-                        "label": "Q2 2025",
-                        "date": datetime.now(timezone.utc) + timedelta(days=180),
-                    },
-                    {
-                        "label": "Q4 2025",
-                        "date": datetime.now(timezone.utc) + timedelta(days=365),
-                    },
-                ],
                 "securities": [
                     "2026 Q1",
                     "2026 Q2",
@@ -78,9 +58,9 @@ def seed_markets() -> None:
                     "2027 Q2",
                     "2027 Q3",
                     "Later or never",
-            ],
-        },
-        {
+                ],
+            },
+            {
                 "question": "When will the next Constitutional amendment be ratified?",
                 "category": "Politics",
                 "description": "",
@@ -89,16 +69,6 @@ def seed_markets() -> None:
                 "tags": ["constitution", "congress", "law"],
                 "liquidity_parameter": 100000,
                 "interval_granularity": "year",
-                "settlement_dates": [
-                    {
-                        "label": "2026",
-                        "date": datetime.now(timezone.utc) + timedelta(days=180),
-                    },
-                    {
-                        "label": "2030",
-                        "date": datetime.now(timezone.utc) + timedelta(days=365),
-                    },
-                ],
                 "securities": [
                     "2026",
                     "2027",
@@ -119,16 +89,6 @@ def seed_markets() -> None:
                 "tags": ["ai", "openai", "gpt", "technology"],
                 "liquidity_parameter": 100000,
                 "interval_granularity": "month",
-                "settlement_dates": [
-                    {
-                        "label": "2026 Review",
-                        "date": datetime.now(timezone.utc) + timedelta(days=365),
-                    },
-                    {
-                        "label": "2027 Final",
-                        "date": datetime.now(timezone.utc) + timedelta(days=730),
-                    },
-                ],
                 "securities": [
                     "2026-01",
                     "2026-02",
@@ -160,17 +120,7 @@ def seed_markets() -> None:
                 "tags": ["federal-reserve", "interest-rates", "economics", "fed"],
                 "liquidity_parameter": 50000,
                 "interval_granularity": "day",
-                "settlement_dates": [
-                    {
-                        "label": "February 2026",
-                        "date": datetime.now(timezone.utc) + timedelta(days=30),
-                    },
-                    {
-                        "label": "Final",
-                        "date": datetime.now(timezone.utc) + timedelta(days=60),
-                    },
-                ],
-            "securities": [
+                "securities": [
                     "2026-02-01",
                     "2026-02-02",
                     "2026-02-03",
@@ -200,14 +150,19 @@ def seed_markets() -> None:
                     "2026-02-27",
                     "2026-02-28",
                     "Later or never",
-            ],
-        },
-    ]
+                ],
+            },
+        ]
 
         # Get or create a seed user for initial trades
-        seed_user = session.query(models.User).filter(models.User.email == "seed@tempora.com").first()
+        seed_user = (
+            session.query(models.User)
+            .filter(models.User.email == "seed@tempora.com")
+            .first()
+        )
         if not seed_user:
             from core.security import hash_password
+
             seed_user = models.User(
                 email="seed@tempora.com",
                 password_hash=hash_password("seed123"),
@@ -235,14 +190,10 @@ def seed_markets() -> None:
                 tags=market["tags"],
                 liquidity_parameter=market["liquidity_parameter"],
                 interval_granularity=market.get("interval_granularity"),
-                settlement_dates=[
-                    {"label": sd["label"], "date": sd["date"].isoformat()}
-                    for sd in market["settlement_dates"]
-                ],
             )
             session.add(m)
             session.flush()
-            
+
             securities = []
             for outcome in market["securities"]:
                 sec = models.Security(
@@ -253,16 +204,16 @@ def seed_markets() -> None:
                 session.add(sec)
                 securities.append(sec)
             session.flush()
-            
+
             # Add random initial trades to create varied probabilities
             # Use different patterns for different markets
             random.seed(m.id)  # Consistent randomness per market
-            
+
             for i, sec in enumerate(securities):
                 # Generate quantities that vary but sum to reasonable totals
                 # Earlier outcomes get slightly higher quantities for variety
                 base_qty = random.randint(10, 50)
-                
+
                 # Add some variation based on position
                 if "Later" in sec.outcome or "never" in sec.outcome:
                     qty = random.randint(5, 20)  # Lower for "later/never"
@@ -272,7 +223,7 @@ def seed_markets() -> None:
                     qty = base_qty  # Medium for middle
                 else:
                     qty = base_qty - random.randint(5, 15)  # Lower for late outcomes
-                
+
                 # Create a trade with random price
                 price = random.randint(30, 70)  # Price in cents
                 trade = models.Trade(
@@ -284,7 +235,7 @@ def seed_markets() -> None:
                     created_at=datetime.now(timezone.utc),
                 )
                 session.add(trade)
-        
+
         session.commit()
         print(f"Seeded {len(markets)} markets with varied probabilities.")
     finally:

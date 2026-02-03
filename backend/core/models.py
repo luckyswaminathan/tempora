@@ -110,7 +110,6 @@ class Market(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
     liquidity_parameter: Mapped[float | None] = mapped_column(Float, nullable=True)
-    settlement_dates: Mapped[list] = mapped_column(JSON, default=list)
     interval_granularity: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(

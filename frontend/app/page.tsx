@@ -17,6 +17,7 @@ export default function Home() {
 
   const dashboardTutorial = useTutorial({
     steps: UNDERSTANDING_DASHBOARD_STEPS,
+    lessonKey: "understanding-dashboard",
   });
 
   useEffect(() => {

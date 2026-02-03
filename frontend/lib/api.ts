@@ -135,10 +135,6 @@ export interface Market {
   openInterest: number;
   totalVolume: number;
   liquidityParameter: number | null;
-  settlementDates: Array<{
-    label: string;
-    date: string;
-  }>;
 }
 
 export interface MarketListResponse {
@@ -345,6 +341,13 @@ export const usersApi = {
     return fetchWithAuth("/users/me/portfolio");
   },
 
+  async syncProfile(displayName: string): Promise<JSON> {
+    return fetchWithAuth("/auth/sync-profile", {
+      method: "POST",
+      body: JSON.stringify({ displayName }),
+    });
+  },
+
   async getLeaderboard(params: {
     limit: number;
   }): Promise<LeaderboardResponse> {
@@ -365,12 +368,12 @@ export const usersApi = {
     });
   },
 
-  async get_probability_history(
+  async getProbabilityHistory(
     securityId: string,
   ): Promise<ProbabilityHistResponse> {
     return fetchWithAuth(`/trades/probability/${securityId}`);
   },
-  
+
   async addFunds(amount: number): Promise<UserProfile> {
     return fetchWithAuth("/users/me/wallet/add-funds", {
       method: "POST",

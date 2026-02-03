@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { User as UserIcon, Wallet, Calendar, CreditCard } from "lucide-react";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
 import { useTutorial } from "@/hooks/useTutorial";
-import { ACCOUNT_VERIFICATION_STEPS } from "@/lib/tutorial-steps";
+import { USER_PROFILE_STEPS } from "@/lib/tutorial-steps";
 import { useSearchParams } from "next/navigation";
 
 export default function ProfilePage() {
@@ -27,8 +27,9 @@ export default function ProfilePage() {
   const [depositAmount, setDepositAmount] = useState("");
   const [addingFunds, setAddingFunds] = useState(false);
 
-  const accountVerificationTutorial = useTutorial({
-    steps: ACCOUNT_VERIFICATION_STEPS,
+  const userProfileTutorial = useTutorial({
+    steps: USER_PROFILE_STEPS,
+    lessonKey: "user-profile",
   });
 
   useEffect(() => {
@@ -47,7 +48,7 @@ export default function ProfilePage() {
         setDisplayNameInput(profileData.displayName || "");
       } catch (err) {
         toast.error(
-          err instanceof Error ? err.message : "Failed to load your profile"
+          err instanceof Error ? err.message : "Failed to load your profile",
         );
       } finally {
         setLoading(false);
@@ -60,8 +61,8 @@ export default function ProfilePage() {
   useEffect(() => {
     if (mounted && !loading && user) {
       const tutorialMode = searchParams?.get("tutorial");
-      if (tutorialMode === "account-verification") {
-        accountVerificationTutorial.start();
+      if (tutorialMode === "user-profile") {
+        userProfileTutorial.start();
       }
     }
   }, [mounted, searchParams, loading, user]);
@@ -72,16 +73,7 @@ export default function ProfilePage() {
     try {
       setSavingProfile(true);
       // Use sync-profile endpoint to update display name
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/auth/sync-profile`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("tempora_access_token")}`,
-        },
-        body: JSON.stringify({
-          displayName: displayNameInput || null,
-        }),
-      });
+      await usersApi.syncProfile(displayNameInput);
 
       // Refresh profile data
       const updated = await usersApi.getProfile();
@@ -89,7 +81,7 @@ export default function ProfilePage() {
       toast.success("Profile updated");
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to update profile"
+        err instanceof Error ? err.message : "Failed to update profile",
       );
     } finally {
       setSavingProfile(false);
@@ -111,9 +103,7 @@ export default function ProfilePage() {
       toast.success(`Added $${amount.toFixed(2)} to your balance`);
       setDepositAmount("");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to add funds"
-      );
+      toast.error(err instanceof Error ? err.message : "Failed to add funds");
     } finally {
       setAddingFunds(false);
     }
@@ -126,7 +116,9 @@ export default function ProfilePage() {
   if (authLoading || loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="text-sm text-muted-foreground">Loading your profile...</div>
+        <div className="text-sm text-muted-foreground">
+          Loading your profile...
+        </div>
       </div>
     );
   }
@@ -138,9 +130,12 @@ export default function ProfilePage() {
           <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center">
             <UserIcon className="w-6 h-6 text-muted-foreground" />
           </div>
-          <h1 className="text-2xl font-semibold">Sign in to manage your account</h1>
+          <h1 className="text-2xl font-semibold">
+            Sign in to manage your account
+          </h1>
           <p className="text-muted-foreground">
-            Create an account or log in to update your profile and view account details.
+            Create an account or log in to update your profile and view account
+            details.
           </p>
         </div>
       </div>
@@ -150,12 +145,12 @@ export default function ProfilePage() {
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <TutorialOverlay
-        steps={ACCOUNT_VERIFICATION_STEPS}
-        currentStep={accountVerificationTutorial.currentStep}
-        isActive={accountVerificationTutorial.isActive}
-        elementRect={accountVerificationTutorial.elementRect}
-        onNext={accountVerificationTutorial.next}
-        onClose={accountVerificationTutorial.close}
+        steps={USER_PROFILE_STEPS}
+        currentStep={userProfileTutorial.currentStep}
+        isActive={userProfileTutorial.isActive}
+        elementRect={userProfileTutorial.elementRect}
+        onNext={userProfileTutorial.next}
+        onClose={userProfileTutorial.close}
       />
 
       <div className="flex items-center gap-3">
@@ -184,11 +179,7 @@ export default function ProfilePage() {
 
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input
-              id="profile-email"
-              value={profile?.email ?? ""}
-              disabled
-            />
+            <Input id="profile-email" value={profile?.email ?? ""} disabled />
             <p className="text-xs text-muted-foreground">
               Your email address cannot be changed.
             </p>
@@ -203,7 +194,8 @@ export default function ProfilePage() {
               placeholder="Your username"
             />
             <p className="text-xs text-muted-foreground">
-              This is how you'll appear on the leaderboard and in public profiles.
+              This is how you'll appear on the leaderboard and in public
+              profiles.
             </p>
           </div>
 
@@ -242,8 +234,13 @@ export default function ProfilePage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <div>
-                <div className="text-xs text-muted-foreground">Wallet Balance</div>
-                <div className="text-2xl font-semibold" id="profile-wallet-balance">
+                <div className="text-xs text-muted-foreground">
+                  Wallet Balance
+                </div>
+                <div
+                  className="text-2xl font-semibold"
+                  id="profile-wallet-balance"
+                >
                   ${((profile?.wallet || 0) / 100.0).toFixed(2)}
                 </div>
               </div>
@@ -252,12 +249,20 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 bg-muted rounded-lg">
-                <div className="text-xs text-muted-foreground">Total Trades</div>
-                <div className="text-xl font-semibold">{profile?.totalTrades || 0}</div>
+                <div className="text-xs text-muted-foreground">
+                  Total Trades
+                </div>
+                <div className="text-xl font-semibold">
+                  {profile?.totalTrades || 0}
+                </div>
               </div>
               <div className="p-3 bg-muted rounded-lg">
-                <div className="text-xs text-muted-foreground">Open Positions</div>
-                <div className="text-xl font-semibold">{profile?.openPositions || 0}</div>
+                <div className="text-xs text-muted-foreground">
+                  Open Positions
+                </div>
+                <div className="text-xl font-semibold">
+                  {profile?.openPositions || 0}
+                </div>
               </div>
             </div>
 
@@ -265,7 +270,9 @@ export default function ProfilePage() {
               <div className="text-xs text-muted-foreground">Realized P&L</div>
               <div
                 className={`text-xl font-semibold ${
-                  (profile?.realisedPnL || 0) >= 0 ? "text-green-600" : "text-red-600"
+                  (profile?.realisedPnL || 0) >= 0
+                    ? "text-green-600"
+                    : "text-red-600"
                 }`}
               >
                 ${(profile?.realisedPnL || 0).toFixed(2)}
@@ -281,7 +288,8 @@ export default function ProfilePage() {
           <div>
             <h2 className="text-xl font-semibold">Add Funds</h2>
             <p className="text-sm text-muted-foreground">
-              Instantly top up your cash balance. Enter the amount you want to deposit (in USD).
+              Instantly top up your cash balance. Enter the amount you want to
+              deposit (in USD).
             </p>
           </div>
         </div>
@@ -313,7 +321,8 @@ export default function ProfilePage() {
         <div className="text-xs text-muted-foreground flex items-center gap-2">
           <Wallet className="w-4 h-4" />
           <span>
-            Cash balance updates immediately. Use it to place trades across any market.
+            Cash balance updates immediately. Use it to place trades across any
+            market.
           </span>
         </div>
       </Card>
@@ -331,12 +340,12 @@ export default function ProfilePage() {
 
         <div className="p-4 bg-muted rounded-lg">
           <p className="text-sm text-muted-foreground">
-            Password management and additional security features will be available soon.
-            For now, your account is secured with the password you set during registration.
+            Password management and additional security features will be
+            available soon. For now, your account is secured with the password
+            you set during registration.
           </p>
         </div>
       </Card>
     </div>
   );
 }
-

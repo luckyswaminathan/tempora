@@ -30,9 +30,9 @@ const TUTORIAL_SECTIONS = [
         isInteractive: true,
       },
       {
-        title: "Account Setup & Verification",
+        title: "User Profile",
         duration: "8 min",
-        lessonKey: "account-setup",
+        lessonKey: "user-profile",
         isInteractive: true,
       },
       {
@@ -169,18 +169,14 @@ export default function TutorialPage() {
   const handleStartTutorial = (
     tutorialType:
       | "platform-overview"
+      | "user-profile"
       | "understanding-pnl"
-      | "account-setup"
-      | "account-verification"
       | "understanding-dashboard",
   ) => {
     if (tutorialType === "understanding-pnl") {
       router.push("/portfolio?tutorial=understanding-pnl");
-    } else if (tutorialType === "account-setup") {
-      // Redirect to home page with tutorial param, user can click "Get Started" to open auth dialog
-      router.push("/?tutorial=account-setup");
-    } else if (tutorialType === "account-verification") {
-      router.push("/profile?tutorial=account-verification");
+    } else if (tutorialType === "user-profile") {
+      router.push("/profile?tutorial=user-profile");
     } else if (tutorialType === "understanding-dashboard") {
       router.push("/?tutorial=understanding-dashboard");
     } else {
@@ -297,23 +293,17 @@ export default function TutorialPage() {
                             </div>
                           </div>
                         </div>
-                      </div>
-                      <button
-                        className="px-4 py-1.5 text-sm font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                        onClick={() => {
-                          if (lesson.isInteractive) {
-                            if (lesson.title === "Platform Overview") {
-                              handleStartTutorial("platform-overview");
-                            } else if (lesson.title === "Understanding P&L") {
-                              handleStartTutorial("understanding-pnl");
-                            } else if (lesson.title === "Account Setup & Verification") {
-                              if (profile) {
-                                handleStartTutorial("account-verification");
+                        <button
+                          className="px-4 py-1.5 text-sm font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                          onClick={() => {
+                            if (lesson.isInteractive) {
+                              if (lesson.lessonKey == "user-profile") {
+                                if (profile) {
+                                  handleStartTutorial(lesson.lessonKey);
+                                }
                               } else {
-                                handleStartTutorial("account-setup");
+                                handleStartTutorial(lesson.lessonKey);
                               }
-                            } else if (lesson.title === "Understanding the Dashboard") {
-                              handleStartTutorial("understanding-dashboard");
                             }
                           }}
                         >

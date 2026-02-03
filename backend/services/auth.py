@@ -138,6 +138,8 @@ class AuthService:
 
         if profile:
             profile.last_seen_at = last_seen_at or now_ts
+            if display_name is not None and len(display_name):
+                profile.display_name = display_name
         else:
             user = self.session.get(models.User, user_id)
             if not user:

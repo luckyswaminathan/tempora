@@ -85,7 +85,7 @@ export function TutorialOverlay({
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={onClose}>
-                  Skip
+                  Close
                 </Button>
                 <Button size="sm" onClick={onNext}>
                   {currentStep === steps.length - 1 ? "Done" : "OK"}

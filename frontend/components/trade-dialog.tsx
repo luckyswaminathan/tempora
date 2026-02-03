@@ -441,30 +441,6 @@ export function TradeDialog({
                 </div>
               )}
 
-              {/* Settlement dates */}
-              {!isInterval &&
-                market.settlementDates &&
-                market.settlementDates.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">Settlement Dates</div>
-                    <div className="flex flex-wrap gap-2">
-                      {market.settlementDates.map((settlement, idx) => (
-                        <Badge
-                          key={idx}
-                          variant="outline"
-                          className="text-xs font-mono"
-                        >
-                          {settlement.label}
-                        </Badge>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Market evaluated at multiple dates. Cash out at any
-                      settlement if favorable.
-                    </p>
-                  </div>
-                )}
-
               <div className="flex gap-3">
                 <Button
                   variant="outline"

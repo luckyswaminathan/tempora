@@ -6,11 +6,6 @@ from core.models import MarketStatus
 from schemas.date import UTCDateTime
 
 
-class SettlementDate(BaseModel):
-    label: str
-    date: UTCDateTime
-
-
 class Security(BaseModel):
     id: str
     market_id: str = Field(alias="marketId")
@@ -41,7 +36,9 @@ class Market(BaseModel):
     updated_at: UTCDateTime = Field(alias="updatedAt")
     description: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
-    interval_granularity: Optional[str] = Field(default=None, alias="intervalGranularity")
+    interval_granularity: Optional[str] = Field(
+        default=None, alias="intervalGranularity"
+    )
 
     quotes: List[MarketQuote] = Field(default_factory=list)
     securities: List[Security] = Field(default_factory=list)
@@ -49,9 +46,6 @@ class Market(BaseModel):
     total_volume: int = Field(alias="totalVolume")
     liquidity_parameter: Optional[float] = Field(
         default=None, alias="liquidityParameter", ge=0.0
-    )
-    settlement_dates: List[SettlementDate] = Field(
-        default_factory=list, alias="settlementDates"
     )
 
     model_config = ConfigDict(populate_by_name=True)
@@ -67,7 +61,9 @@ class MarketCreate(BaseModel):
     liquidity_parameter: Optional[float] = Field(
         default=None, alias="liquidityParameter", ge=0.0
     )
-    interval_granularity: Optional[str] = Field(default=None, alias="intervalGranularity")
+    interval_granularity: Optional[str] = Field(
+        default=None, alias="intervalGranularity"
+    )
 
 
 class SecurityUpdate(BaseModel):

@@ -31,7 +31,7 @@ function setLocalCompletion(lessonKey: string, completed: boolean): void {
 
 interface UseTutorialOptions {
   steps: TutorialStep[];
-  lessonKey?: string; // Unique key to track this lesson's completion
+  lessonKey: string; // Unique key to track this lesson's completion
   autoStart?: boolean;
   onComplete?: () => void;
 }

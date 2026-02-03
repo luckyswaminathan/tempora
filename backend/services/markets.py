@@ -17,7 +17,6 @@ from schemas.market import (
     MarketSettlementResponse,
     Market,
     Security,
-    SettlementDate,
 )
 from schemas.trade import TradeRecord
 from services.pricing import calculate_market_quotes
@@ -64,7 +63,6 @@ class MarketService:
             tags=payload.tags,
             liquidity_parameter=payload.liquidity_parameter,
             interval_granularity=payload.interval_granularity,
-            settlement_dates=self._generate_settlement_dates(payload.resolution_date),
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -90,9 +88,6 @@ class MarketService:
             market.description = payload.description
         if payload.resolution_date is not None:
             market.resolution_date = payload.resolution_date
-            market.settlement_dates = self._generate_settlement_dates(
-                payload.resolution_date
-            )
         if payload.status is not None:
             market.status = payload.status
         if payload.tags is not None:
@@ -104,7 +99,6 @@ class MarketService:
                 if security:
                     security.outcome = update.outcome
 
-        market.updated_at = datetime.now(timezone.utc)
         self.session.commit()
         self.session.refresh(market)
         return self._attach_quote(market)
@@ -206,10 +200,6 @@ class MarketService:
         total_volume = sum(abs(v) for v in user_net_volume.values())
         open_interest = sum(abs(q) for q in user_net_interest.values())
 
-        settlement_dates = [
-            self._map_settlement_date(sd) for sd in (market.settlement_dates or [])
-        ]
-
         return Market.model_validate(
             {
                 "id": market.id,
@@ -227,41 +217,7 @@ class MarketService:
                 "openInterest": open_interest,
                 "totalVolume": total_volume,
                 "liquidityParameter": market.liquidity_parameter,
-                "settlementDates": settlement_dates,
             }
-        )
-
-    def _generate_settlement_dates(
-        self, resolution_date: datetime
-    ) -> List[Dict[str, str]]:
-        from datetime import timedelta
-
-        midpoint = resolution_date - timedelta(days=90)
-        return [
-            {"label": "Midpoint Review", "date": midpoint.isoformat()},
-            {"label": "Final Settlement", "date": resolution_date.isoformat()},
-        ]
-
-    def _map_settlement_date(self, entry: Any) -> SettlementDate:
-        if isinstance(entry, dict):
-            date_value = entry.get("date")
-            if isinstance(date_value, str):
-                date_value = date_value.replace("Z", "+00:00")
-                parsed_date = datetime.fromisoformat(date_value)
-            elif isinstance(date_value, datetime):
-                parsed_date = date_value
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Malformed settlement date payload stored in database",
-                )
-            return SettlementDate(
-                label=entry.get("label", "Settlement"),
-                date=parsed_date,
-            )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Malformed settlement date payload stored in database",
         )
 
     def _create_securities(self, market_id: str, outcomes: List[str]) -> None:
