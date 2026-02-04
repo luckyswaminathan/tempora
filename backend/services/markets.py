@@ -62,7 +62,7 @@ class MarketService:
             status=models.MarketStatus.OPEN,
             tags=payload.tags,
             liquidity_parameter=payload.liquidity_parameter,
-            interval_granularity=payload.interval_granularity,
+            ui_type=payload.ui_type,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -211,7 +211,7 @@ class MarketService:
                 "updatedAt": market.updated_at or datetime.now(timezone.utc),
                 "description": market.description,
                 "tags": market.tags or [],
-                "intervalGranularity": market.interval_granularity,
+                "uiType": market.ui_type,
                 "quotes": quotes,
                 "securities": securities,
                 "openInterest": open_interest,

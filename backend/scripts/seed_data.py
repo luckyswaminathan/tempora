@@ -28,7 +28,7 @@ def seed_markets() -> None:
                 "status": "open",
                 "tags": ["macroeconomics", "economy", "us"],
                 "liquidity_parameter": 100000,
-                "interval_granularity": "quarter",
+                "ui_type": "quarter",
                 "securities": [
                     "2026 Q1",
                     "2026 Q2",
@@ -48,7 +48,7 @@ def seed_markets() -> None:
                 "status": "open",
                 "tags": ["cryptocurrency", "bitcoin", "crypto"],
                 "liquidity_parameter": 100000,
-                "interval_granularity": "quarter",
+                "ui_type": "quarter",
                 "securities": [
                     "2026 Q1",
                     "2026 Q2",
@@ -68,7 +68,7 @@ def seed_markets() -> None:
                 "status": "open",
                 "tags": ["constitution", "congress", "law"],
                 "liquidity_parameter": 100000,
-                "interval_granularity": "year",
+                "ui_type": "year",
                 "securities": [
                     "2026",
                     "2027",
@@ -88,7 +88,7 @@ def seed_markets() -> None:
                 "status": "open",
                 "tags": ["ai", "openai", "gpt", "technology"],
                 "liquidity_parameter": 100000,
-                "interval_granularity": "month",
+                "ui_type": "month",
                 "securities": [
                     "2026-01",
                     "2026-02",
@@ -119,7 +119,7 @@ def seed_markets() -> None:
                 "status": "open",
                 "tags": ["federal-reserve", "interest-rates", "economics", "fed"],
                 "liquidity_parameter": 50000,
-                "interval_granularity": "day",
+                "ui_type": "day",
                 "securities": [
                     "2026-02-01",
                     "2026-02-02",
@@ -189,7 +189,7 @@ def seed_markets() -> None:
                 status=market["status"],
                 tags=market["tags"],
                 liquidity_parameter=market["liquidity_parameter"],
-                interval_granularity=market.get("interval_granularity"),
+                ui_type=market.get("ui_type"),
             )
             session.add(m)
             session.flush()

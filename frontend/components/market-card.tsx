@@ -82,7 +82,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
     : "—";
 
   // Check if this market supports interval selection
-  const isTemporalMarket = market?.intervalGranularity != null;
+  const isTemporalMarket = market?.uiType !== "bars";
 
   const handleBarClick = (index: number) => {
     if (viewMode === "interval") {
@@ -263,7 +263,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           {isTemporalMarket ? (
             <IntervalPicker
               outcomes={outcomes}
-              granularity={market.intervalGranularity!}
+              granularity={market.uiType!}
               selectedRange={intervalRange}
               onRangeChange={(range) => {
                 setIntervalRange(range);
