@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import case, select, update
@@ -17,6 +17,7 @@ from schemas.market import (
     MarketSettlementResponse,
     Market,
     Security,
+    OutcomeWithValue,
 )
 from schemas.trade import TradeRecord
 from services.pricing import calculate_market_quotes
@@ -161,11 +162,16 @@ class MarketService:
                     "id": s.id,
                     "market_id": market.id,
                     "outcome": s.outcome,
+                    "value": s.value,
+                    "is_catch_all": s.is_catch_all,
                     "created_at": s.created_at or datetime.now(timezone.utc),
                 }
             )
             for s in market.securities
         ]
+
+        # Sort securities by value (ascending)
+        securities.sort(key=lambda s: s.value)
 
         trades = [
             TradeRecord.model_validate(
@@ -220,11 +226,53 @@ class MarketService:
             }
         )
 
-    def _create_securities(self, market_id: str, outcomes: List[str]) -> None:
+    def _create_securities(self, market_id: str, outcomes: List[str | dict]) -> None:
+        # Parse outcomes - convert to OutcomeWithValue objects
+        parsed_outcomes: List[OutcomeWithValue] = []
         for outcome in outcomes:
+            if isinstance(outcome, str):
+                parsed_outcomes.append(
+                    OutcomeWithValue(outcome=outcome, value=None, is_catch_all=False)
+                )
+            else:
+                # It's already an OutcomeWithValue pydantic model
+                parsed_outcomes.append(outcome)
+
+        # Validate: at most one outcome can be marked as catch-all
+        catch_all_count = sum(1 for o in parsed_outcomes if o.is_catch_all)
+        if catch_all_count > 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At most one outcome can be marked as catch-all",
+            )
+
+        # Validate: either all outcomes have values or none do
+        values_provided = [o.value is not None for o in parsed_outcomes]
+        has_values = any(values_provided)
+        all_values = all(values_provided)
+
+        if has_values and not all_values:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either all outcomes must have values or none should have values",
+            )
+
+        # If no values provided, auto-assign sequential values
+        if not has_values:
+            for i, outcome in enumerate(parsed_outcomes, start=1):
+                if not outcome.is_catch_all:
+                    outcome.value = float(i)
+                else:
+                    # Last outcome or marked as catch-all gets sentinel value
+                    outcome.value = 1e9
+
+        # Create security records
+        for outcome_data in parsed_outcomes:
             record = models.Security(
                 market_id=market_id,
-                outcome=outcome,
+                outcome=outcome_data.outcome,
+                value=outcome_data.value,
+                is_catch_all=outcome_data.is_catch_all,
                 created_at=datetime.now(timezone.utc),
             )
             self.session.add(record)
@@ -241,6 +289,8 @@ class MarketService:
                 "id": security_id,
                 "market_id": record.market_id,
                 "outcome": record.outcome,
+                "value": record.value,
+                "is_catch_all": record.is_catch_all,
                 "created_at": record.created_at
                 or datetime.now(timezone.utc).isoformat(),
             }

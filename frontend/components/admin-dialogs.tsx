@@ -1,0 +1,322 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Gavel, Pen } from "lucide-react";
+import { marketsApi, type Market } from "@/lib/api";
+import { toast } from "sonner";
+
+interface AdminDialogsProps {
+  market: Market;
+  showSettleForm: boolean;
+  setShowSettleForm: (show: boolean) => void;
+  showEditForm: boolean;
+  setShowEditForm: (show: boolean) => void;
+  onSuccess: () => void;
+}
+
+export function AdminDialogs({
+  market,
+  showSettleForm,
+  setShowSettleForm,
+  showEditForm,
+  setShowEditForm,
+  onSuccess,
+}: AdminDialogsProps) {
+  return (
+    <>
+      {showSettleForm && (
+        <AdminSettleDialog
+          market={market}
+          open={showSettleForm}
+          onOpenChange={setShowSettleForm}
+          onSettleSuccess={() => {
+            setShowSettleForm(false);
+            onSuccess();
+          }}
+        />
+      )}
+      {showEditForm && (
+        <AdminEditDialog
+          market={market}
+          open={showEditForm}
+          onOpenChange={setShowEditForm}
+          onEditSuccess={() => {
+            setShowEditForm(false);
+            onSuccess();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+interface AdminDialogProps {
+  market: Market;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSettleSuccess?: () => void;
+  onEditSuccess?: () => void;
+}
+
+function AdminSettleDialog({
+  market,
+  open,
+  onOpenChange,
+  onSettleSuccess,
+}: AdminDialogProps & { onSettleSuccess?: () => void }) {
+  const [selectedOutcome, setSelectedOutcome] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+
+  const outcomes = useMemo(() => {
+    if (!market?.securities) return [];
+    return market.securities;
+  }, [market?.securities]);
+
+  const handleSettle = async () => {
+    if (!selectedOutcome) {
+      toast.error("Please select a winning outcome");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await marketsApi.settleMarket(selectedOutcome);
+      toast.success("Market settled successfully");
+      setSelectedOutcome("");
+      onOpenChange(false);
+      onSettleSuccess?.();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to settle market",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <Card className="w-full max-w-md p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Gavel className="w-5 h-5" />
+          <h2 className="text-lg font-semibold">Settle Market</h2>
+        </div>
+
+        <p className="text-sm text-muted-foreground mb-4">
+          Select the winning outcome for: <strong>{market.question}</strong>
+        </p>
+
+        <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
+          {outcomes.map((outcome) => (
+            <button
+              key={outcome.id}
+              onClick={() => setSelectedOutcome(outcome.id)}
+              className={`w-full p-3 rounded-lg border-2 text-left transition ${
+                selectedOutcome === outcome.id
+                  ? "border-green-500 bg-green-50"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <div className="font-medium">{outcome.outcome}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSettle}
+            disabled={loading || !selectedOutcome}
+            className="flex-1 bg-green-600 hover:bg-green-700"
+          >
+            {loading ? "Settling..." : "Settle"}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function AdminEditDialog({
+  market,
+  open,
+  onOpenChange,
+  onEditSuccess,
+}: AdminDialogProps & { onEditSuccess?: () => void }) {
+  const [question, setQuestion] = useState(market.question);
+  const [description, setDescription] = useState(market.description || "");
+  const [resolutionDate, setResolutionDate] = useState(
+    market.resolutionDate.split("T")[0],
+  );
+  const [outcomes, setOutcomes] = useState<
+    Array<{ id: string; outcome: string }>
+  >(market.securities);
+  const [loading, setLoading] = useState(false);
+  const [editingOutcomeId, setEditingOutcomeId] = useState<string | null>(null);
+  const [editingOutcomeText, setEditingOutcomeText] = useState("");
+
+  const handleStartEditOutcome = (id: string, text: string) => {
+    setEditingOutcomeId(id);
+    setEditingOutcomeText(text);
+  };
+
+  const handleSaveOutcome = () => {
+    setOutcomes(
+      outcomes.map((o) =>
+        o.id === editingOutcomeId ? { ...o, outcome: editingOutcomeText } : o,
+      ),
+    );
+    setEditingOutcomeId(null);
+    setEditingOutcomeText("");
+  };
+
+  const handleUpdate = async () => {
+    if (!question.trim()) {
+      toast.error("Question cannot be empty");
+      return;
+    }
+
+    if (!resolutionDate) {
+      toast.error("Please set a resolution date");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await marketsApi.updateMarket(market.id, {
+        question: question.trim(),
+        description: description.trim(),
+        resolutionDate: new Date(resolutionDate).toISOString(),
+        securities: outcomes,
+      });
+      toast.success("Market updated successfully");
+      onOpenChange(false);
+      onEditSuccess?.();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update market",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <Card className="w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center gap-2 mb-4">
+          <Pen className="w-5 h-5" />
+          <h2 className="text-lg font-semibold">Edit Market</h2>
+        </div>
+
+        <div className="space-y-4 mb-6">
+          <div>
+            <label className="text-sm font-medium block mb-2">Question</label>
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              className="w-full p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-2">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              rows={3}
+              placeholder="Optional description"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-2">
+              Resolution Date
+            </label>
+            <input
+              type="date"
+              value={resolutionDate}
+              onChange={(e) => setResolutionDate(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-2">Outcomes</label>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {outcomes.map((outcome) => (
+                <div key={outcome.id} className="flex gap-2 items-center">
+                  {editingOutcomeId === outcome.id ? (
+                    <>
+                      <input
+                        type="text"
+                        value={editingOutcomeText}
+                        onChange={(e) => setEditingOutcomeText(e.target.value)}
+                        className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleSaveOutcome}
+                        className="h-8"
+                      >
+                        Save
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex-1 p-2 bg-gray-50 rounded-lg">
+                        {outcome.outcome}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          handleStartEditOutcome(outcome.id, outcome.outcome)
+                        }
+                        className="h-8"
+                      >
+                        <Pen className="w-3 h-3" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleUpdate} disabled={loading} className="flex-1">
+            {loading ? "Updating..." : "Update"}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}

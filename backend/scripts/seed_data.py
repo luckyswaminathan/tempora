@@ -152,6 +152,42 @@ def seed_markets() -> None:
                     "Later or never",
                 ],
             },
+            {
+                "question": "What will be the peak temperature in NYC this summer (°F)?",
+                "category": "Climate",
+                "description": "Predict the highest temperature recorded in Central Park during June-August 2026.",
+                "resolution_date": datetime.now(timezone.utc) + timedelta(days=180),
+                "status": "open",
+                "tags": ["weather", "temperature", "nyc"],
+                "liquidity_parameter": 75000,
+                "ui_type": "bars-ordered",
+                "securities": [
+                    {"outcome": "Below 90°F", "value": 85.0},
+                    {"outcome": "90-95°F", "value": 92.5},
+                    {"outcome": "95-100°F", "value": 97.5},
+                    {"outcome": "100-105°F", "value": 102.5},
+                    {"outcome": "Above 105°F", "value": 110},
+                ],
+            },
+            {
+                "question": "Who will win the 2026 World Cup?",
+                "category": "Sports",
+                "description": "Predict which country will win the FIFA World Cup 2026.",
+                "resolution_date": datetime.now(timezone.utc) + timedelta(days=365),
+                "status": "open",
+                "tags": ["sports", "soccer", "worldcup"],
+                "liquidity_parameter": 150000,
+                "ui_type": "bars-categorical",
+                "securities": [
+                    "Brazil",
+                    "Argentina",
+                    "France",
+                    "Germany",
+                    "Spain",
+                    "England",
+                    "Other",
+                ],
+            },
         ]
 
         # Get or create a seed user for initial trades
@@ -195,10 +231,37 @@ def seed_markets() -> None:
             session.flush()
 
             securities = []
+            # Parse outcomes - can be strings or dicts with outcome and value
+            parsed_outcomes = []
             for outcome in market["securities"]:
+                if isinstance(outcome, str):
+                    parsed_outcomes.append(
+                        {"outcome": outcome, "value": None, "is_catch_all": False}
+                    )
+                else:
+                    parsed_outcomes.append(outcome)
+
+            # Check if any outcomes have values
+            has_values = any(o["value"] is not None for o in parsed_outcomes)
+
+            # If no values provided, auto-assign sequential values
+            if not has_values:
+                for i, outcome in enumerate(parsed_outcomes, start=1):
+                    if i < len(parsed_outcomes):
+                        outcome["value"] = float(i)
+                        outcome["is_catch_all"] = False
+                    else:
+                        # Last outcome is catch-all (use 1e9 for sorting)
+                        outcome["value"] = 1e9
+                        outcome["is_catch_all"] = True
+
+            # Create securities with values
+            for outcome_data in parsed_outcomes:
                 sec = models.Security(
                     market_id=m.id,
-                    outcome=outcome,
+                    outcome=outcome_data["outcome"],
+                    value=outcome_data["value"],
+                    is_catch_all=outcome_data.get("is_catch_all", False),
                     created_at=datetime.now(timezone.utc),
                 )
                 session.add(sec)

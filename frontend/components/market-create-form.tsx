@@ -23,7 +23,7 @@ export function MarketCreateForm() {
     category: "General",
     description: "",
     resolutionDate: "",
-    outcomes: ["", ""],
+    outcomes: [{ text: "", isCatchAll: false }, { text: "", isCatchAll: false }],
     tags: "",
     liquidityParameter: "1000",
   });
@@ -34,9 +34,17 @@ export function MarketCreateForm() {
 
     try {
       // Filter out empty outcomes
-      const outcomes = formData.outcomes.filter((o) => o.trim());
+      const outcomes = formData.outcomes.filter((o) => o.text.trim());
       if (outcomes.length < 2) {
         toast.error("Please provide at least 2 outcomes");
+        setSubmitting(false);
+        return;
+      }
+
+      // Validate: at most one catch-all
+      const catchAllCount = outcomes.filter((o) => o.isCatchAll).length;
+      if (catchAllCount > 1) {
+        toast.error("At most one outcome can be marked as catch-all");
         setSubmitting(false);
         return;
       }
@@ -63,7 +71,10 @@ export function MarketCreateForm() {
         category: formData.category,
         description: formData.description,
         resolutionDate: formData.resolutionDate,
-        outcomes,
+        outcomes: outcomes.map((o) => ({
+          outcome: o.text,
+          isCatchAll: o.isCatchAll,
+        })),
         tags,
         liquidityParameter: formData.liquidityParameter
           ? parseInt(formData.liquidityParameter)
@@ -77,7 +88,7 @@ export function MarketCreateForm() {
         category: "General",
         description: "",
         resolutionDate: "",
-        outcomes: ["", ""],
+        outcomes: [{ text: "", isCatchAll: false }, { text: "", isCatchAll: false }],
         tags: "",
         liquidityParameter: "1000",
       });
@@ -92,12 +103,20 @@ export function MarketCreateForm() {
 
   const updateOutcome = (index: number, value: string) => {
     const newOutcomes = [...formData.outcomes];
-    newOutcomes[index] = value;
+    newOutcomes[index].text = value;
+    setFormData({ ...formData, outcomes: newOutcomes });
+  };
+
+  const toggleCatchAll = (index: number) => {
+    const newOutcomes = formData.outcomes.map((o, i) => ({
+      ...o,
+      isCatchAll: i === index ? !o.isCatchAll : false, // Only one can be catch-all
+    }));
     setFormData({ ...formData, outcomes: newOutcomes });
   };
 
   const addOutcome = () => {
-    setFormData({ ...formData, outcomes: [...formData.outcomes, ""] });
+    setFormData({ ...formData, outcomes: [...formData.outcomes, { text: "", isCatchAll: false }] });
   };
 
   const removeOutcome = (index: number) => {
@@ -177,12 +196,22 @@ export function MarketCreateForm() {
         <Label>Outcomes</Label>
         <div className="space-y-2">
           {formData.outcomes.map((outcome, idx) => (
-            <div key={idx} className="flex gap-2">
+            <div key={idx} className="flex gap-2 items-center">
               <Input
                 placeholder={`Outcome ${idx + 1}`}
-                value={outcome}
+                value={outcome.text}
                 onChange={(e) => updateOutcome(idx, e.target.value)}
+                className="flex-1"
               />
+              <label className="flex items-center gap-2 whitespace-nowrap text-sm">
+                <input
+                  type="checkbox"
+                  checked={outcome.isCatchAll}
+                  onChange={() => toggleCatchAll(idx)}
+                  className="w-4 h-4"
+                />
+                Catch-all
+              </label>
               {formData.outcomes.length > 2 && (
                 <Button
                   type="button"

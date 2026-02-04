@@ -117,7 +117,7 @@ export interface Market {
   updatedAt: string;
   description?: string;
   tags: string[];
-  uiType: "bars" | "year" | "quarter" | "month" | "day";
+  uiType: "bars-ordered" | "bars-categorical" | "year" | "quarter" | "month" | "day";
   quotes: Array<{
     securityId: string;
     quantityTraded: number;
@@ -130,6 +130,8 @@ export interface Market {
     id: string;
     marketId: string;
     outcome: string;
+    value: number;
+    isCatchAll: boolean;
     createdAt: string;
   }>;
   openInterest: number;
@@ -142,15 +144,21 @@ export interface MarketListResponse {
   count: number;
 }
 
+export interface OutcomeWithValue {
+  outcome: string;
+  value?: number;
+  isCatchAll?: boolean;
+}
+
 export interface MarketCreate {
   question: string;
-  outcomes: string[];
+  outcomes: (string | OutcomeWithValue)[];
   category: string;
   resolutionDate: string;
   description?: string;
   tags?: string[];
   liquidityParameter?: number;
-  uiType?: "bars" | "year" | "quarter" | "month" | "day";
+  uiType?: "bars-ordered" | "bars-categorical" | "year" | "quarter" | "month" | "day";
 }
 
 export interface SecurityUpdate {
