@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TrendingUp, Users, Calendar, X, Pen, Gavel } from "lucide-react";
 import { TradeDialog } from "@/components/trade-dialog";
 import { SecurityPicker } from "@/components/security-picker";
-import { AdminDialogs } from "@/components/admin-dialogs";
+import { AdminDialogsController } from "@/components/admin-dialogs";
 import { marketsApi, type Market } from "@/lib/api";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/auth-context";
@@ -234,7 +234,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
         onSuccess={handleTradeSuccess}
       />
 
-      <AdminDialogs
+      <AdminDialogsController
         market={market}
         showSettleForm={showSettleForm}
         setShowSettleForm={setShowSettleForm}

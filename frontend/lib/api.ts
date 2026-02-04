@@ -117,7 +117,13 @@ export interface Market {
   updatedAt: string;
   description?: string;
   tags: string[];
-  uiType: "bars-ordered" | "bars-categorical" | "year" | "quarter" | "month" | "day";
+  uiType:
+    | "bars-ordered"
+    | "bars-categorical"
+    | "year"
+    | "quarter"
+    | "month"
+    | "day";
   quotes: Array<{
     securityId: string;
     quantityTraded: number;
@@ -152,13 +158,19 @@ export interface OutcomeWithValue {
 
 export interface MarketCreate {
   question: string;
-  outcomes: (string | OutcomeWithValue)[];
+  outcomes: OutcomeWithValue[];
   category: string;
   resolutionDate: string;
   description?: string;
   tags?: string[];
   liquidityParameter?: number;
-  uiType?: "bars-ordered" | "bars-categorical" | "year" | "quarter" | "month" | "day";
+  uiType?:
+    | "bars-ordered"
+    | "bars-categorical"
+    | "year"
+    | "quarter"
+    | "month"
+    | "day";
 }
 
 export interface SecurityUpdate {

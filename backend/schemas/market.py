@@ -59,7 +59,7 @@ class OutcomeWithValue(BaseModel):
 
 class MarketCreate(BaseModel):
     question: str = Field(min_length=1)
-    outcomes: List[str | OutcomeWithValue] = Field(default_factory=list)
+    outcomes: List[OutcomeWithValue] = Field(default_factory=list)
     category: str
     resolution_date: UTCDateTime = Field(alias="resolutionDate")
     description: Optional[str] = None
@@ -67,7 +67,7 @@ class MarketCreate(BaseModel):
     liquidity_parameter: Optional[float] = Field(
         default=None, alias="liquidityParameter", ge=0.0
     )
-    ui_type: str = Field(default="bars", alias="uiType")
+    ui_type: str = Field(default="bars-ordered", alias="uiType")
 
 
 class SecurityUpdate(BaseModel):

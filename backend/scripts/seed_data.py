@@ -225,7 +225,7 @@ def seed_markets() -> None:
                 status=market["status"],
                 tags=market["tags"],
                 liquidity_parameter=market["liquidity_parameter"],
-                ui_type=market.get("ui_type"),
+                ui_type=market["ui_type"],
             )
             session.add(m)
             session.flush()

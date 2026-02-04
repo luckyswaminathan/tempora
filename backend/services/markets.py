@@ -226,20 +226,11 @@ class MarketService:
             }
         )
 
-    def _create_securities(self, market_id: str, outcomes: List[str | dict]) -> None:
-        # Parse outcomes - convert to OutcomeWithValue objects
-        parsed_outcomes: List[OutcomeWithValue] = []
-        for outcome in outcomes:
-            if isinstance(outcome, str):
-                parsed_outcomes.append(
-                    OutcomeWithValue(outcome=outcome, value=None, is_catch_all=False)
-                )
-            else:
-                # It's already an OutcomeWithValue pydantic model
-                parsed_outcomes.append(outcome)
-
+    def _create_securities(
+        self, market_id: str, outcomes: List[OutcomeWithValue]
+    ) -> None:
         # Validate: at most one outcome can be marked as catch-all
-        catch_all_count = sum(1 for o in parsed_outcomes if o.is_catch_all)
+        catch_all_count = sum(1 for o in outcomes if o.is_catch_all)
         if catch_all_count > 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -247,7 +238,7 @@ class MarketService:
             )
 
         # Validate: either all outcomes have values or none do
-        values_provided = [o.value is not None for o in parsed_outcomes]
+        values_provided = [o.value is not None for o in outcomes]
         has_values = any(values_provided)
         all_values = all(values_provided)
 
@@ -259,7 +250,7 @@ class MarketService:
 
         # If no values provided, auto-assign sequential values
         if not has_values:
-            for i, outcome in enumerate(parsed_outcomes, start=1):
+            for i, outcome in enumerate(outcomes, start=1):
                 if not outcome.is_catch_all:
                     outcome.value = float(i)
                 else:
@@ -267,7 +258,7 @@ class MarketService:
                     outcome.value = 1e9
 
         # Create security records
-        for outcome_data in parsed_outcomes:
+        for outcome_data in outcomes:
             record = models.Security(
                 market_id=market_id,
                 outcome=outcome_data.outcome,

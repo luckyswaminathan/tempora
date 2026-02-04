@@ -7,7 +7,7 @@ import { Gavel, Pen } from "lucide-react";
 import { marketsApi, type Market } from "@/lib/api";
 import { toast } from "sonner";
 
-interface AdminDialogsProps {
+interface AdminDialogsControllerProps {
   market: Market;
   showSettleForm: boolean;
   setShowSettleForm: (show: boolean) => void;
@@ -16,14 +16,14 @@ interface AdminDialogsProps {
   onSuccess: () => void;
 }
 
-export function AdminDialogs({
+export function AdminDialogsController({
   market,
   showSettleForm,
   setShowSettleForm,
   showEditForm,
   setShowEditForm,
   onSuccess,
-}: AdminDialogsProps) {
+}: AdminDialogsControllerProps) {
   return (
     <>
       {showSettleForm && (
