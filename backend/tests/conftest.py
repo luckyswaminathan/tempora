@@ -97,7 +97,7 @@ def test_market(request, client) -> Market:
 
     payload = {
         "question": "?",
-        "outcomes": [str(i) for i in range(outcomes)],
+        "outcomes": [{"outcome": str(i)} for i in range(outcomes)],
         "category": "general",
         "resolutionDate": "2030-01-01T00:00:00",
         "description": "",

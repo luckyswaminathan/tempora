@@ -9,12 +9,14 @@ from fastapi import HTTPException, status
 from core import models
 from schemas.portfolio import Holding, PortfolioSnapshot, PortfolioSummary
 from services.markets import MarketService
+from services.trades import TradeService
 
 
 class PortfolioService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.market_service = MarketService(session)
+        self.trade_service = TradeService(session)
 
     def get_portfolio(self, user_id: str) -> PortfolioSnapshot:
         profile = self.session.get(models.Profile, user_id)
@@ -92,6 +94,14 @@ class PortfolioService:
             }
         )
 
+        # Calculate collateral locked for short positions
+        collateral_locked = self.trade_service._get_user_collateral_locked(user_id)
+        spendable_balance = max(0, profile.wallet - collateral_locked)
+
         return PortfolioSnapshot(
-            wallet=profile.wallet, holdings=holdings, summary=summary
+            wallet=profile.wallet,
+            spendable_balance=spendable_balance,
+            collateral_locked=collateral_locked,
+            holdings=holdings,
+            summary=summary,
         )

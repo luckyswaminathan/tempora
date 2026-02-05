@@ -6,6 +6,7 @@ from typing import List
 from uuid import uuid4
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Enum,
     Float,
@@ -110,7 +111,8 @@ class Market(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
     liquidity_parameter: Mapped[float | None] = mapped_column(Float, nullable=True)
-    interval_granularity: Mapped[str | None] = mapped_column(String, nullable=True)
+    ui_type: Mapped[str] = mapped_column(String, nullable=False, default="bars-ordered")
+    winning_security_id: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
@@ -132,6 +134,8 @@ class Security(Base):
         String, ForeignKey("markets.id", ondelete="CASCADE"), nullable=False
     )
     outcome: Mapped[str] = mapped_column(String, nullable=False)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    is_catch_all: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     market: Mapped[Market] = relationship(back_populates="securities")
