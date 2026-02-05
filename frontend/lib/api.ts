@@ -125,6 +125,7 @@ export interface Market {
     | "month"
     | "day"
     | "interval";
+  winningSecurityId?: string;
   quotes: Array<{
     securityId: string;
     quantityTraded: number;

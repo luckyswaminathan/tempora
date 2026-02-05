@@ -39,6 +39,7 @@ class Market(BaseModel):
     description: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     ui_type: str = Field(default="bars-ordered", alias="uiType")
+    winning_security_id: Optional[str] = Field(default=None, alias="winningSecurityId")
 
     quotes: List[MarketQuote] = Field(default_factory=list)
     securities: List[Security] = Field(default_factory=list)

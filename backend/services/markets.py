@@ -143,6 +143,7 @@ class MarketService:
             self.session.execute(stmt)
 
         market.status = models.MarketStatus.RESOLVED
+        market.winning_security_id = payload.winning_security_id
 
         self.session.commit()
         self.session.refresh(market)
@@ -218,6 +219,7 @@ class MarketService:
                 "description": market.description,
                 "tags": market.tags or [],
                 "uiType": market.ui_type,
+                "winningSecurityId": market.winning_security_id,
                 "quotes": quotes,
                 "securities": securities,
                 "openInterest": open_interest,

@@ -161,6 +161,26 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           {market.question || "Untitled Market"}
         </h3>
 
+        {market.status === "resolved" && market.winningSecurityId && (
+          <div className="mb-4">
+            <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className="bg-green-600 text-white">Resolved</Badge>
+              </div>
+              <p className="text-sm font-medium text-green-900">
+                Winning Outcome:{" "}
+                {
+                  outcomes.find((o) => o.id === market.winningSecurityId)
+                    ?.outcome
+                }
+              </p>
+              <p className="text-xs text-green-700 mt-1">
+                This market has been settled and is no longer tradeable.
+              </p>
+            </div>
+          </div>
+        )}
+
         {market.status === "open" && (
           <div className="mb-4">
             <SecurityPicker
