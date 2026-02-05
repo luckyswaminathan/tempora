@@ -9,42 +9,14 @@ from fastapi import HTTPException, status
 from core import models
 from schemas.portfolio import Holding, PortfolioSnapshot, PortfolioSummary
 from services.markets import MarketService
+from services.trades import TradeService
 
 
 class PortfolioService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.market_service = MarketService(session)
-
-    def _get_collateral_locked(self, user_id: str) -> int:
-        """
-        Calculate total collateral locked for all short positions.
-        This is the sum of |short quantity| * 100 cents for all net short positions.
-        """
-        # Get all trades for open markets
-        stmt = (
-            select(models.Trade)
-            .join(models.Market, models.Trade.market_id == models.Market.id)
-            .where(
-                models.Trade.user_id == user_id,
-                models.Market.status != models.MarketStatus.RESOLVED,
-            )
-        )
-        trades = self.session.scalars(stmt).all()
-
-        # Calculate net position per security
-        positions: dict[str, int] = {}
-        for trade in trades:
-            key = f"{trade.market_id}:{trade.security_id}"
-            positions[key] = positions.get(key, 0) + trade.quantity
-
-        # Sum up collateral for short positions
-        collateral = 0
-        for position in positions.values():
-            if position < 0:  # Short position
-                collateral += abs(position) * 100  # $1 = 100 cents per share
-
-        return collateral
+        self.trade_service = TradeService(session)
 
     def get_portfolio(self, user_id: str) -> PortfolioSnapshot:
         profile = self.session.get(models.Profile, user_id)
@@ -123,7 +95,7 @@ class PortfolioService:
         )
 
         # Calculate collateral locked for short positions
-        collateral_locked = self._get_collateral_locked(user_id)
+        collateral_locked = self.trade_service._get_user_collateral_locked(user_id)
         spendable_balance = max(0, profile.wallet - collateral_locked)
 
         return PortfolioSnapshot(

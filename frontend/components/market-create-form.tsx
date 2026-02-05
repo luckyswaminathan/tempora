@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { marketsApi } from "@/lib/api";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { MONTHS, QUARTERS } from "@/lib/utils";
 
 const CATEGORIES = [
   "Economics",
@@ -26,31 +27,14 @@ const UI_TYPES = [
   { label: "Interval Range", value: "interval" },
 ];
 
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
-
-interface CalendarConfig {
+interface FormConfig {
   // For daily
   startDate: string;
   endDate: string;
   // For monthly
-  selectedMonths: string[]; // "2026-01", "2026-02", etc.
+  selectedMonths: string[];
   // For quarterly
-  selectedQuarters: string[]; // "2026-Q1", "2026-Q2", etc.
+  selectedQuarters: string[];
   // For yearly
   selectedYears: number[];
   // For interval
@@ -83,7 +67,7 @@ export function MarketCreateForm() {
     liquidityParameter: "1000",
   });
 
-  const [calendarConfig, setCalendarConfig] = useState<CalendarConfig>({
+  const [formConfig, setFormConfig] = useState<FormConfig>({
     startDate: "",
     endDate: "",
     selectedMonths: [],
@@ -116,16 +100,16 @@ export function MarketCreateForm() {
 
     // Handle interval type
     if (formData.uiType === "interval") {
-      const min = parseFloat(calendarConfig.intervalMin);
-      const max = parseFloat(calendarConfig.intervalMax);
-      const step = parseFloat(calendarConfig.intervalStep);
-      const unit = calendarConfig.intervalUnit;
+      const min = parseFloat(formConfig.intervalMin);
+      const max = parseFloat(formConfig.intervalMax);
+      const step = parseFloat(formConfig.intervalStep);
+      const unit = formConfig.intervalUnit;
 
       if (!isNaN(min) && !isNaN(max) && !isNaN(step) && step > 0 && max > min) {
         // Add lower bound if enabled
-        if (calendarConfig.includeLowerBound) {
+        if (formConfig.includeLowerBound) {
           outcomes.push({
-            text: `${calendarConfig.lowerBoundLabel} ${min}${unit}`,
+            text: `${formConfig.lowerBoundLabel} ${min}${unit}`,
             isCatchAll: false,
           });
         }
@@ -140,10 +124,10 @@ export function MarketCreateForm() {
         }
 
         // Add upper bound if enabled
-        if (calendarConfig.includeUpperBound) {
+        if (formConfig.includeUpperBound) {
           outcomes.push({
-            text: `${calendarConfig.upperBoundLabel} ${max}${unit}`,
-            isCatchAll: true, // Upper bound acts as catch-all
+            text: `${formConfig.upperBoundLabel} ${max}${unit}`,
+            isCatchAll: false,
           });
         }
       }
@@ -152,11 +136,11 @@ export function MarketCreateForm() {
 
     if (
       formData.uiType === "day" &&
-      calendarConfig.startDate &&
-      calendarConfig.endDate
+      formConfig.startDate &&
+      formConfig.endDate
     ) {
-      const start = new Date(calendarConfig.startDate);
-      const end = new Date(calendarConfig.endDate);
+      const start = new Date(formConfig.startDate);
+      const end = new Date(formConfig.endDate);
       const current = new Date(start);
 
       while (current <= end) {
@@ -167,23 +151,23 @@ export function MarketCreateForm() {
         current.setDate(current.getDate() + 1);
       }
     } else if (formData.uiType === "month") {
-      calendarConfig.selectedMonths.sort().forEach((month) => {
+      formConfig.selectedMonths.sort().forEach((month) => {
         outcomes.push({ text: month, isCatchAll: false });
       });
     } else if (formData.uiType === "quarter") {
-      calendarConfig.selectedQuarters.sort().forEach((quarter) => {
+      formConfig.selectedQuarters.sort().forEach((quarter) => {
         outcomes.push({ text: quarter, isCatchAll: false });
       });
     } else if (formData.uiType === "year") {
-      calendarConfig.selectedYears
+      formConfig.selectedYears
         .sort((a, b) => a - b)
         .forEach((year) => {
           outcomes.push({ text: year.toString(), isCatchAll: false });
         });
     }
 
-    if (calendarConfig.includeCatchAll && outcomes.length > 0) {
-      outcomes.push({ text: calendarConfig.catchAllLabel, isCatchAll: true });
+    if (formConfig.includeCatchAll && outcomes.length > 0) {
+      outcomes.push({ text: formConfig.catchAllLabel, isCatchAll: true });
     }
 
     return outcomes;
@@ -262,7 +246,7 @@ export function MarketCreateForm() {
         tags: "",
         liquidityParameter: "1000",
       });
-      setCalendarConfig({
+      setFormConfig({
         startDate: "",
         endDate: "",
         selectedMonths: [],
@@ -338,31 +322,30 @@ export function MarketCreateForm() {
     };
 
     const isInRange = (day: number) => {
-      if (!calendarConfig.startDate || !calendarConfig.endDate) return false;
+      if (!formConfig.startDate || !formConfig.endDate) return false;
       const date = formatDate(day);
-      return date >= calendarConfig.startDate && date <= calendarConfig.endDate;
+      return date >= formConfig.startDate && date <= formConfig.endDate;
     };
 
-    const isStart = (day: number) =>
-      formatDate(day) === calendarConfig.startDate;
-    const isEnd = (day: number) => formatDate(day) === calendarConfig.endDate;
+    const isStart = (day: number) => formatDate(day) === formConfig.startDate;
+    const isEnd = (day: number) => formatDate(day) === formConfig.endDate;
 
     const handleDayClick = (day: number) => {
       const date = formatDate(day);
       if (
-        !calendarConfig.startDate ||
-        (calendarConfig.startDate && calendarConfig.endDate)
+        !formConfig.startDate ||
+        (formConfig.startDate && formConfig.endDate)
       ) {
-        setCalendarConfig({ ...calendarConfig, startDate: date, endDate: "" });
+        setFormConfig({ ...formConfig, startDate: date, endDate: "" });
       } else {
-        if (date < calendarConfig.startDate) {
-          setCalendarConfig({
-            ...calendarConfig,
+        if (date < formConfig.startDate) {
+          setFormConfig({
+            ...formConfig,
             startDate: date,
-            endDate: calendarConfig.startDate,
+            endDate: formConfig.startDate,
           });
         } else {
-          setCalendarConfig({ ...calendarConfig, endDate: date });
+          setFormConfig({ ...formConfig, endDate: date });
         }
       }
     };
@@ -416,16 +399,16 @@ export function MarketCreateForm() {
             </button>
           ))}
         </div>
-        {calendarConfig.startDate && (
+        {formConfig.startDate && (
           <div className="text-sm text-muted-foreground">
-            Selected: {calendarConfig.startDate}
-            {calendarConfig.endDate && ` to ${calendarConfig.endDate}`}
-            {calendarConfig.endDate && (
+            Selected: {formConfig.startDate}
+            {formConfig.endDate && ` to ${formConfig.endDate}`}
+            {formConfig.endDate && (
               <span className="ml-2">
                 (
                 {Math.floor(
-                  (new Date(calendarConfig.endDate).getTime() -
-                    new Date(calendarConfig.startDate).getTime()) /
+                  (new Date(formConfig.endDate).getTime() -
+                    new Date(formConfig.startDate).getTime()) /
                     (1000 * 60 * 60 * 24),
                 ) + 1}{" "}
                 days)
@@ -440,10 +423,10 @@ export function MarketCreateForm() {
   // Monthly picker
   const MonthPicker = () => {
     const toggleMonth = (monthKey: string) => {
-      const selected = calendarConfig.selectedMonths.includes(monthKey)
-        ? calendarConfig.selectedMonths.filter((m) => m !== monthKey)
-        : [...calendarConfig.selectedMonths, monthKey];
-      setCalendarConfig({ ...calendarConfig, selectedMonths: selected });
+      const selected = formConfig.selectedMonths.includes(monthKey)
+        ? formConfig.selectedMonths.filter((m) => m !== monthKey)
+        : [...formConfig.selectedMonths, monthKey];
+      setFormConfig({ ...formConfig, selectedMonths: selected });
     };
 
     return (
@@ -470,7 +453,7 @@ export function MarketCreateForm() {
         <div className="grid grid-cols-3 gap-2">
           {MONTHS.map((month, idx) => {
             const monthKey = `${currentYear}-${String(idx + 1).padStart(2, "0")}`;
-            const isSelected = calendarConfig.selectedMonths.includes(monthKey);
+            const isSelected = formConfig.selectedMonths.includes(monthKey);
             return (
               <button
                 key={month}
@@ -487,9 +470,9 @@ export function MarketCreateForm() {
             );
           })}
         </div>
-        {calendarConfig.selectedMonths.length > 0 && (
+        {formConfig.selectedMonths.length > 0 && (
           <div className="text-sm text-muted-foreground">
-            {calendarConfig.selectedMonths.length} month(s) selected
+            {formConfig.selectedMonths.length} month(s) selected
           </div>
         )}
       </div>
@@ -499,10 +482,10 @@ export function MarketCreateForm() {
   // Quarterly picker
   const QuarterPicker = () => {
     const toggleQuarter = (quarterKey: string) => {
-      const selected = calendarConfig.selectedQuarters.includes(quarterKey)
-        ? calendarConfig.selectedQuarters.filter((q) => q !== quarterKey)
-        : [...calendarConfig.selectedQuarters, quarterKey];
-      setCalendarConfig({ ...calendarConfig, selectedQuarters: selected });
+      const selected = formConfig.selectedQuarters.includes(quarterKey)
+        ? formConfig.selectedQuarters.filter((q) => q !== quarterKey)
+        : [...formConfig.selectedQuarters, quarterKey];
+      setFormConfig({ ...formConfig, selectedQuarters: selected });
     };
 
     return (
@@ -528,9 +511,8 @@ export function MarketCreateForm() {
         </div>
         <div className="grid grid-cols-2 gap-2">
           {QUARTERS.map((quarter) => {
-            const quarterKey = `${currentYear}-${quarter}`;
-            const isSelected =
-              calendarConfig.selectedQuarters.includes(quarterKey);
+            const quarterKey = `${currentYear} ${quarter}`;
+            const isSelected = formConfig.selectedQuarters.includes(quarterKey);
             return (
               <button
                 key={quarter}
@@ -547,9 +529,9 @@ export function MarketCreateForm() {
             );
           })}
         </div>
-        {calendarConfig.selectedQuarters.length > 0 && (
+        {formConfig.selectedQuarters.length > 0 && (
           <div className="text-sm text-muted-foreground">
-            {calendarConfig.selectedQuarters.length} quarter(s) selected
+            {formConfig.selectedQuarters.length} quarter(s) selected
           </div>
         )}
       </div>
@@ -562,10 +544,10 @@ export function MarketCreateForm() {
     const years = Array.from({ length: 6 }, (_, i) => startYear + i);
 
     const toggleYear = (year: number) => {
-      const selected = calendarConfig.selectedYears.includes(year)
-        ? calendarConfig.selectedYears.filter((y) => y !== year)
-        : [...calendarConfig.selectedYears, year];
-      setCalendarConfig({ ...calendarConfig, selectedYears: selected });
+      const selected = formConfig.selectedYears.includes(year)
+        ? formConfig.selectedYears.filter((y) => y !== year)
+        : [...formConfig.selectedYears, year];
+      setFormConfig({ ...formConfig, selectedYears: selected });
     };
 
     return (
@@ -593,7 +575,7 @@ export function MarketCreateForm() {
         </div>
         <div className="grid grid-cols-3 gap-2">
           {years.map((year) => {
-            const isSelected = calendarConfig.selectedYears.includes(year);
+            const isSelected = formConfig.selectedYears.includes(year);
             return (
               <button
                 key={year}
@@ -610,9 +592,9 @@ export function MarketCreateForm() {
             );
           })}
         </div>
-        {calendarConfig.selectedYears.length > 0 && (
+        {formConfig.selectedYears.length > 0 && (
           <div className="text-sm text-muted-foreground">
-            {calendarConfig.selectedYears.length} year(s) selected
+            {formConfig.selectedYears.length} year(s) selected
           </div>
         )}
       </div>
@@ -756,7 +738,8 @@ export function MarketCreateForm() {
         <div className="space-y-4">
           <Label>Define Numeric Range</Label>
           <p className="text-sm text-muted-foreground mb-2">
-            Create intervals for numeric predictions (e.g., temperature, prices, scores)
+            Create intervals for numeric predictions (e.g., temperature, prices,
+            scores)
           </p>
           <div className="border rounded-lg p-4 space-y-4">
             <div className="grid grid-cols-3 gap-4">
@@ -766,9 +749,12 @@ export function MarketCreateForm() {
                   id="intervalMin"
                   type="number"
                   placeholder="0"
-                  value={calendarConfig.intervalMin}
+                  value={formConfig.intervalMin}
                   onChange={(e) =>
-                    setCalendarConfig({ ...calendarConfig, intervalMin: e.target.value })
+                    setFormConfig({
+                      ...formConfig,
+                      intervalMin: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -778,9 +764,12 @@ export function MarketCreateForm() {
                   id="intervalMax"
                   type="number"
                   placeholder="100"
-                  value={calendarConfig.intervalMax}
+                  value={formConfig.intervalMax}
                   onChange={(e) =>
-                    setCalendarConfig({ ...calendarConfig, intervalMax: e.target.value })
+                    setFormConfig({
+                      ...formConfig,
+                      intervalMax: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -790,9 +779,12 @@ export function MarketCreateForm() {
                   id="intervalStep"
                   type="number"
                   placeholder="5"
-                  value={calendarConfig.intervalStep}
+                  value={formConfig.intervalStep}
                   onChange={(e) =>
-                    setCalendarConfig({ ...calendarConfig, intervalStep: e.target.value })
+                    setFormConfig({
+                      ...formConfig,
+                      intervalStep: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -802,9 +794,12 @@ export function MarketCreateForm() {
               <Input
                 id="intervalUnit"
                 placeholder="°F, %, $, pts, etc."
-                value={calendarConfig.intervalUnit}
+                value={formConfig.intervalUnit}
                 onChange={(e) =>
-                  setCalendarConfig({ ...calendarConfig, intervalUnit: e.target.value })
+                  setFormConfig({
+                    ...formConfig,
+                    intervalUnit: e.target.value,
+                  })
                 }
               />
             </div>
@@ -814,9 +809,12 @@ export function MarketCreateForm() {
                   <input
                     type="checkbox"
                     id="includeLowerBound"
-                    checked={calendarConfig.includeLowerBound}
+                    checked={formConfig.includeLowerBound}
                     onChange={(e) =>
-                      setCalendarConfig({ ...calendarConfig, includeLowerBound: e.target.checked })
+                      setFormConfig({
+                        ...formConfig,
+                        includeLowerBound: e.target.checked,
+                      })
                     }
                     className="w-4 h-4"
                   />
@@ -824,12 +822,15 @@ export function MarketCreateForm() {
                     Include lower bound
                   </Label>
                 </div>
-                {calendarConfig.includeLowerBound && (
+                {formConfig.includeLowerBound && (
                   <Input
                     placeholder="Below"
-                    value={calendarConfig.lowerBoundLabel}
+                    value={formConfig.lowerBoundLabel}
                     onChange={(e) =>
-                      setCalendarConfig({ ...calendarConfig, lowerBoundLabel: e.target.value })
+                      setFormConfig({
+                        ...formConfig,
+                        lowerBoundLabel: e.target.value,
+                      })
                     }
                   />
                 )}
@@ -839,22 +840,28 @@ export function MarketCreateForm() {
                   <input
                     type="checkbox"
                     id="includeUpperBound"
-                    checked={calendarConfig.includeUpperBound}
+                    checked={formConfig.includeUpperBound}
                     onChange={(e) =>
-                      setCalendarConfig({ ...calendarConfig, includeUpperBound: e.target.checked })
+                      setFormConfig({
+                        ...formConfig,
+                        includeUpperBound: e.target.checked,
+                      })
                     }
                     className="w-4 h-4"
                   />
                   <Label htmlFor="includeUpperBound" className="cursor-pointer">
-                    Include upper bound (catch-all)
+                    Include upper bound
                   </Label>
                 </div>
-                {calendarConfig.includeUpperBound && (
+                {formConfig.includeUpperBound && (
                   <Input
                     placeholder="Above"
-                    value={calendarConfig.upperBoundLabel}
+                    value={formConfig.upperBoundLabel}
                     onChange={(e) =>
-                      setCalendarConfig({ ...calendarConfig, upperBoundLabel: e.target.value })
+                      setFormConfig({
+                        ...formConfig,
+                        upperBoundLabel: e.target.value,
+                      })
                     }
                   />
                 )}
@@ -871,10 +878,10 @@ export function MarketCreateForm() {
             <input
               type="checkbox"
               id="includeCatchAll"
-              checked={calendarConfig.includeCatchAll}
+              checked={formConfig.includeCatchAll}
               onChange={(e) =>
-                setCalendarConfig({
-                  ...calendarConfig,
+                setFormConfig({
+                  ...formConfig,
                   includeCatchAll: e.target.checked,
                 })
               }
@@ -884,13 +891,13 @@ export function MarketCreateForm() {
               Include &quot;catch-all&quot; option
             </Label>
           </div>
-          {calendarConfig.includeCatchAll && (
+          {formConfig.includeCatchAll && (
             <Input
               placeholder="Catch-all label (e.g., 'Later or never')"
-              value={calendarConfig.catchAllLabel}
+              value={formConfig.catchAllLabel}
               onChange={(e) =>
-                setCalendarConfig({
-                  ...calendarConfig,
+                setFormConfig({
+                  ...formConfig,
                   catchAllLabel: e.target.value,
                 })
               }

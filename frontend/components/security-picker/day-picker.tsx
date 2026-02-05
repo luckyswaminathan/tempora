@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { SecurityPickerProps, Pill, SecurityPickerOutcome } from "./types";
-import { MONTH_NAMES } from "@/lib/utils";
+import { MONTHS } from "@/lib/utils";
 
 export function DayPicker({
   outcomes,
@@ -18,6 +18,7 @@ export function DayPicker({
     { index: number; outcome: SecurityPickerOutcome }
   >();
   const others: Array<{ index: number; outcome: SecurityPickerOutcome }> = [];
+  const errors: string[] = [];
 
   outcomes.forEach((outcome, index) => {
     if (outcome.isCatchAll) {
@@ -27,7 +28,7 @@ export function DayPicker({
       if (match) {
         dayMap.set(outcome.outcome, { index, outcome });
       } else {
-        throw new Error(
+        errors.push(
           `Invalid day outcome: "${outcome.outcome}". Expected format: YYYY-MM-DD.`,
         );
       }
@@ -68,6 +69,18 @@ export function DayPicker({
 
   return (
     <div className="space-y-6">
+      {errors.length > 0 && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-red-900 mb-2">
+            Validation Errors:
+          </p>
+          <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+            {errors.map((error, idx) => (
+              <li key={idx}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div>
         <div className="flex items-center justify-between mb-4">
           <button
@@ -78,7 +91,7 @@ export function DayPicker({
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h3 className="text-lg font-semibold text-muted-foreground">
-            {MONTH_NAMES[month]} {year}
+            {MONTHS[month]} {year}
           </h3>
           <button
             onClick={nextMonth}

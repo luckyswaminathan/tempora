@@ -165,7 +165,7 @@ class TradeService:
         if total_cost > spendable_balance:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient balance. Cost: ${total_cost/100:.2f}, Available: ${spendable_balance/100:.2f}",
+                detail=f"Insufficient balance. Cost: ${total_cost/100:.2f}, Spendable: ${spendable_balance/100:.2f}",
             )
 
         # Check if user has enough collateral

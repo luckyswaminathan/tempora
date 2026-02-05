@@ -1,7 +1,7 @@
 "use client";
 
 import { SecurityPickerProps, Pill, SecurityPickerOutcome } from "./types";
-import { MONTH_NAMES } from "@/lib/utils";
+import { MONTHS } from "@/lib/utils";
 
 export function MonthPicker({
   outcomes,
@@ -15,6 +15,7 @@ export function MonthPicker({
     Array<{ index: number; month: string; outcome: SecurityPickerOutcome }>
   > = {};
   const others: Array<{ index: number; outcome: SecurityPickerOutcome }> = [];
+  const errors: string[] = [];
 
   outcomes.forEach((outcome, index) => {
     if (outcome.isCatchAll) {
@@ -29,13 +30,13 @@ export function MonthPicker({
         let monthDisplay: string;
         if (month.match(/^\d+$/)) {
           const monthNum = parseInt(month, 10) - 1;
-          monthDisplay = MONTH_NAMES[monthNum] || month;
+          monthDisplay = MONTHS[monthNum] || month;
         } else {
           monthDisplay = month;
         }
         monthsByYear[year].push({ index, month: monthDisplay, outcome });
       } else {
-        throw new Error(
+        errors.push(
           `Invalid month outcome: "${outcome.outcome}". Expected format: YYYY-MM or YYYY MonthName.`,
         );
       }
@@ -46,6 +47,18 @@ export function MonthPicker({
 
   return (
     <div className="space-y-6">
+      {errors.length > 0 && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-red-900 mb-2">
+            Validation Errors:
+          </p>
+          <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+            {errors.map((error, idx) => (
+              <li key={idx}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {years.map((year) => (
         <div key={year}>
           <h3 className="text-lg font-semibold mb-3 text-muted-foreground">

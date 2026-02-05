@@ -55,7 +55,9 @@ class Market(BaseModel):
 class OutcomeWithValue(BaseModel):
     outcome: str = Field(min_length=1)
     value: Optional[float] = None
-    is_catch_all: bool = Field(default=False)
+    is_catch_all: bool = Field(default=False, alias="isCatchAll")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class MarketCreate(BaseModel):

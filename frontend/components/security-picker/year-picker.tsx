@@ -15,6 +15,7 @@ export function YearPicker({
     outcome: SecurityPickerOutcome;
   }> = [];
   const others: Array<{ index: number; outcome: SecurityPickerOutcome }> = [];
+  const errors: string[] = [];
 
   outcomes.forEach((outcome, index) => {
     // Check if it's a catch-all or a year (4 digits)
@@ -23,7 +24,7 @@ export function YearPicker({
     } else if (outcome.outcome.match(/^\d{4}$/)) {
       yearOutcomes.push({ index, outcome });
     } else {
-      throw new Error(
+      errors.push(
         `Invalid year outcome: "${outcome.outcome}". Expected format: YYYY.`,
       );
     }
@@ -31,6 +32,18 @@ export function YearPicker({
 
   return (
     <div className="space-y-4">
+      {errors.length > 0 && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-red-900 mb-2">
+            Validation Errors:
+          </p>
+          <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+            {errors.map((error, idx) => (
+              <li key={idx}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {yearOutcomes.map(({ index, outcome }) => (
           <button

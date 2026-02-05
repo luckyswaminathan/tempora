@@ -279,7 +279,7 @@ export function TradeDialog({
                 <div className="flex items-center gap-2">
                   <Wallet className="w-4 h-4 text-green-600" />
                   <span className="text-sm font-medium text-green-800">
-                    Available Balance
+                    Spendable Balance
                   </span>
                 </div>
                 <div className="text-right">
@@ -492,7 +492,7 @@ export function TradeDialog({
                 <div className="text-sm text-red-700">
                   <span className="font-medium">Insufficient balance.</span> You
                   need ${totalCostDollars.toFixed(2)} but only have $
-                  {spendableBalanceDollars.toFixed(2)} available.
+                  {spendableBalanceDollars.toFixed(2)} available to spend.
                 </div>
               </div>
             )}

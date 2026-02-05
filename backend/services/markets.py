@@ -252,12 +252,13 @@ class MarketService:
 
         # If no values provided, auto-assign sequential values
         if not has_values:
-            for i, outcome in enumerate(outcomes, start=1):
-                if not outcome.is_catch_all:
-                    outcome.value = float(i)
-                else:
-                    # Last outcome or marked as catch-all gets sentinel value
+            i = 1
+            for outcome in outcomes:
+                if outcome.is_catch_all:
                     outcome.value = 1e9
+                else:
+                    outcome.value = float(i)
+                    i += 1
 
         # Create security records
         for outcome_data in outcomes:

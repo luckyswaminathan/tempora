@@ -47,11 +47,12 @@ class TestBuyBalanceValidation:
         }
         resp = client.post("/trades", json=payload)
         assert resp.status_code == 201
+        cost = resp.json()["priceCents"]
 
-        # Verify balance decreased
+        # Verify balance decreased by exact cost
         resp = client.get("/users/me/profile")
         assert resp.status_code == 200
-        assert resp.json()["wallet"] < initial_balance
+        assert resp.json()["wallet"] == initial_balance - cost
 
     def test_buy_exceeding_balance_fails(self, client, market_2_outcomes):
         """User cannot buy more than their balance allows."""
@@ -69,9 +70,8 @@ class TestBuyBalanceValidation:
         }
         resp = client.post("/trades", json=payload)
         assert resp.status_code == 400
-        # Accept either error message due to floating point math
         error_detail = resp.json()["detail"]
-        assert "Insufficient balance" in error_detail or "Quantity" in error_detail
+        assert "Insufficient balance" in error_detail
 
         # Verify balance unchanged
         resp = client.get("/users/me/profile")
@@ -92,7 +92,6 @@ class TestShortCollateral:
         }
         resp = client.post("/trades", json=buy_payload)
         assert resp.status_code == 201
-        buy_cost = resp.json()["priceCents"]
 
         # Get balance after buy
         resp = client.get("/users/me/profile")
@@ -106,6 +105,13 @@ class TestShortCollateral:
         }
         resp = client.post("/trades", json=sell_payload)
         assert resp.status_code == 201
+        sell_proceeds = -resp.json()["priceCents"]  # Negative cost = proceeds
+
+        # Verify we received proceeds and no collateral was locked
+        resp = client.get("/users/me/profile")
+        assert resp.status_code == 200
+        final_balance = resp.json()["wallet"]
+        assert final_balance == balance_after_buy + sell_proceeds
 
     def test_short_beyond_position_requires_collateral(self, client, market_2_outcomes):
         """Shorting beyond existing long position requires collateral."""
@@ -190,11 +196,6 @@ class TestSpendableBalance:
         security_a = market_2_outcomes.securities[0].id
         security_b = market_2_outcomes.securities[1].id
 
-        # Get initial balance
-        resp = client.get("/users/me/profile")
-        assert resp.status_code == 200
-        initial_wallet = resp.json()["wallet"]
-
         # Short security A - this locks collateral
         sell_payload = {
             "marketId": market_2_outcomes.id,
@@ -211,9 +212,8 @@ class TestSpendableBalance:
         }
         resp = client.post("/trades", json=buy_payload)
         assert resp.status_code == 400
-        # Accept either error message due to floating point math
         error_detail = resp.json()["detail"]
-        assert "Insufficient balance" in error_detail or "Quantity" in error_detail
+        assert "Insufficient balance" in error_detail
 
 
 class TestCollateralRelease:
@@ -243,9 +243,13 @@ class TestCollateralRelease:
         }
         resp = client.post("/trades", json=buy_payload)
         assert resp.status_code == 201
+        buy_cost = resp.json()["priceCents"]
 
-        # After closing, we should have full access to remaining wallet
-        # (minus the cost of buying to close)
+        # After closing, verify collateral was released
+        resp = client.get("/users/me/profile")
+        assert resp.status_code == 200
+        final_wallet = resp.json()["wallet"]
+        assert final_wallet == wallet_after_short - buy_cost
 
 
 class TestMultipleLegTrades:

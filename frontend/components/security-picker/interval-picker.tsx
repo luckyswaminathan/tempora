@@ -165,11 +165,14 @@ export function IntervalPicker({
         <div className="px-2 space-y-3">
           <label className="text-sm font-medium">Select Range</label>
           <Slider
-            min={0}
+            min={minSliderValue}
             max={maxSliderValue}
             step={1}
             value={[
-              Math.max(0, startSliderValue >= 0 ? startSliderValue : 0),
+              Math.max(
+                minSliderValue,
+                startSliderValue >= 0 ? startSliderValue : 0,
+              ),
               Math.min(
                 maxSliderValue,
                 endSliderValue >= 0 ? endSliderValue : maxSliderValue,
