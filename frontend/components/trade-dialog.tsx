@@ -491,7 +491,7 @@ export function TradeDialog({
               </div>
 
               {/* Insufficient balance warning */}
-              {hasInsufficientBalance && (
+              {hasInsufficientBalance && user && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
                   <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
                   <div className="text-sm text-red-700">
@@ -503,7 +503,7 @@ export function TradeDialog({
               )}
 
               {/* Insufficient collateral warning for shorts */}
-              {hasInsufficientCollateral && (
+              {hasInsufficientCollateral && user && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
                   <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                   <div className="text-sm text-amber-700">
@@ -557,8 +557,8 @@ export function TradeDialog({
                     loading ||
                     calculatedPrice === null ||
                     fetchingPrice ||
-                    hasInsufficientBalance ||
-                    hasInsufficientCollateral
+                    (user !== null &&
+                      (hasInsufficientBalance || hasInsufficientCollateral))
                   }
                   className="flex-1"
                   variant={isSell ? "destructive" : "default"}

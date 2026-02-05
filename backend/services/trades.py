@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Dict, List, Optional
 from uuid import uuid4
 
 from fastapi import HTTPException, status
@@ -30,10 +30,16 @@ class TradeService:
         self.session = session
         self.market_service = MarketService(session)
 
-    def _price_trade(self, market: Market, legs: List[Leg]) -> int:
-        quantities_map = {
-            quote.security_id: quote.quantity_traded for quote in market.quotes
-        }
+    def _price_trade(
+        self,
+        market: Market,
+        legs: List[Leg],
+        quantities_map: Optional[Dict[str, int]] = None,
+    ) -> int:
+        if quantities_map is None:
+            quantities_map = {
+                quote.security_id: quote.quantity_traded for quote in market.quotes
+            }
         trade_map = {leg.security_id: leg.quantity for leg in legs}
         return calculate_market_price_cents(
             quantities_map, trade_map, market.liquidity_parameter
@@ -136,7 +142,6 @@ class TradeService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
             )
 
-        # Pre-calculate total execution price for all legs
         market = self.market_service.get_market(payload.market_id)
         if market.status != models.MarketStatus.OPEN:
             raise HTTPException(
@@ -144,7 +149,7 @@ class TradeService:
                 detail="Market is not open for trading",
             )
 
-        # Calculate total cost for buy orders
+        # Calculate total quoted cost needed to execute trade
         total_cost = self._price_trade(market, payload.legs)
 
         # Calculate additional collateral needed for short positions
@@ -156,41 +161,38 @@ class TradeService:
         current_collateral_locked = self._get_user_collateral_locked(payload.user_id)
         spendable_balance = max(0, profile.wallet - current_collateral_locked)
 
-        # For buys: check if user has enough spendable balance
-        # For sells: check if user has enough balance for collateral
-        if total_cost > 0:  # Net buy
-            if total_cost > spendable_balance:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Insufficient balance. Cost: ${total_cost/100:.2f}, Available: ${spendable_balance/100:.2f}",
-                )
-        else:  # Net sell (receiving money)
-            # Check if we have enough for new collateral requirements
-            # After trade: wallet increases by |total_cost|, but collateral increases
-            new_wallet = (
-                profile.wallet - total_cost
-            )  # total_cost is negative, so this adds
-            new_collateral = current_collateral_locked + collateral_required
-            if new_collateral > new_wallet:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Insufficient balance for collateral. Required: ${new_collateral/100:.2f}, Would have: ${new_wallet/100:.2f}",
-                )
+        # Check if user has enough spendable balance
+        if total_cost > spendable_balance:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient balance. Cost: ${total_cost/100:.2f}, Available: ${spendable_balance/100:.2f}",
+            )
 
-        execution_price = 0
+        # Check if user has enough collateral
+        new_wallet = profile.wallet - total_cost
+        new_collateral = current_collateral_locked + collateral_required
+        if new_collateral > new_wallet:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient balance for collateral. Required: ${new_collateral/100:.2f}, Would have: ${new_wallet/100:.2f}",
+            )
+
+        # Track simulated market quantities for sequential execution / storage of trade
+        simulated_quantities = {
+            quote.security_id: quote.quantity_traded for quote in market.quotes
+        }
+        leg_prices_sum = 0
         trade_group_id = str(uuid4())
 
-        for leg in payload.legs:
-            # Requote market after each trade leg is placed
-            market = self.market_service.get_market(payload.market_id)
-            if market.status != models.MarketStatus.OPEN:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Market is not open for trading",
-                )
-
-            price = self._price_trade(market, [leg])
-            execution_price += price
+        for i, leg in enumerate(payload.legs):
+            # For all legs except the last, calculate price sequentially
+            if i < len(payload.legs) - 1:
+                price = self._price_trade(market, [leg], simulated_quantities)
+                leg_prices_sum += price
+                simulated_quantities[leg.security_id] += leg.quantity
+            else:
+                # Last leg absorbs any difference to ensure exact match with quoted total
+                price = total_cost - leg_prices_sum
 
             record = models.Trade(
                 user_id=payload.user_id,
@@ -203,12 +205,12 @@ class TradeService:
             )
             self.session.add(record)
 
-        profile.wallet -= execution_price
-
+        profile.wallet -= total_cost
         self.session.commit()
+
         return TradePlaceResponse.model_validate(
             {
-                "priceCents": execution_price,
+                "priceCents": total_cost,
                 "executedAt": datetime.now(timezone.utc).isoformat(),
             }
         )
