@@ -188,6 +188,31 @@ def seed_markets() -> None:
                     "Other",
                 ],
             },
+            {
+                "question": "What will be the maximum temperature (°F) in Death Valley on July 15, 2026?",
+                "category": "Climate",
+                "description": "Predict the exact maximum temperature recorded in Death Valley, California on July 15, 2026. Use the interval slider to select a temperature range.",
+                "resolution_date": datetime.now(timezone.utc) + timedelta(days=180),
+                "status": "open",
+                "tags": ["weather", "temperature", "climate"],
+                "liquidity_parameter": 100000,
+                "ui_type": "interval",
+                "securities": [
+                    {
+                        "outcome": f"{temp}°F",
+                        "value": float(temp),
+                        "is_catch_all": False,
+                    }
+                    for temp in range(100, 131)
+                ]
+                + [
+                    {
+                        "outcome": "Outside 100-130°F range",
+                        "value": 1e9,
+                        "is_catch_all": True,
+                    }
+                ],
+            },
         ]
 
         # Get or create a seed user for initial trades

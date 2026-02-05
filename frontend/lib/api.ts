@@ -123,7 +123,8 @@ export interface Market {
     | "year"
     | "quarter"
     | "month"
-    | "day";
+    | "day"
+    | "interval";
   quotes: Array<{
     securityId: string;
     quantityTraded: number;
@@ -170,7 +171,8 @@ export interface MarketCreate {
     | "year"
     | "quarter"
     | "month"
-    | "day";
+    | "day"
+    | "interval";
 }
 
 export interface SecurityUpdate {

@@ -8,7 +8,33 @@ import { QuarterPicker } from "./security-picker/quarter-picker";
 import { MonthPicker } from "./security-picker/month-picker";
 import { DayPicker } from "./security-picker/day-picker";
 import { BarsPicker } from "./security-picker/bars-picker";
+import { IntervalPicker } from "./security-picker/interval-picker";
 import { SecurityPickerOutcome } from "./security-picker/types";
+
+// UI Type Configuration
+type UITypeConfig = {
+  showToggle: boolean; // Whether to show individual/interval toggle
+  defaultViewMode: "individual" | "interval"; // Default selection mode
+};
+
+const UI_TYPE_CONFIG: Record<string, UITypeConfig> = {
+  "bars-ordered": { showToggle: true, defaultViewMode: "individual" },
+  "bars-categorical": { showToggle: false, defaultViewMode: "individual" },
+  year: { showToggle: true, defaultViewMode: "individual" },
+  quarter: { showToggle: true, defaultViewMode: "individual" },
+  month: { showToggle: true, defaultViewMode: "individual" },
+  day: { showToggle: true, defaultViewMode: "individual" },
+  interval: { showToggle: false, defaultViewMode: "interval" },
+};
+
+export function getUITypeConfig(uiType: string): UITypeConfig {
+  return (
+    UI_TYPE_CONFIG[uiType] || {
+      showToggle: true,
+      defaultViewMode: "individual",
+    }
+  );
+}
 
 interface Outcome {
   id: string;
@@ -36,7 +62,7 @@ export function SecurityPicker({
   onViewModeChange,
 }: SecurityPickerProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const showToggle = uiType !== "bars-categorical";
+  const config = getUITypeConfig(uiType);
 
   const pickerOutcomes: SecurityPickerOutcome[] = outcomes.map((o) => ({
     id: o.id,
@@ -91,11 +117,12 @@ export function SecurityPicker({
     setHoveredIndex,
     hoveredIndex,
     isInRange,
+    onRangeChange,
   };
 
   return (
     <div className="space-y-4">
-      {showToggle && (
+      {config.showToggle && (
         <div className="flex gap-2">
           <Button
             variant={viewMode === "individual" ? "default" : "outline"}
@@ -125,7 +152,7 @@ export function SecurityPicker({
       )}
 
       <div className="text-xs text-muted-foreground mb-3 font-medium">
-        {showToggle
+        {config.showToggle
           ? viewMode === "individual"
             ? "Click any outcome to trade"
             : selectedRange[0] === -1
@@ -141,6 +168,7 @@ export function SecurityPicker({
       {(uiType === "bars-ordered" || uiType === "bars-categorical") && (
         <BarsPicker {...pickerProps} />
       )}
+      {uiType === "interval" && <IntervalPicker {...pickerProps} />}
     </div>
   );
 }

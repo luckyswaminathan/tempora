@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Users, Calendar, X, Pen, Gavel } from "lucide-react";
 import { TradeDialog } from "@/components/trade-dialog";
-import { SecurityPicker } from "@/components/security-picker";
+import { AuthDialog } from "@/components/auth-dialog";
+import { SecurityPicker, getUITypeConfig } from "@/components/security-picker";
 import { AdminDialogsController } from "@/components/admin-dialogs";
 import { marketsApi, type Market } from "@/lib/api";
 import { format } from "date-fns";
@@ -21,8 +22,14 @@ type ViewMode = "individual" | "interval";
 export function MarketCard({ initialMarket }: MarketCardProps) {
   const { user } = useAuth();
   const [market, setMarket] = useState(initialMarket);
-  const [viewMode, setViewMode] = useState<ViewMode>("individual");
+
+  // Get UI type configuration
+  const uiConfig = getUITypeConfig(initialMarket.uiType);
+
+  // Initialize viewMode based on UI type config
+  const [viewMode, setViewMode] = useState<ViewMode>(uiConfig.defaultViewMode);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null);
   const [intervalRange, setIntervalRange] = useState<[number, number]>([
     -1, -1,
@@ -232,7 +239,10 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
               : []
         }
         onSuccess={handleTradeSuccess}
+        onSignInClick={() => setAuthDialogOpen(true)}
       />
+
+      <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
 
       <AdminDialogsController
         market={market}

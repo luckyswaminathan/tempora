@@ -30,6 +30,7 @@ interface TradeDialogProps {
     probability: number;
   }>;
   onSuccess?: () => void;
+  onSignInClick?: () => void;
 }
 
 export function TradeDialog({
@@ -38,6 +39,7 @@ export function TradeDialog({
   market,
   selectedOutcomes,
   onSuccess,
+  onSignInClick,
 }: TradeDialogProps) {
   const { user } = useAuth();
   const isInterval = selectedOutcomes.length > 1;
@@ -451,11 +453,17 @@ export function TradeDialog({
                   Cancel
                 </Button>
                 <Button
-                  onClick={handlePlaceTrade}
+                  onClick={() => {
+                    if (!user && onSignInClick) {
+                      onOpenChange(false);
+                      onSignInClick();
+                    } else {
+                      handlePlaceTrade();
+                    }
+                  }}
                   disabled={
                     shares === 0 ||
                     loading ||
-                    !user ||
                     calculatedPrice === null ||
                     fetchingPrice
                   }

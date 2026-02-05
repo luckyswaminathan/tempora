@@ -15,6 +15,7 @@ export interface SecurityPickerProps {
   setHoveredIndex: (index: number | null) => void;
   handleCellClick: (index: number) => void;
   isInRange: (index: number) => boolean;
+  onRangeChange?: (range: [number, number]) => void;
 }
 
 export function Pill({ children }: { children: ReactNode }) {
@@ -24,4 +25,3 @@ export function Pill({ children }: { children: ReactNode }) {
     </span>
   );
 }
-
