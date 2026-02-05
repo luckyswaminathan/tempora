@@ -320,6 +320,8 @@ export interface UserProfile {
 
 export interface PortfolioSnapshot {
   wallet: number;
+  spendableBalance: number;
+  collateralLocked: number;
   holdings: Array<{
     marketId: string;
     securityId: string;
