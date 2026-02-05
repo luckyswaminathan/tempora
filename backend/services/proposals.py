@@ -149,15 +149,22 @@ class ProposalService:
     def _create_market_from_proposal(self, proposal: models.MarketProposal) -> models.Market:
         """Create a market from an approved proposal."""
         from services.markets import MarketService
-        from schemas.market import MarketCreate
+        from schemas.market import MarketCreate, OutcomeWithValue
 
         market_service = MarketService(self.session)
+        
+        # Convert string outcomes to OutcomeWithValue objects
+        outcomes = [
+            OutcomeWithValue(outcome=o, value=float(i + 1), isCatchAll=False)
+            for i, o in enumerate(proposal.outcomes)
+        ]
+        
         market_data = MarketCreate(
             question=proposal.question,
             category=proposal.category,
             description=proposal.description,
             resolutionDate=proposal.resolution_date.isoformat(),
-            outcomes=proposal.outcomes,
+            outcomes=outcomes,
             tags=proposal.tags,
             liquidityParameter=proposal.liquidity_parameter,
         )
