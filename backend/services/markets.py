@@ -18,6 +18,8 @@ from schemas.market import (
     Market,
     Security,
     OutcomeWithValue,
+    MarketMakerMarket,
+    MarketMakerDashboard,
 )
 from schemas.trade import TradeRecord
 from services.pricing import calculate_market_quotes
@@ -58,7 +60,12 @@ class MarketService:
         market = self._create_market_internal(payload)
         return self._attach_quote(market)
 
-    def _create_market_internal(self, payload: MarketCreate) -> models.Market:
+    def _create_market_internal(
+        self,
+        payload: MarketCreate,
+        creator_id: Optional[str] = None,
+        initial_funding_cents: int = 0,
+    ) -> models.Market:
         """Internal method to create a market without returning the schema."""
         market = models.Market(
             question=payload.question,
@@ -69,6 +76,8 @@ class MarketService:
             tags=payload.tags,
             liquidity_parameter=payload.liquidity_parameter,
             ui_type=payload.ui_type,
+            creator_id=creator_id,
+            initial_funding_cents=initial_funding_cents,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -134,6 +143,15 @@ class MarketService:
         for trade in trades:
             user_pnl[trade.user_id] += 100 * trade.quantity
 
+        total_payout = sum(user_pnl.values())
+
+        # Deduct payouts from market maker's wallet (if market has a creator)
+        if market.creator_id and total_payout > 0:
+            creator_profile = self.session.get(models.Profile, market.creator_id)
+            if creator_profile:
+                creator_profile.wallet -= int(total_payout)
+
+        # Pay out winners
         if user_pnl:
             case_expr = case(
                 {user_id: delta for user_id, delta in user_pnl.items()},
@@ -157,7 +175,7 @@ class MarketService:
             {
                 "id": market.id,
                 "winning_outcome": security.outcome,
-                "net_payout": sum(user_pnl.values()),
+                "net_payout": total_payout,
             }
         )
 
@@ -293,4 +311,80 @@ class MarketService:
                 "created_at": record.created_at
                 or datetime.now(timezone.utc).isoformat(),
             }
+        )
+
+    def get_market_maker_dashboard(self, creator_id: str) -> MarketMakerDashboard:
+        """Get dashboard data for a market maker showing their markets and P&L."""
+        # Get all markets created by this user
+        stmt = (
+            select(models.Market)
+            .where(models.Market.creator_id == creator_id)
+            .options(
+                selectinload(models.Market.securities),
+                selectinload(models.Market.trades),
+            )
+            .order_by(models.Market.created_at.desc())
+        )
+        markets = self.session.scalars(stmt).all()
+
+        market_data = []
+        total_initial_funding = 0
+        total_revenue = 0
+        total_liability = 0
+
+        for market in markets:
+            # Calculate revenue from trades (sum of all trade prices)
+            revenue = sum(t.price_cents for t in market.trades)
+            
+            # Calculate current liability (potential payout)
+            # For each security, liability = 100 cents * quantity held by traders
+            liability = 0
+            for security in market.securities:
+                security_quantity = sum(
+                    t.quantity for t in market.trades if t.security_id == security.id
+                )
+                # Each share pays out 100 cents if it wins
+                liability = max(liability, security_quantity * 100)
+
+            # If market is resolved, actual P&L is known
+            if market.status == models.MarketStatus.RESOLVED:
+                # Find winning security trades
+                winning_payout = 0
+                for t in market.trades:
+                    if t.security_id == market.winning_security_id:
+                        winning_payout += t.quantity * 100
+                net_pnl = revenue - winning_payout
+            else:
+                # Unrealized P&L: revenue minus max potential liability
+                net_pnl = revenue - liability
+
+            market_data.append(
+                MarketMakerMarket(
+                    id=market.id,
+                    question=market.question,
+                    category=market.category,
+                    status=market.status,
+                    resolutionDate=market.resolution_date,
+                    createdAt=market.created_at,
+                    initialFundingCents=market.initial_funding_cents or 0,
+                    revenueCents=revenue,
+                    liabilityCents=liability,
+                    netPnlCents=net_pnl,
+                    numTrades=len(market.trades),
+                    winningSecurityId=market.winning_security_id,
+                )
+            )
+
+            total_initial_funding += market.initial_funding_cents or 0
+            total_revenue += revenue
+            total_liability += liability
+
+        total_net_pnl = sum(m.net_pnl_cents for m in market_data)
+
+        return MarketMakerDashboard(
+            markets=market_data,
+            totalInitialFundingCents=total_initial_funding,
+            totalRevenueCents=total_revenue,
+            totalLiabilityCents=total_liability,
+            totalNetPnlCents=total_net_pnl,
         )

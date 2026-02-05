@@ -107,3 +107,32 @@ class MarketSettlementResponse(BaseModel):
     net_payout: int = Field(alias="netPayout")
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class MarketMakerMarket(BaseModel):
+    """Market with P&L info for market makers."""
+    id: str
+    question: str
+    category: str
+    status: MarketStatus
+    resolution_date: UTCDateTime = Field(alias="resolutionDate")
+    created_at: UTCDateTime = Field(alias="createdAt")
+    initial_funding_cents: int = Field(alias="initialFundingCents")
+    revenue_cents: int = Field(alias="revenueCents")  # Total received from trades
+    liability_cents: int = Field(alias="liabilityCents")  # Potential payout if resolved now
+    net_pnl_cents: int = Field(alias="netPnlCents")  # Revenue - liability (or actual P&L if resolved)
+    num_trades: int = Field(alias="numTrades")
+    winning_security_id: Optional[str] = Field(default=None, alias="winningSecurityId")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class MarketMakerDashboard(BaseModel):
+    """Dashboard data for market makers."""
+    markets: List[MarketMakerMarket]
+    total_initial_funding_cents: int = Field(alias="totalInitialFundingCents")
+    total_revenue_cents: int = Field(alias="totalRevenueCents")
+    total_liability_cents: int = Field(alias="totalLiabilityCents")
+    total_net_pnl_cents: int = Field(alias="totalNetPnlCents")
+
+    model_config = ConfigDict(populate_by_name=True)

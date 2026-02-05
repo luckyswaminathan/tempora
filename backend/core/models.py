@@ -108,6 +108,9 @@ class Market(Base):
     id: Mapped[str] = mapped_column(
         String, primary_key=True, default=lambda: str(uuid4())
     )
+    creator_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("users.id"), nullable=True
+    )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(
@@ -119,6 +122,7 @@ class Market(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
     liquidity_parameter: Mapped[float | None] = mapped_column(Float, nullable=True)
+    initial_funding_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     ui_type: Mapped[str] = mapped_column(String, nullable=False, default="bars-ordered")
     winning_security_id: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -126,6 +130,7 @@ class Market(Base):
         DateTime(timezone=True), default=_now, onupdate=_now
     )
 
+    creator: Mapped[User | None] = relationship(foreign_keys=[creator_id])
     securities: Mapped[List["Security"]] = relationship(
         back_populates="market", cascade="all, delete-orphan", viewonly=True
     )

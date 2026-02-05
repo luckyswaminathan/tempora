@@ -14,18 +14,23 @@ import {
   ExternalLink,
   Rocket,
   Zap,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { proposalsApi, type Proposal } from "@/lib/api";
+import { proposalsApi, marketMakerApi, type Proposal, type MarketMakerDashboard } from "@/lib/api";
 import { MarketCreateForm } from "@/components/market-create-form";
 
-type Tab = "create" | "proposals";
+type Tab = "dashboard" | "proposals" | "create";
 
 export default function MarketMakingPage() {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>("proposals");
+  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [dashboard, setDashboard] = useState<MarketMakerDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
@@ -48,9 +53,22 @@ export default function MarketMakingPage() {
     }
   };
 
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true);
+      const data = await marketMakerApi.getDashboard();
+      setDashboard(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (profile?.isMarketMaker) {
       fetchProposals();
+      fetchDashboard();
     }
   }, [profile]);
 
@@ -201,6 +219,17 @@ export default function MarketMakingPage() {
         {/* Tabs */}
         <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit mb-8">
           <button
+            onClick={() => setActiveTab("dashboard")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === "dashboard"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Dashboard
+          </button>
+          <button
             onClick={() => setActiveTab("proposals")}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
               activeTab === "proposals"
@@ -225,6 +254,153 @@ export default function MarketMakingPage() {
         </div>
 
         {/* Content */}
+        {activeTab === "dashboard" && (
+          <div className="space-y-6">
+            {/* P&L Summary Cards */}
+            {dashboard && (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Initial Funding
+                        </p>
+                        <p className="text-2xl font-bold mt-1">
+                          ${(dashboard.totalInitialFundingCents / 100).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-blue-500" />
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Total Revenue
+                        </p>
+                        <p className="text-2xl font-bold mt-1 text-emerald-600">
+                          ${(dashboard.totalRevenueCents / 100).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <TrendingUp className="w-5 h-5 text-emerald-500" />
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Max Liability
+                        </p>
+                        <p className="text-2xl font-bold mt-1 text-amber-600">
+                          ${(dashboard.totalLiabilityCents / 100).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                        <TrendingDown className="w-5 h-5 text-amber-500" />
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border/50">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Net P&L
+                        </p>
+                        <p className={`text-2xl font-bold mt-1 ${dashboard.totalNetPnlCents >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {dashboard.totalNetPnlCents >= 0 ? '+' : ''}${(dashboard.totalNetPnlCents / 100).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${dashboard.totalNetPnlCents >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+                        <BarChart3 className={`w-5 h-5 ${dashboard.totalNetPnlCents >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Markets List */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Your Markets</h3>
+                  {dashboard.markets.length === 0 ? (
+                    <Card className="p-8 text-center">
+                      <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                      <p className="text-muted-foreground">
+                        No live markets yet. Create and publish a proposal to get started.
+                      </p>
+                    </Card>
+                  ) : (
+                    dashboard.markets.map((market) => (
+                      <Card key={market.id} className="p-5 border-border/50">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className={
+                                market.status === "resolved"
+                                  ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                                  : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                              }>
+                                {market.status === "resolved" ? "Resolved" : "Live"}
+                              </Badge>
+                              <Badge variant="outline">{market.category}</Badge>
+                            </div>
+                            <h4 className="font-medium mb-2 line-clamp-2">{market.question}</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <p className="text-muted-foreground">Funding</p>
+                                <p className="font-medium">${(market.initialFundingCents / 100).toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Revenue</p>
+                                <p className="font-medium text-emerald-600">${(market.revenueCents / 100).toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Liability</p>
+                                <p className="font-medium text-amber-600">${(market.liabilityCents / 100).toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Net P&L</p>
+                                <p className={`font-medium ${market.netPnlCents >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {market.netPnlCents >= 0 ? '+' : ''}${(market.netPnlCents / 100).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-muted-foreground">{market.numTrades} trades</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => router.push(`/?market=${market.id}`)}
+                            >
+                              View <ExternalLink className="w-3 h-3 ml-1" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+            {!dashboard && loading && (
+              <div className="text-center py-12">
+                <div className="inline-flex items-center gap-2 text-muted-foreground">
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Loading dashboard...
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === "create" && (
           <Card className="p-6 max-w-2xl">
             <div className="mb-6">

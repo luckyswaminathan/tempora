@@ -530,3 +530,33 @@ export const proposalsApi = {
     });
   },
 };
+
+// Market Maker Dashboard Types
+export interface MarketMakerMarket {
+  id: string;
+  question: string;
+  category: string;
+  status: string;
+  resolutionDate: string;
+  createdAt: string;
+  initialFundingCents: number;
+  revenueCents: number;
+  liabilityCents: number;
+  netPnlCents: number;
+  numTrades: number;
+  winningSecurityId?: string;
+}
+
+export interface MarketMakerDashboard {
+  markets: MarketMakerMarket[];
+  totalInitialFundingCents: number;
+  totalRevenueCents: number;
+  totalLiabilityCents: number;
+  totalNetPnlCents: number;
+}
+
+export const marketMakerApi = {
+  async getDashboard(): Promise<MarketMakerDashboard> {
+    return fetchWithAuth("/markets/maker/dashboard");
+  },
+};

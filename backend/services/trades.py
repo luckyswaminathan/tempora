@@ -206,6 +206,14 @@ class TradeService:
             self.session.add(record)
 
         profile.wallet -= total_cost
+
+        # Route payment to market maker (if market has a creator)
+        market_model = self.session.get(models.Market, payload.market_id)
+        if market_model and market_model.creator_id:
+            creator_profile = self.session.get(models.Profile, market_model.creator_id)
+            if creator_profile:
+                creator_profile.wallet += total_cost
+
         self.session.commit()
 
         return TradePlaceResponse.model_validate(

@@ -10,6 +10,7 @@ from schemas.market import (
     MarketUpdate,
     MarketSettlement,
     MarketSettlementResponse,
+    MarketMakerDashboard,
 )
 from schemas.user import UserBase
 from services.markets import MarketService
@@ -60,3 +61,12 @@ def settle_market(
     _: UserBase = Depends(deps.get_current_admin),
 ) -> MarketSettlementResponse:
     return service.settle_market(payload)
+
+
+@router.get("/maker/dashboard", response_model=MarketMakerDashboard)
+def get_market_maker_dashboard(
+    service: MarketService = Depends(deps.get_market_service),
+    current_user: UserBase = Depends(deps.get_current_market_maker),
+) -> MarketMakerDashboard:
+    """Get market maker dashboard with P&L for all their markets."""
+    return service.get_market_maker_dashboard(current_user.id)
