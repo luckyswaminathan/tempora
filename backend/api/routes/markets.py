@@ -30,7 +30,7 @@ def list_markets(
 def create_market(
     payload: MarketCreate,
     service: MarketService = Depends(deps.get_market_service),
-    _: UserBase = Depends(deps.get_current_admin),
+    _: UserBase = Depends(deps.get_current_market_maker),
 ) -> Market:
     return service.create_market(payload)
 

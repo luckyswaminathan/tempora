@@ -74,3 +74,20 @@ def get_current_admin(
             detail="User does not have admin role",
         )
     return user
+
+
+def get_current_market_maker(
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    auth_service: AuthService = Depends(get_auth_service),
+    session: Session = Depends(get_session),
+):
+    from core import models
+    
+    user = get_current_user(authorization, auth_service)
+    db_user = session.get(models.User, user.id)
+    if not db_user or not db_user.is_market_maker:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only market makers can perform this action",
+        )
+    return user

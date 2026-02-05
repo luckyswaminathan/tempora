@@ -65,6 +65,7 @@ export interface AuthResponse {
     id: string;
     email: string;
     role: "user" | "admin";
+    isMarketMaker?: boolean;
     createdAt?: string;
   };
   tokens: {
@@ -291,11 +292,28 @@ export interface UserProfile {
   id: string;
   email: string;
   role: "user" | "admin";
+  isMarketMaker?: boolean;
   displayName?: string;
   wallet: number;
   joinedAt: string;
   lastSeenAt?: string;
   tutorialCompletions?: Record<string, boolean>;
+}
+
+// Admin types
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  role: "user" | "admin";
+  is_market_maker: boolean;
+  display_name?: string;
+  wallet: number;
+  created_at?: string;
+}
+
+export interface AdminUserListResponse {
+  users: AdminUserListItem[];
+  count: number;
 }
 
 export interface PortfolioSnapshot {
@@ -378,6 +396,112 @@ export const usersApi = {
     return fetchWithAuth("/users/me/wallet/add-funds", {
       method: "POST",
       body: JSON.stringify({ amount }),
+    });
+  },
+};
+
+// Admin API
+export const adminApi = {
+  async listUsers(): Promise<AdminUserListResponse> {
+    return fetchWithAuth("/admin/users");
+  },
+
+  async listMarketMakers(): Promise<AdminUserListResponse> {
+    return fetchWithAuth("/admin/market-makers");
+  },
+
+  async updateMarketMakerStatus(
+    userId: string,
+    isMarketMaker: boolean,
+  ): Promise<AdminUserListItem> {
+    return fetchWithAuth(`/admin/users/${userId}/market-maker`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_market_maker: isMarketMaker }),
+    });
+  },
+
+  async getUserProposals(userId: string): Promise<ProposalListResponse> {
+    return fetchWithAuth(`/admin/users/${userId}/proposals`);
+  },
+};
+
+// Proposals API
+export interface ProposerInfo {
+  id: string;
+  email: string;
+  displayName?: string;
+}
+
+export interface Proposal {
+  id: string;
+  proposerId: string;
+  proposer?: ProposerInfo;
+  question: string;
+  category: string;
+  description?: string;
+  resolutionDate: string;
+  outcomes: string[];
+  tags: string[];
+  liquidityParameter?: number;
+  status: "pending" | "approved" | "rejected" | "live";
+  reviewerId?: string;
+  reviewNote?: string;
+  reviewedAt?: string;
+  createdMarketId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProposalListResponse {
+  proposals: Proposal[];
+  count: number;
+}
+
+export interface ProposalCreate {
+  question: string;
+  category: string;
+  description?: string;
+  resolutionDate: string;
+  outcomes: string[];
+  tags?: string[];
+  liquidityParameter?: number;
+}
+
+export const proposalsApi = {
+  async createProposal(data: ProposalCreate): Promise<Proposal> {
+    return fetchWithAuth("/proposals", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getMyProposals(): Promise<ProposalListResponse> {
+    return fetchWithAuth("/proposals/mine");
+  },
+
+  async getPendingProposals(): Promise<ProposalListResponse> {
+    return fetchWithAuth("/proposals/pending");
+  },
+
+  async getAllProposals(status?: string): Promise<ProposalListResponse> {
+    const params = status ? `?status=${status}` : "";
+    return fetchWithAuth(`/proposals${params}`);
+  },
+
+  async reviewProposal(
+    proposalId: string,
+    approved: boolean,
+    note?: string,
+  ): Promise<Proposal> {
+    return fetchWithAuth(`/proposals/${proposalId}/review`, {
+      method: "POST",
+      body: JSON.stringify({ approved, note }),
+    });
+  },
+
+  async publishProposal(proposalId: string): Promise<Proposal> {
+    return fetchWithAuth(`/proposals/${proposalId}/publish`, {
+      method: "POST",
     });
   },
 };

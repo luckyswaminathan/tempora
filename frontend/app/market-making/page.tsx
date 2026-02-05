@@ -1,0 +1,362 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Plus,
+  FileText,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
+  Rocket,
+  Zap,
+} from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { proposalsApi, type Proposal } from "@/lib/api";
+import { MarketCreateForm } from "@/components/market-create-form";
+
+type Tab = "create" | "proposals";
+
+export default function MarketMakingPage() {
+  const router = useRouter();
+  const { user, profile, loading: authLoading } = useAuth();
+  const [activeTab, setActiveTab] = useState<Tab>("proposals");
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && (!profile?.isMarketMaker)) {
+      router.push("/");
+    }
+  }, [profile, authLoading, router]);
+
+  const fetchProposals = async () => {
+    try {
+      setLoading(true);
+      const response = await proposalsApi.getMyProposals();
+      setProposals(response.proposals);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load proposals");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (profile?.isMarketMaker) {
+      fetchProposals();
+    }
+  }, [profile]);
+
+  const handleProposalCreated = () => {
+    setActiveTab("proposals");
+    fetchProposals();
+  };
+
+  const handlePublish = async (proposalId: string) => {
+    setPublishingId(proposalId);
+    try {
+      await proposalsApi.publishProposal(proposalId);
+      fetchProposals();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to publish market");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const getStatusBadge = (status: Proposal["status"]) => {
+    switch (status) {
+      case "pending":
+        return (
+          <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+            <Clock className="w-3 h-3 mr-1" />
+            Pending Review
+          </Badge>
+        );
+      case "approved":
+        return (
+          <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+            <CheckCircle2 className="w-3 h-3 mr-1" />
+            Ready to Publish
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
+            <XCircle className="w-3 h-3 mr-1" />
+            Rejected
+          </Badge>
+        );
+      case "live":
+        return (
+          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+            <Zap className="w-3 h-3 mr-1" />
+            Live
+          </Badge>
+        );
+    }
+  };
+
+  const pendingCount = proposals.filter((p) => p.status === "pending").length;
+  const approvedCount = proposals.filter((p) => p.status === "approved").length;
+  const liveCount = proposals.filter((p) => p.status === "live").length;
+  const rejectedCount = proposals.filter((p) => p.status === "rejected").length;
+
+  if (authLoading || !profile?.isMarketMaker) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
+      {/* Header */}
+      <div className="border-b bg-card/50 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                Market Making
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Create and manage your market proposals
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Pending
+                </p>
+                <p className="text-2xl font-bold mt-1">{pendingCount}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-amber-500" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Ready
+                </p>
+                <p className="text-2xl font-bold mt-1">{approvedCount}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-blue-500" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Live
+                </p>
+                <p className="text-2xl font-bold mt-1">{liveCount}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-emerald-500" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Rejected
+                </p>
+                <p className="text-2xl font-bold mt-1">{rejectedCount}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                <XCircle className="w-5 h-5 text-red-500" />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit mb-8">
+          <button
+            onClick={() => setActiveTab("proposals")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === "proposals"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            My Proposals
+          </button>
+          <button
+            onClick={() => setActiveTab("create")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === "create"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Plus className="w-4 h-4" />
+            New Proposal
+          </button>
+        </div>
+
+        {/* Content */}
+        {activeTab === "create" && (
+          <Card className="p-6 max-w-2xl">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold">Submit a Market Proposal</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your proposal will be reviewed by an admin before becoming a live market.
+              </p>
+            </div>
+            <MarketCreateForm onSuccess={handleProposalCreated} />
+          </Card>
+        )}
+
+        {activeTab === "proposals" && (
+          <div className="space-y-4">
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive">
+                {error}
+              </div>
+            )}
+
+            {loading && (
+              <div className="text-center py-12">
+                <div className="inline-flex items-center gap-2 text-muted-foreground">
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Loading proposals...
+                </div>
+              </div>
+            )}
+
+            {!loading && proposals.length === 0 && (
+              <Card className="p-12 text-center">
+                <FileText className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium mb-2">No proposals yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Create your first market proposal to get started.
+                </p>
+                <Button onClick={() => setActiveTab("create")}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Proposal
+                </Button>
+              </Card>
+            )}
+
+            {!loading &&
+              proposals.map((proposal) => (
+                <Card
+                  key={proposal.id}
+                  className="p-5 hover:bg-muted/30 transition-colors border-border/50"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        {getStatusBadge(proposal.status)}
+                        <Badge variant="outline" className="text-xs">
+                          {proposal.category}
+                        </Badge>
+                      </div>
+                      <h3 className="font-medium text-lg mb-1 line-clamp-2">
+                        {proposal.question}
+                      </h3>
+                      {proposal.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                          {proposal.description}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span>
+                          Outcomes: {proposal.outcomes.join(", ")}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          Resolves:{" "}
+                          {new Date(proposal.resolutionDate).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {proposal.reviewNote && (
+                        <div
+                          className={`mt-3 p-3 rounded-lg text-sm ${
+                            proposal.status === "approved"
+                              ? "bg-emerald-500/10 text-emerald-700"
+                              : "bg-red-500/10 text-red-700"
+                          }`}
+                        >
+                          <span className="font-medium">Review note:</span>{" "}
+                          {proposal.reviewNote}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(proposal.createdAt).toLocaleDateString()}
+                      </span>
+                      {proposal.status === "approved" && (
+                        <Button
+                          size="sm"
+                          disabled={publishingId === proposal.id}
+                          onClick={() => handlePublish(proposal.id)}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          {publishingId === proposal.id ? (
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              <Rocket className="w-4 h-4 mr-1" />
+                              Publish Market
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      {proposal.status === "live" &&
+                        proposal.createdMarketId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              router.push(`/?market=${proposal.createdMarketId}`)
+                            }
+                          >
+                            View Market
+                            <ExternalLink className="w-3 h-3 ml-1" />
+                          </Button>
+                        )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

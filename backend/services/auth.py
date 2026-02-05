@@ -97,6 +97,7 @@ class AuthService:
                 "id": user.id,
                 "email": user.email,
                 "role": user.role,
+                "isMarketMaker": user.is_market_maker,
                 "createdAt": user.created_at,
             }
         )
@@ -113,6 +114,7 @@ class AuthService:
                 "id": profile.user.id,
                 "email": profile.user.email,
                 "role": profile.user.role,
+                "isMarketMaker": profile.user.is_market_maker,
                 "displayName": profile.display_name,
                 "wallet": profile.wallet,
                 "joinedAt": profile.joined_at,
@@ -166,6 +168,7 @@ class AuthService:
                 "id": user.id,
                 "email": user.email,
                 "role": user.role,
+                "isMarketMaker": user.is_market_maker,
                 "createdAt": getattr(user, "created_at", None),
             }
         )

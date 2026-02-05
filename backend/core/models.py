@@ -6,6 +6,7 @@ from typing import List
 from uuid import uuid4
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     Enum,
     Float,
@@ -35,6 +36,13 @@ class MarketStatus(StrEnum):
     SUSPENDED = "suspended"
 
 
+class ProposalStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    LIVE = "live"
+
+
 class UserRole(StrEnum):
     USER = "user"
     ADMIN = "admin"
@@ -53,6 +61,7 @@ class User(Base):
         nullable=False,
     )
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    is_market_maker: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
@@ -140,6 +149,47 @@ class Security(Base):
     )
 
     __table_args__ = (UniqueConstraint("id", "market_id", name="uq_security_market"),)
+
+
+class MarketProposal(Base):
+    __tablename__ = "market_proposals"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    proposer_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolution_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    outcomes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    liquidity_parameter: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(
+        Enum(ProposalStatus), nullable=False, default=ProposalStatus.PENDING
+    )
+    reviewer_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("users.id"), nullable=True
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_market_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("markets.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    proposer: Mapped[User] = relationship(foreign_keys=[proposer_id])
+    reviewer: Mapped[User | None] = relationship(foreign_keys=[reviewer_id])
+    created_market: Mapped[Market | None] = relationship()
 
 
 class Trade(Base):

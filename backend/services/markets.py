@@ -54,6 +54,11 @@ class MarketService:
         return self._attach_quote(market)
 
     def create_market(self, payload: MarketCreate) -> Market:
+        market = self._create_market_internal(payload)
+        return self._attach_quote(market)
+
+    def _create_market_internal(self, payload: MarketCreate) -> models.Market:
+        """Internal method to create a market without returning the schema."""
         market = models.Market(
             question=payload.question,
             category=payload.category,
@@ -71,7 +76,7 @@ class MarketService:
         self._create_securities(market.id, payload.outcomes)
         self.session.commit()
         self.session.refresh(market)
-        return self._attach_quote(market)
+        return market
 
     def update_market(self, market_id: str, payload: MarketUpdate) -> Market:
         market = self.session.get(models.Market, market_id)

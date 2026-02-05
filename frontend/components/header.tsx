@@ -57,13 +57,22 @@ export function Header() {
               >
                 Tutorial
               </a>
-              {!loading && user?.role === "admin" && (
+              {!loading && profile?.isMarketMaker && (
                 <a
-                  id="nav-create"
-                  href="/create"
+                  id="nav-market-making"
+                  href="/market-making"
                   className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
                 >
-                  Create Market
+                  Market Making
+                </a>
+              )}
+              {!loading && user?.role === "admin" && (
+                <a
+                  id="nav-admin"
+                  href="/admin"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Admin
                 </a>
               )}
             </nav>

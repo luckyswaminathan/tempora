@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { marketsApi } from "@/lib/api";
+import { proposalsApi } from "@/lib/api";
 import { toast } from "sonner";
 
 const CATEGORIES = [
@@ -16,7 +16,12 @@ const CATEGORIES = [
   "General",
 ];
 
-export function MarketCreateForm() {
+interface MarketCreateFormProps {
+  disabled?: boolean;
+  onSuccess?: () => void;
+}
+
+export function MarketCreateForm({ disabled = false, onSuccess }: MarketCreateFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     question: "",
@@ -58,7 +63,7 @@ export function MarketCreateForm() {
         .map((t) => t.trim())
         .filter((t) => t);
 
-      await marketsApi.createMarket({
+      await proposalsApi.createProposal({
         question: formData.question,
         category: formData.category,
         description: formData.description,
@@ -70,7 +75,7 @@ export function MarketCreateForm() {
           : undefined,
       });
 
-      toast.success("Market created successfully!");
+      toast.success("Market proposal submitted for review!");
       // Reset form
       setFormData({
         question: "",
@@ -81,9 +86,10 @@ export function MarketCreateForm() {
         tags: "",
         liquidityParameter: "1000",
       });
+      onSuccess?.();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to create market",
+        error instanceof Error ? error.message : "Failed to submit proposal",
       );
     } finally {
       setSubmitting(false);
@@ -232,8 +238,8 @@ export function MarketCreateForm() {
         />
       </div>
 
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Creating..." : "Create Market"}
+      <Button type="submit" disabled={submitting || disabled} className="w-full">
+        {submitting ? "Submitting..." : "Submit for Review"}
       </Button>
     </form>
   );
