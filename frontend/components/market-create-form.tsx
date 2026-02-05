@@ -23,6 +23,7 @@ const UI_TYPES = [
   { label: "Monthly Calendar", value: "month" },
   { label: "Quarterly Calendar", value: "quarter" },
   { label: "Yearly Calendar", value: "year" },
+  { label: "Interval Range", value: "interval" },
 ];
 
 const MONTHS = [
@@ -52,6 +53,15 @@ interface CalendarConfig {
   selectedQuarters: string[]; // "2026-Q1", "2026-Q2", etc.
   // For yearly
   selectedYears: number[];
+  // For interval
+  intervalMin: string;
+  intervalMax: string;
+  intervalStep: string;
+  intervalUnit: string;
+  includeLowerBound: boolean;
+  lowerBoundLabel: string;
+  includeUpperBound: boolean;
+  upperBoundLabel: string;
   // Common
   includeCatchAll: boolean;
   catchAllLabel: string;
@@ -79,6 +89,14 @@ export function MarketCreateForm() {
     selectedMonths: [],
     selectedQuarters: [],
     selectedYears: [],
+    intervalMin: "",
+    intervalMax: "",
+    intervalStep: "",
+    intervalUnit: "",
+    includeLowerBound: false,
+    lowerBoundLabel: "Below",
+    includeUpperBound: false,
+    upperBoundLabel: "Above",
     includeCatchAll: true,
     catchAllLabel: "Later or never",
   });
@@ -95,6 +113,42 @@ export function MarketCreateForm() {
   // Generate outcomes from calendar config
   const generateOutcomes = (): { text: string; isCatchAll: boolean }[] => {
     const outcomes: { text: string; isCatchAll: boolean }[] = [];
+
+    // Handle interval type
+    if (formData.uiType === "interval") {
+      const min = parseFloat(calendarConfig.intervalMin);
+      const max = parseFloat(calendarConfig.intervalMax);
+      const step = parseFloat(calendarConfig.intervalStep);
+      const unit = calendarConfig.intervalUnit;
+
+      if (!isNaN(min) && !isNaN(max) && !isNaN(step) && step > 0 && max > min) {
+        // Add lower bound if enabled
+        if (calendarConfig.includeLowerBound) {
+          outcomes.push({
+            text: `${calendarConfig.lowerBoundLabel} ${min}${unit}`,
+            isCatchAll: false,
+          });
+        }
+
+        // Generate interval outcomes
+        for (let i = min; i < max; i += step) {
+          const rangeEnd = Math.min(i + step, max);
+          outcomes.push({
+            text: `${i}-${rangeEnd}${unit}`,
+            isCatchAll: false,
+          });
+        }
+
+        // Add upper bound if enabled
+        if (calendarConfig.includeUpperBound) {
+          outcomes.push({
+            text: `${calendarConfig.upperBoundLabel} ${max}${unit}`,
+            isCatchAll: true, // Upper bound acts as catch-all
+          });
+        }
+      }
+      return outcomes;
+    }
 
     if (
       formData.uiType === "day" &&
@@ -214,6 +268,14 @@ export function MarketCreateForm() {
         selectedMonths: [],
         selectedQuarters: [],
         selectedYears: [],
+        intervalMin: "",
+        intervalMax: "",
+        intervalStep: "",
+        intervalUnit: "",
+        includeLowerBound: false,
+        lowerBoundLabel: "Below",
+        includeUpperBound: false,
+        upperBoundLabel: "Above",
         includeCatchAll: true,
         catchAllLabel: "Later or never",
       });
@@ -686,6 +748,118 @@ export function MarketCreateForm() {
           </p>
           <div className="border rounded-lg p-4">
             <YearPicker />
+          </div>
+        </div>
+      )}
+
+      {formData.uiType === "interval" && (
+        <div className="space-y-4">
+          <Label>Define Numeric Range</Label>
+          <p className="text-sm text-muted-foreground mb-2">
+            Create intervals for numeric predictions (e.g., temperature, prices, scores)
+          </p>
+          <div className="border rounded-lg p-4 space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="intervalMin">Minimum</Label>
+                <Input
+                  id="intervalMin"
+                  type="number"
+                  placeholder="0"
+                  value={calendarConfig.intervalMin}
+                  onChange={(e) =>
+                    setCalendarConfig({ ...calendarConfig, intervalMin: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="intervalMax">Maximum</Label>
+                <Input
+                  id="intervalMax"
+                  type="number"
+                  placeholder="100"
+                  value={calendarConfig.intervalMax}
+                  onChange={(e) =>
+                    setCalendarConfig({ ...calendarConfig, intervalMax: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="intervalStep">Step Size</Label>
+                <Input
+                  id="intervalStep"
+                  type="number"
+                  placeholder="5"
+                  value={calendarConfig.intervalStep}
+                  onChange={(e) =>
+                    setCalendarConfig({ ...calendarConfig, intervalStep: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="intervalUnit">Unit (optional)</Label>
+              <Input
+                id="intervalUnit"
+                placeholder="°F, %, $, pts, etc."
+                value={calendarConfig.intervalUnit}
+                onChange={(e) =>
+                  setCalendarConfig({ ...calendarConfig, intervalUnit: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="includeLowerBound"
+                    checked={calendarConfig.includeLowerBound}
+                    onChange={(e) =>
+                      setCalendarConfig({ ...calendarConfig, includeLowerBound: e.target.checked })
+                    }
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="includeLowerBound" className="cursor-pointer">
+                    Include lower bound
+                  </Label>
+                </div>
+                {calendarConfig.includeLowerBound && (
+                  <Input
+                    placeholder="Below"
+                    value={calendarConfig.lowerBoundLabel}
+                    onChange={(e) =>
+                      setCalendarConfig({ ...calendarConfig, lowerBoundLabel: e.target.value })
+                    }
+                  />
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="includeUpperBound"
+                    checked={calendarConfig.includeUpperBound}
+                    onChange={(e) =>
+                      setCalendarConfig({ ...calendarConfig, includeUpperBound: e.target.checked })
+                    }
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="includeUpperBound" className="cursor-pointer">
+                    Include upper bound (catch-all)
+                  </Label>
+                </div>
+                {calendarConfig.includeUpperBound && (
+                  <Input
+                    placeholder="Above"
+                    value={calendarConfig.upperBoundLabel}
+                    onChange={(e) =>
+                      setCalendarConfig({ ...calendarConfig, upperBoundLabel: e.target.value })
+                    }
+                  />
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
