@@ -26,5 +26,13 @@ class PortfolioSummary(BaseModel):
 
 class PortfolioSnapshot(BaseModel):
     wallet: int
+    spendable_balance: int = Field(
+        alias="spendableBalance", description="Wallet minus locked collateral"
+    )
+    collateral_locked: int = Field(
+        alias="collateralLocked", description="Collateral locked for short positions"
+    )
     holdings: List[Holding]
     summary: PortfolioSummary
+
+    model_config = ConfigDict(populate_by_name=True)

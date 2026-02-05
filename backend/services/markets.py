@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import case, select, update
@@ -17,6 +17,7 @@ from schemas.market import (
     MarketSettlementResponse,
     Market,
     Security,
+    OutcomeWithValue,
 )
 from schemas.trade import TradeRecord
 from services.pricing import calculate_market_quotes
@@ -67,7 +68,7 @@ class MarketService:
             status=models.MarketStatus.OPEN,
             tags=payload.tags,
             liquidity_parameter=payload.liquidity_parameter,
-            interval_granularity=payload.interval_granularity,
+            ui_type=payload.ui_type,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -147,6 +148,7 @@ class MarketService:
             self.session.execute(stmt)
 
         market.status = models.MarketStatus.RESOLVED
+        market.winning_security_id = payload.winning_security_id
 
         self.session.commit()
         self.session.refresh(market)
@@ -166,11 +168,16 @@ class MarketService:
                     "id": s.id,
                     "market_id": market.id,
                     "outcome": s.outcome,
+                    "value": s.value,
+                    "is_catch_all": s.is_catch_all,
                     "created_at": s.created_at or datetime.now(timezone.utc),
                 }
             )
             for s in market.securities
         ]
+
+        # Sort securities by value (ascending)
+        securities.sort(key=lambda s: s.value)
 
         trades = [
             TradeRecord.model_validate(
@@ -216,7 +223,8 @@ class MarketService:
                 "updatedAt": market.updated_at or datetime.now(timezone.utc),
                 "description": market.description,
                 "tags": market.tags or [],
-                "intervalGranularity": market.interval_granularity,
+                "uiType": market.ui_type,
+                "winningSecurityId": market.winning_security_id,
                 "quotes": quotes,
                 "securities": securities,
                 "openInterest": open_interest,
@@ -225,11 +233,45 @@ class MarketService:
             }
         )
 
-    def _create_securities(self, market_id: str, outcomes: List[str]) -> None:
-        for outcome in outcomes:
+    def _create_securities(
+        self, market_id: str, outcomes: List[OutcomeWithValue]
+    ) -> None:
+        # Validate: at most one outcome can be marked as catch-all
+        catch_all_count = sum(1 for o in outcomes if o.is_catch_all)
+        if catch_all_count > 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At most one outcome can be marked as catch-all",
+            )
+
+        # Validate: either all outcomes have values or none do
+        values_provided = [o.value is not None for o in outcomes]
+        has_values = any(values_provided)
+        all_values = all(values_provided)
+
+        if has_values and not all_values:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either all outcomes must have values or none should have values",
+            )
+
+        # If no values provided, auto-assign sequential values
+        if not has_values:
+            i = 1
+            for outcome in outcomes:
+                if outcome.is_catch_all:
+                    outcome.value = 1e9
+                else:
+                    outcome.value = float(i)
+                    i += 1
+
+        # Create security records
+        for outcome_data in outcomes:
             record = models.Security(
                 market_id=market_id,
-                outcome=outcome,
+                outcome=outcome_data.outcome,
+                value=outcome_data.value,
+                is_catch_all=outcome_data.is_catch_all,
                 created_at=datetime.now(timezone.utc),
             )
             self.session.add(record)
@@ -246,6 +288,8 @@ class MarketService:
                 "id": security_id,
                 "market_id": record.market_id,
                 "outcome": record.outcome,
+                "value": record.value,
+                "is_catch_all": record.is_catch_all,
                 "created_at": record.created_at
                 or datetime.now(timezone.utc).isoformat(),
             }

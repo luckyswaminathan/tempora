@@ -10,6 +10,8 @@ class Security(BaseModel):
     id: str
     market_id: str = Field(alias="marketId")
     outcome: str = Field(min_length=1)
+    value: float
+    is_catch_all: bool = Field(default=False, alias="isCatchAll")
     created_at: UTCDateTime = Field(alias="createdAt")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -36,9 +38,8 @@ class Market(BaseModel):
     updated_at: UTCDateTime = Field(alias="updatedAt")
     description: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
-    interval_granularity: Optional[str] = Field(
-        default=None, alias="intervalGranularity"
-    )
+    ui_type: str = Field(default="bars-ordered", alias="uiType")
+    winning_security_id: Optional[str] = Field(default=None, alias="winningSecurityId")
 
     quotes: List[MarketQuote] = Field(default_factory=list)
     securities: List[Security] = Field(default_factory=list)
@@ -51,9 +52,17 @@ class Market(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class OutcomeWithValue(BaseModel):
+    outcome: str = Field(min_length=1)
+    value: Optional[float] = None
+    is_catch_all: bool = Field(default=False, alias="isCatchAll")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class MarketCreate(BaseModel):
     question: str = Field(min_length=1)
-    outcomes: List[str] = Field(default_factory=list)
+    outcomes: List[OutcomeWithValue] = Field(default_factory=list)
     category: str
     resolution_date: UTCDateTime = Field(alias="resolutionDate")
     description: Optional[str] = None
@@ -61,14 +70,14 @@ class MarketCreate(BaseModel):
     liquidity_parameter: Optional[float] = Field(
         default=None, alias="liquidityParameter", ge=0.0
     )
-    interval_granularity: Optional[str] = Field(
-        default=None, alias="intervalGranularity"
-    )
+    ui_type: str = Field(default="bars-ordered", alias="uiType")
 
 
 class SecurityUpdate(BaseModel):
     id: str
     outcome: str = Field(min_length=1)
+    value: float
+    is_catch_all: bool = Field(default=False)
 
 
 class MarketUpdate(BaseModel):

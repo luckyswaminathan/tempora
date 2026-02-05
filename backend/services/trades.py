@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Dict, List, Optional
 from uuid import uuid4
 
 from fastapi import HTTPException, status
@@ -30,10 +30,16 @@ class TradeService:
         self.session = session
         self.market_service = MarketService(session)
 
-    def _price_trade(self, market: Market, legs: List[Leg]) -> int:
-        quantities_map = {
-            quote.security_id: quote.quantity_traded for quote in market.quotes
-        }
+    def _price_trade(
+        self,
+        market: Market,
+        legs: List[Leg],
+        quantities_map: Optional[Dict[str, int]] = None,
+    ) -> int:
+        if quantities_map is None:
+            quantities_map = {
+                quote.security_id: quote.quantity_traded for quote in market.quotes
+            }
         trade_map = {leg.security_id: leg.quantity for leg in legs}
         return calculate_market_price_cents(
             quantities_map, trade_map, market.liquidity_parameter
@@ -48,6 +54,87 @@ class TradeService:
             }
         )
 
+    def _calculate_collateral_required(
+        self, user_id: str, market_id: str, legs: List[Leg]
+    ) -> int:
+        """
+        Calculate collateral required for short positions.
+        For shorts, we need collateral = quantity * $1 (100 cents) per share
+        because that's the max payout if the outcome wins.
+
+        We offset this by any existing long positions in the same security.
+        """
+        collateral_required = 0
+
+        for leg in legs:
+            if leg.quantity < 0:  # This is a short (sell) position
+                # Get existing position in this security
+                existing_position = self._get_user_position(
+                    user_id, market_id, leg.security_id
+                )
+
+                # Calculate net position after this trade
+                net_position = existing_position + leg.quantity
+
+                # If net position would be negative (short), require collateral
+                if net_position < 0:
+                    # Collateral = |net short position| * 100 cents
+                    # But only for the NEW short exposure, not existing
+                    new_short_exposure = min(0, net_position) - min(
+                        0, existing_position
+                    )
+                    collateral_required += abs(new_short_exposure) * 100
+
+        return collateral_required
+
+    def _get_user_position(self, user_id: str, market_id: str, security_id: str) -> int:
+        """Get user's current net position in a security."""
+        stmt = select(models.Trade).where(
+            models.Trade.user_id == user_id,
+            models.Trade.market_id == market_id,
+            models.Trade.security_id == security_id,
+        )
+        trades = self.session.scalars(stmt).all()
+        return sum(trade.quantity for trade in trades)
+
+    def _get_user_collateral_locked(self, user_id: str) -> int:
+        """
+        Calculate total collateral locked for all short positions.
+        This is the sum of |short quantity| * 100 cents for all net short positions.
+        """
+        # Get all trades for open markets
+        stmt = (
+            select(models.Trade)
+            .join(models.Market, models.Trade.market_id == models.Market.id)
+            .where(
+                models.Trade.user_id == user_id,
+                models.Market.status != models.MarketStatus.RESOLVED,
+            )
+        )
+        trades = self.session.scalars(stmt).all()
+
+        # Calculate net position per security
+        positions: dict[str, int] = {}
+        for trade in trades:
+            key = f"{trade.market_id}:{trade.security_id}"
+            positions[key] = positions.get(key, 0) + trade.quantity
+
+        # Sum up collateral for short positions
+        collateral = 0
+        for position in positions.values():
+            if position < 0:  # Short position
+                collateral += abs(position) * 100  # $1 = 100 cents per share
+
+        return collateral
+
+    def get_spendable_balance(self, user_id: str) -> int:
+        """Get user's spendable balance (wallet minus locked collateral)."""
+        profile = self.session.get(models.Profile, user_id)
+        if not profile:
+            return 0
+        collateral_locked = self._get_user_collateral_locked(user_id)
+        return max(0, profile.wallet - collateral_locked)
+
     def place_trade(self, payload: TradeCreate) -> TradePlaceResponse:
         profile = self.session.get(models.Profile, payload.user_id)
         if not profile:
@@ -55,20 +142,57 @@ class TradeService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
             )
 
-        execution_price = 0
+        market = self.market_service.get_market(payload.market_id)
+        if market.status != models.MarketStatus.OPEN:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Market is not open for trading",
+            )
+
+        # Calculate total quoted cost needed to execute trade
+        total_cost = self._price_trade(market, payload.legs)
+
+        # Calculate additional collateral needed for short positions
+        collateral_required = self._calculate_collateral_required(
+            payload.user_id, payload.market_id, payload.legs
+        )
+
+        # Get current spendable balance
+        current_collateral_locked = self._get_user_collateral_locked(payload.user_id)
+        spendable_balance = max(0, profile.wallet - current_collateral_locked)
+
+        # Check if user has enough spendable balance
+        if total_cost > spendable_balance:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient balance. Cost: ${total_cost/100:.2f}, Spendable: ${spendable_balance/100:.2f}",
+            )
+
+        # Check if user has enough collateral
+        new_wallet = profile.wallet - total_cost
+        new_collateral = current_collateral_locked + collateral_required
+        if new_collateral > new_wallet:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient balance for collateral. Required: ${new_collateral/100:.2f}, Would have: ${new_wallet/100:.2f}",
+            )
+
+        # Track simulated market quantities for sequential execution / storage of trade
+        simulated_quantities = {
+            quote.security_id: quote.quantity_traded for quote in market.quotes
+        }
+        leg_prices_sum = 0
         trade_group_id = str(uuid4())
 
-        for leg in payload.legs:
-            # Requote market after each trade leg is placed
-            market = self.market_service.get_market(payload.market_id)
-            if market.status != models.MarketStatus.OPEN:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Market is not open for trading",
-                )
-
-            price = self._price_trade(market, [leg])
-            execution_price += price
+        for i, leg in enumerate(payload.legs):
+            # For all legs except the last, calculate price sequentially
+            if i < len(payload.legs) - 1:
+                price = self._price_trade(market, [leg], simulated_quantities)
+                leg_prices_sum += price
+                simulated_quantities[leg.security_id] += leg.quantity
+            else:
+                # Last leg absorbs any difference to ensure exact match with quoted total
+                price = total_cost - leg_prices_sum
 
             record = models.Trade(
                 user_id=payload.user_id,
@@ -81,12 +205,12 @@ class TradeService:
             )
             self.session.add(record)
 
-        profile.wallet -= execution_price
-
+        profile.wallet -= total_cost
         self.session.commit()
+
         return TradePlaceResponse.model_validate(
             {
-                "priceCents": execution_price,
+                "priceCents": total_cost,
                 "executedAt": datetime.now(timezone.utc).isoformat(),
             }
         )
