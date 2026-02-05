@@ -13,9 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
-import type { Market } from "@/lib/api";
-import { tradesApi } from "@/lib/api";
+import { Loader2, AlertTriangle, Wallet } from "lucide-react";
+import type { Market, PortfolioSnapshot } from "@/lib/api";
+import { tradesApi, usersApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import { ProbabilityGraph } from "@/components/probability-graph";
@@ -50,6 +50,17 @@ export function TradeDialog({
   const [fetchingPrice, setFetchingPrice] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(0);
+  const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
+
+  // Fetch portfolio when dialog opens
+  useEffect(() => {
+    if (open && user) {
+      usersApi
+        .getPortfolio()
+        .then(setPortfolio)
+        .catch(() => setPortfolio(null));
+    }
+  }, [open, user]);
 
   // For single outcome, get the security directly
   const securityId = isSingle ? selectedOutcomes[0].id : undefined;
@@ -109,6 +120,27 @@ export function TradeDialog({
   const pricePerShareCents =
     shares !== 0 ? totalCostCents / Math.abs(shares) : 0;
   const numOutcomes = selectedOutcomes.length;
+
+  // Balance calculations
+  const spendableBalance = portfolio?.spendableBalance ?? 0;
+  const spendableBalanceDollars = spendableBalance / 100;
+  const collateralLocked = portfolio?.collateralLocked ?? 0;
+  const walletBalance = portfolio?.wallet ?? 0;
+
+  // For shorts, calculate collateral required ($1 per share)
+  const collateralRequiredCents = isSell
+    ? Math.abs(shares) * numOutcomes * 100
+    : 0;
+  const collateralRequiredDollars = collateralRequiredCents / 100;
+
+  // Check if user has enough balance
+  const hasInsufficientBalance =
+    isBuy && calculatedPrice !== null && totalCostCents > spendableBalance;
+  const hasInsufficientCollateral =
+    isSell &&
+    calculatedPrice !== null &&
+    walletBalance + Math.abs(calculatedPrice) <
+      collateralLocked + collateralRequiredCents;
 
   // Compute interval text from selected outcomes
   const intervalText =
@@ -246,6 +278,29 @@ export function TradeDialog({
             </TabsList>
 
             <TabsContent value="trade" className="space-y-4 py-4">
+              {/* Balance display */}
+              {user && portfolio && (
+                <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">
+                      Available Balance
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono font-bold text-green-700">
+                      ${spendableBalanceDollars.toFixed(2)}
+                    </div>
+                    {collateralLocked > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        (${(collateralLocked / 100).toFixed(2)} locked as
+                        collateral)
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Header card */}
               {isInterval ? (
                 <div className="p-4 rounded-lg bg-muted">
@@ -413,6 +468,16 @@ export function TradeDialog({
                         </span>
                       </div>
                     )}
+                    {isSell && collateralRequiredCents > 0 && (
+                      <div className="flex justify-between text-sm border-t pt-2">
+                        <span className="text-muted-foreground">
+                          Collateral required
+                        </span>
+                        <span className="font-mono font-medium text-amber-600">
+                          ${collateralRequiredDollars.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                     <div className="pt-2 border-t text-xs text-muted-foreground">
                       ✓ Real-time {isInterval ? "basket " : ""}price from LMSR
                       market maker
@@ -424,6 +489,32 @@ export function TradeDialog({
                   </div>
                 )}
               </div>
+
+              {/* Insufficient balance warning */}
+              {hasInsufficientBalance && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+                  <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                  <div className="text-sm text-red-700">
+                    <span className="font-medium">Insufficient balance.</span>{" "}
+                    You need ${totalCostDollars.toFixed(2)} but only have $
+                    {spendableBalanceDollars.toFixed(2)} available.
+                  </div>
+                </div>
+              )}
+
+              {/* Insufficient collateral warning for shorts */}
+              {hasInsufficientCollateral && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <div className="text-sm text-amber-700">
+                    <span className="font-medium">
+                      Insufficient collateral.
+                    </span>{" "}
+                    Short positions require $
+                    {collateralRequiredDollars.toFixed(2)} collateral.
+                  </div>
+                </div>
+              )}
 
               {/* Interval outcomes list */}
               {isInterval && selectedOutcomes.length > 0 && (
@@ -465,7 +556,9 @@ export function TradeDialog({
                     shares === 0 ||
                     loading ||
                     calculatedPrice === null ||
-                    fetchingPrice
+                    fetchingPrice ||
+                    hasInsufficientBalance ||
+                    hasInsufficientCollateral
                   }
                   className="flex-1"
                   variant={isSell ? "destructive" : "default"}
@@ -476,11 +569,15 @@ export function TradeDialog({
                       ? "Sign In Required"
                       : fetchingPrice
                         ? "Loading..."
-                        : calculatedPrice !== null
-                          ? isBuy
-                            ? `Buy for $${totalCostDollars.toFixed(2)}`
-                            : `Sell for $${totalCostDollars.toFixed(2)}`
-                          : "Enter quantity"}
+                        : hasInsufficientBalance
+                          ? "Insufficient Balance"
+                          : hasInsufficientCollateral
+                            ? "Insufficient Collateral"
+                            : calculatedPrice !== null
+                              ? isBuy
+                                ? `Buy for $${totalCostDollars.toFixed(2)}`
+                                : `Sell for $${totalCostDollars.toFixed(2)}`
+                              : "Enter quantity"}
                 </Button>
               </div>
             </TabsContent>
