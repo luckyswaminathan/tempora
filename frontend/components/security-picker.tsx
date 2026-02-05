@@ -20,7 +20,7 @@ interface Outcome {
 
 interface SecurityPickerProps {
   outcomes: Outcome[];
-  granularity: string;
+  uiType: string;
   selectedRange: [number, number];
   onRangeChange: (range: [number, number]) => void;
   viewMode: "individual" | "interval";
@@ -29,14 +29,14 @@ interface SecurityPickerProps {
 
 export function SecurityPicker({
   outcomes,
-  granularity,
+  uiType,
   selectedRange,
   onRangeChange,
   viewMode,
   onViewModeChange,
 }: SecurityPickerProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const showToggle = granularity !== "bars-categorical";
+  const showToggle = uiType !== "bars-categorical";
 
   const pickerOutcomes: SecurityPickerOutcome[] = outcomes.map((o) => ({
     id: o.id,
@@ -92,8 +92,6 @@ export function SecurityPicker({
     hoveredIndex,
     isInRange,
   };
-
-  const uiType = granularity || "bars-ordered";
 
   return (
     <div className="space-y-4">

@@ -158,7 +158,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
           <div className="mb-4">
             <SecurityPicker
               outcomes={outcomes}
-              granularity={market.uiType}
+              uiType={market.uiType}
               selectedRange={intervalRange}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
