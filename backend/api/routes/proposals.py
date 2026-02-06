@@ -1,6 +1,7 @@
 from typing import Optional
+import logging
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Request
 
 from api import deps
 from schemas.proposal import (
@@ -13,6 +14,8 @@ from schemas.user import UserBase
 from services.proposals import ProposalService
 from sqlalchemy.orm import Session
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
 
@@ -21,12 +24,14 @@ def get_proposal_service(session: Session = Depends(deps.get_session)) -> Propos
 
 
 @router.post("", response_model=Proposal, status_code=status.HTTP_201_CREATED)
-def create_proposal(
+async def create_proposal(
+    request: Request,
     payload: ProposalCreate,
     current_user: UserBase = Depends(deps.get_current_market_maker),
     service: ProposalService = Depends(get_proposal_service),
 ) -> Proposal:
     """Submit a new market proposal (market makers only)."""
+    logger.info(f"Creating proposal with payload: {payload}")
     return service.create_proposal(current_user.id, payload)
 
 
