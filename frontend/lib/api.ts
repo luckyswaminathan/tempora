@@ -153,30 +153,6 @@ export interface MarketListResponse {
   count: number;
 }
 
-export interface OutcomeWithValue {
-  outcome: string;
-  value?: number;
-  isCatchAll?: boolean;
-}
-
-export interface MarketCreate {
-  question: string;
-  outcomes: OutcomeWithValue[];
-  category: string;
-  resolutionDate: string;
-  description?: string;
-  tags?: string[];
-  liquidityParameter?: number;
-  uiType?:
-    | "bars-ordered"
-    | "bars-categorical"
-    | "year"
-    | "quarter"
-    | "month"
-    | "day"
-    | "interval";
-}
-
 export interface SecurityUpdate {
   id: string;
   outcome: string;
@@ -212,13 +188,6 @@ export const marketsApi = {
 
   async getMarket(id: string): Promise<Market> {
     return fetchWithAuth(`/markets/${id}`);
-  },
-
-  async createMarket(data: MarketCreate): Promise<Market> {
-    return fetchWithAuth("/markets", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
   },
 
   async updateMarket(id: string, data: Partial<MarketUpdate>): Promise<Market> {
@@ -455,6 +424,12 @@ export interface ProposerInfo {
   displayName?: string;
 }
 
+export interface OutcomeWithValue {
+  outcome: string;
+  value?: number;
+  isCatchAll?: boolean;
+}
+
 export interface Proposal {
   id: string;
   proposerId: string;
@@ -463,7 +438,7 @@ export interface Proposal {
   category: string;
   description?: string;
   resolutionDate: string;
-  outcomes: string[];
+  outcomes: OutcomeWithValue[];
   tags: string[];
   liquidityParameter?: number;
   uiType: string;
@@ -486,7 +461,7 @@ export interface ProposalCreate {
   category: string;
   description?: string;
   resolutionDate: string;
-  outcomes: string[];
+  outcomes: OutcomeWithValue[];
   tags?: string[];
   liquidityParameter?: number;
   uiType?: string;

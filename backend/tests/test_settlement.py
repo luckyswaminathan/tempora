@@ -1,211 +1,34 @@
 """
 Tests for market settlement and payout logic.
 
-Settlement rules:
-- Only admins can settle markets
-- Winners receive $1 per share (100 cents)
-- Market maker pays winners from their wallet
-- Total payout cannot exceed funding_collateral_cents (LMSR invariant)
-- Market status changes to RESOLVED
-- Cannot settle already resolved markets
-- Settlement validates market maker has sufficient funds
+SCOPE: These tests focus on the settlement/resolution phase AFTER trading.
+They verify the administrative process of resolving markets and distributing payouts.
+
+What this tests:
+- Admin-only settlement permissions
+- Winner payouts ($1 per share)
+- Market maker liability and wallet tracking
+- LMSR funding collateral constraints
+- Market status transitions (OPEN → RESOLVED)
+- Settlement validation rules
+- Payout distribution to multiple winners
+
+What this does NOT test:
+- Trading mechanics (price calculation, trade execution) - see test_trades.py
+- Trade execution is used only as SETUP to create positions for settlement tests
+
+Note: Trading in these tests assumes test_trades.py passes and uses trading
+      only to establish positions before testing settlement behavior.
 """
 
 import pytest
-from core.models import UserRole
+from conftest import (
+    create_and_publish_market,
+    create_position,
+    REGULAR_USER_EMAIL,
+    MARKET_MAKER_EMAIL,
+)
 from schemas.user import UserBase
-from schemas.market import Market
-
-
-@pytest.fixture()
-def market_maker_user(db_session) -> UserBase:
-    """Create a market maker user for testing."""
-    from services.auth import AuthService
-    from schemas.user import RegisterRequest
-    from core import models
-
-    service = AuthService(db_session)
-    service.register(
-        RegisterRequest(
-            email="mm_settlement@example.com",
-            password="password123",
-            display_name="Settlement Market Maker",
-        )
-    )
-
-    # Upgrade user to market maker
-    user = (
-        db_session.query(models.User)
-        .filter(models.User.email == "mm_settlement@example.com")
-        .first()
-    )
-    user.role = UserRole.MARKET_MAKER
-    db_session.commit()
-
-    # Give market maker sufficient funds
-    profile = (
-        db_session.query(models.Profile).filter(models.Profile.id == user.id).first()
-    )
-    profile.wallet = 1_000_000  # $10,000
-    db_session.commit()
-
-    return UserBase.model_validate(
-        {
-            "id": user.id,
-            "email": user.email,
-            "role": user.role,
-            "createdAt": user.created_at,
-        }
-    )
-
-
-@pytest.fixture()
-def admin_user(db_session) -> UserBase:
-    """Create an admin user for testing."""
-    from services.auth import AuthService
-    from schemas.user import RegisterRequest
-    from core import models
-
-    service = AuthService(db_session)
-    service.register(
-        RegisterRequest(
-            email="admin_settlement@example.com",
-            password="password123",
-            display_name="Settlement Admin",
-        )
-    )
-
-    # Upgrade user to admin
-    user = (
-        db_session.query(models.User)
-        .filter(models.User.email == "admin_settlement@example.com")
-        .first()
-    )
-    user.role = UserRole.ADMIN
-    db_session.commit()
-
-    return UserBase.model_validate(
-        {
-            "id": user.id,
-            "email": user.email,
-            "role": user.role,
-            "createdAt": user.created_at,
-        }
-    )
-
-
-@pytest.fixture()
-def regular_user(db_session) -> UserBase:
-    """Create a regular user for testing."""
-    from services.auth import AuthService
-    from schemas.user import RegisterRequest
-    from core import models
-
-    service = AuthService(db_session)
-    resp = service.register(
-        RegisterRequest(
-            email="user_settlement@example.com",
-            password="password123",
-            display_name="Settlement User",
-        )
-    )
-
-    user = (
-        db_session.query(models.User)
-        .filter(models.User.email == "user_settlement@example.com")
-        .first()
-    )
-
-    # Give user funds for trading
-    profile = (
-        db_session.query(models.Profile).filter(models.Profile.id == user.id).first()
-    )
-    profile.wallet = 100_000  # $1,000
-    db_session.commit()
-
-    return UserBase.model_validate(
-        {
-            "id": user.id,
-            "email": user.email,
-            "role": user.role,
-            "createdAt": user.created_at,
-        }
-    )
-
-
-@pytest.fixture()
-def market_maker_client(market_maker_user):
-    """Client authenticated as market maker."""
-    from main import create_app
-    from api import deps
-    from fastapi.testclient import TestClient
-
-    app = create_app()
-    app.dependency_overrides[deps.get_current_user] = lambda: market_maker_user
-    app.dependency_overrides[deps.get_current_market_maker] = lambda: market_maker_user
-    return TestClient(app)
-
-
-@pytest.fixture()
-def admin_client(admin_user):
-    """Client authenticated as admin."""
-    from main import create_app
-    from api import deps
-    from fastapi.testclient import TestClient
-
-    app = create_app()
-    app.dependency_overrides[deps.get_current_user] = lambda: admin_user
-    app.dependency_overrides[deps.get_current_admin] = lambda: admin_user
-    return TestClient(app)
-
-
-@pytest.fixture()
-def user_client(regular_user):
-    """Client authenticated as regular user."""
-    from main import create_app
-    from api import deps
-    from fastapi.testclient import TestClient
-
-    app = create_app()
-    app.dependency_overrides[deps.get_current_user] = lambda: regular_user
-    return TestClient(app)
-
-
-def create_and_publish_market(
-    market_maker_client, admin_client, outcomes=None, liquidity=50
-) -> Market:
-    """Helper to create and publish a market."""
-    if outcomes is None:
-        outcomes = ["Yes", "No"]
-
-    # Create proposal
-    proposal_payload = {
-        "question": "Settlement Test Market",
-        "outcomes": outcomes,
-        "category": "test",
-        "resolutionDate": "2030-12-31T23:59:59",
-        "liquidityParameter": liquidity,
-        "uiType": "binary" if len(outcomes) == 2 else "interval",
-    }
-    resp = market_maker_client.post("/proposals", json=proposal_payload)
-    assert resp.status_code == 201
-    proposal_id = resp.json()["id"]
-
-    # Admin approves
-    resp = admin_client.post(
-        f"/proposals/{proposal_id}/review", json={"approved": True}
-    )
-    assert resp.status_code == 200
-
-    # Market maker publishes
-    resp = market_maker_client.post(f"/proposals/{proposal_id}/publish")
-    assert resp.status_code == 200
-
-    # Get the created market
-    market_id = resp.json()["createdMarketId"]
-    resp = market_maker_client.get(f"/markets/{market_id}")
-    assert resp.status_code == 200
-    return Market.model_validate(resp.json())
 
 
 class TestSettlementBasics:
@@ -214,21 +37,20 @@ class TestSettlementBasics:
     def test_winner_receives_payout(
         self, market_maker_client, admin_client, user_client, db_session
     ):
-        """Winner receives $1 per share when market settles."""
+        """Winner receives $1 per share when market settles.
+
+        This test verifies the settlement payout mechanism, NOT trading.
+        Trading is used only as setup to create a winning position.
+        """
         # Create market
         market = create_and_publish_market(market_maker_client, admin_client)
 
-        # User buys 10 shares of "Yes"
+        # SETUP: Create a winning position (trading tested in test_trades.py)
         yes_security_id = market.securities[0].id
-        trade_payload = {
-            "marketId": market.id,
-            "legs": [{"securityId": yes_security_id, "quantity": 10}],
-        }
-        resp = user_client.post("/trades", json=trade_payload)
-        assert resp.status_code == 201
-        cost = resp.json()["priceCents"]
+        trade_data = create_position(user_client, market.id, yes_security_id, 10)
+        cost = trade_data["priceCents"]
 
-        # Get user's wallet before settlement
+        # Get user's wallet before settlement (after trade)
         resp = user_client.get("/users/me/profile")
         wallet_before = resp.json()["wallet"]
 
@@ -246,7 +68,7 @@ class TestSettlementBasics:
 
         user = (
             db_session.query(models.User)
-            .filter(models.User.email == "user_settlement@example.com")
+            .filter(models.User.email == REGULAR_USER_EMAIL)
             .first()
         )
         profile = (
@@ -262,20 +84,19 @@ class TestSettlementBasics:
     def test_loser_receives_nothing(
         self, market_maker_client, admin_client, user_client, db_session
     ):
-        """Users holding losing outcome receive nothing."""
+        """Users holding losing outcome receive nothing.
+
+        This test verifies settlement correctly handles losers, NOT trading.
+        Trading is used only as setup to create a losing position.
+        """
         # Create market
         market = create_and_publish_market(market_maker_client, admin_client)
 
-        # User buys 5 shares of "No"
+        # SETUP: Create a losing position (trading tested in test_trades.py)
         no_security_id = market.securities[1].id
-        trade_payload = {
-            "marketId": market.id,
-            "legs": [{"securityId": no_security_id, "quantity": 5}],
-        }
-        resp = user_client.post("/trades", json=trade_payload)
-        assert resp.status_code == 201
+        create_position(user_client, market.id, no_security_id, 5)
 
-        # Get user's wallet before settlement
+        # Get user's wallet before settlement (after trade)
         resp = user_client.get("/users/me/profile")
         wallet_before = resp.json()["wallet"]
 
@@ -290,7 +111,7 @@ class TestSettlementBasics:
 
         user = (
             db_session.query(models.User)
-            .filter(models.User.email == "user_settlement@example.com")
+            .filter(models.User.email == REGULAR_USER_EMAIL)
             .first()
         )
         profile = (
@@ -359,7 +180,7 @@ class TestSettlementPayouts:
 
         mm_user = (
             db_session.query(models.User)
-            .filter(models.User.email == "mm_settlement@example.com")
+            .filter(models.User.email == MARKET_MAKER_EMAIL)
             .first()
         )
         mm_profile = (
@@ -459,18 +280,19 @@ class TestSettlementPayouts:
         from api import deps
         from fastapi.testclient import TestClient
 
-        # Create second user
+        # Create second user (different from regular_user fixture)
+        second_user_email = "user2@test.com"
         service = AuthService(db_session)
         service.register(
             RegisterRequest(
-                email="user2_settlement@example.com",
+                email=second_user_email,
                 password="password123",
                 display_name="User 2",
             )
         )
         user2 = (
             db_session.query(models.User)
-            .filter(models.User.email == "user2_settlement@example.com")
+            .filter(models.User.email == second_user_email)
             .first()
         )
         profile2 = (
@@ -515,7 +337,7 @@ class TestSettlementPayouts:
         # Get wallets before settlement
         user1 = (
             db_session.query(models.User)
-            .filter(models.User.email == "user_settlement@example.com")
+            .filter(models.User.email == REGULAR_USER_EMAIL)
             .first()
         )
         profile1 = (
@@ -549,7 +371,7 @@ class TestSettlementPayouts:
 
         mm_user = (
             db_session.query(models.User)
-            .filter(models.User.email == "mm_settlement@example.com")
+            .filter(models.User.email == MARKET_MAKER_EMAIL)
             .first()
         )
         mm_profile = (
@@ -662,7 +484,7 @@ class TestSettlementEdgeCases:
 
         user = (
             db_session.query(models.User)
-            .filter(models.User.email == "user_settlement@example.com")
+            .filter(models.User.email == REGULAR_USER_EMAIL)
             .first()
         )
         profile = (
@@ -718,7 +540,7 @@ class TestSettlementEdgeCases:
 
         user = (
             db_session.query(models.User)
-            .filter(models.User.email == "user_settlement@example.com")
+            .filter(models.User.email == REGULAR_USER_EMAIL)
             .first()
         )
         profile = (

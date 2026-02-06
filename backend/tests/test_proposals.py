@@ -14,104 +14,12 @@ Collateral rules for publishing:
 """
 
 import pytest
-from core.models import UserRole
-from schemas.user import UserBase
+import sys
+from pathlib import Path
 
-
-@pytest.fixture()
-def market_maker_user(db_session) -> UserBase:
-    """Create a market maker user for testing."""
-    from services.auth import AuthService
-    from schemas.user import RegisterRequest
-    from core import models
-
-    service = AuthService(db_session)
-    service.register(
-        RegisterRequest(
-            email="market_maker@example.com",
-            password="password123",
-            display_name="Market Maker",
-        )
-    )
-
-    # Upgrade user to market maker
-    user = (
-        db_session.query(models.User)
-        .filter(models.User.email == "market_maker@example.com")
-        .first()
-    )
-    user.role = UserRole.MARKET_MAKER
-    db_session.commit()
-
-    return UserBase.model_validate(
-        {
-            "id": user.id,
-            "email": user.email,
-            "role": user.role,
-            "createdAt": user.created_at,
-        }
-    )
-
-
-@pytest.fixture()
-def admin_user(db_session) -> UserBase:
-    """Create an admin user for testing."""
-    from services.auth import AuthService
-    from schemas.user import RegisterRequest
-    from core import models
-
-    service = AuthService(db_session)
-    service.register(
-        RegisterRequest(
-            email="admin@example.com",
-            password="password123",
-            display_name="Admin User",
-        )
-    )
-
-    # Upgrade user to admin
-    user = (
-        db_session.query(models.User)
-        .filter(models.User.email == "admin@example.com")
-        .first()
-    )
-    user.role = UserRole.ADMIN
-    db_session.commit()
-
-    return UserBase.model_validate(
-        {
-            "id": user.id,
-            "email": user.email,
-            "role": user.role,
-            "createdAt": user.created_at,
-        }
-    )
-
-
-@pytest.fixture()
-def market_maker_client(market_maker_user):
-    """Client authenticated as market maker."""
-    from main import create_app
-    from api import deps
-    from fastapi.testclient import TestClient
-
-    app = create_app()
-    app.dependency_overrides[deps.get_current_user] = lambda: market_maker_user
-    app.dependency_overrides[deps.get_current_market_maker] = lambda: market_maker_user
-    return TestClient(app)
-
-
-@pytest.fixture()
-def admin_client(admin_user):
-    """Client authenticated as admin."""
-    from main import create_app
-    from api import deps
-    from fastapi.testclient import TestClient
-
-    app = create_app()
-    app.dependency_overrides[deps.get_current_user] = lambda: admin_user
-    app.dependency_overrides[deps.get_current_admin] = lambda: admin_user
-    return TestClient(app)
+# Import email constant from conftest
+sys.path.insert(0, str(Path(__file__).parent))
+from conftest import MARKET_MAKER_EMAIL  # noqa: E402
 
 
 class TestProposalCreation:
@@ -121,7 +29,10 @@ class TestProposalCreation:
         """Market makers can create proposals."""
         payload = {
             "question": "Will it rain tomorrow?",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "weather",
             "resolutionDate": "2030-12-31T23:59:59",
             "description": "Test proposal",
@@ -140,7 +51,7 @@ class TestProposalCreation:
         """Proposals must have at least 2 outcomes."""
         payload = {
             "question": "Invalid proposal",
-            "outcomes": ["Only one"],
+            "outcomes": [{"outcome": "Only one", "isCatchAll": False}],
             "category": "general",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 100,
@@ -155,7 +66,10 @@ class TestProposalCreation:
         # Create a proposal first
         payload = {
             "question": "Test Market 1",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "general",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 100,
@@ -181,7 +95,10 @@ class TestProposalReview:
         # Market maker creates proposal
         payload = {
             "question": "Will it snow?",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "weather",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 100,
@@ -210,7 +127,10 @@ class TestProposalReview:
         # Market maker creates proposal
         payload = {
             "question": "Invalid market",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "general",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 100,
@@ -241,7 +161,10 @@ class TestProposalReview:
         # Create and approve proposal
         payload = {
             "question": "Test",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "general",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 100,
@@ -269,7 +192,10 @@ class TestProposalReview:
         for i in range(3):
             payload = {
                 "question": f"Market {i}",
-                "outcomes": ["Yes", "No"],
+                "outcomes": [
+                    {"outcome": "Yes", "isCatchAll": False},
+                    {"outcome": "No", "isCatchAll": False},
+                ],
                 "category": "general",
                 "resolutionDate": "2030-12-31T23:59:59",
                 "liquidityParameter": 100,
@@ -294,7 +220,10 @@ class TestProposalPublishing:
         # Create proposal
         payload = {
             "question": "Will it be sunny?",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "weather",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 50,  # Small liquidity for testing
@@ -324,7 +253,10 @@ class TestProposalPublishing:
         # Create proposal (not approved)
         payload = {
             "question": "Test",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "general",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 50,
@@ -343,7 +275,10 @@ class TestProposalPublishing:
         # Create and reject proposal
         payload = {
             "question": "Test",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "general",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 50,
@@ -372,7 +307,7 @@ class TestProposalCollateral:
         # Get market maker's profile and drain most funds
         user = (
             db_session.query(models.User)
-            .filter(models.User.email == "market_maker@example.com")
+            .filter(models.User.email == MARKET_MAKER_EMAIL)
             .first()
         )
         profile = (
@@ -388,7 +323,10 @@ class TestProposalCollateral:
         # Create proposal with high liquidity (requires b * ln(2) ≈ $69 for 2 outcomes)
         payload = {
             "question": "Test",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "general",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 100,  # Requires ~69.31 cents collateral
@@ -415,7 +353,10 @@ class TestProposalCollateral:
         # Create and publish first market
         payload1 = {
             "question": "Market 1",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "general",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 50,
@@ -435,7 +376,7 @@ class TestProposalCollateral:
         # Now drain funds leaving just enough for one market but not two
         user = (
             db_session.query(models.User)
-            .filter(models.User.email == "market_maker@example.com")
+            .filter(models.User.email == MARKET_MAKER_EMAIL)
             .first()
         )
         profile = (
@@ -451,7 +392,10 @@ class TestProposalCollateral:
         # Try to create second market with same liquidity parameter
         payload2 = {
             "question": "Market 2",
-            "outcomes": ["Yes", "No"],
+            "outcomes": [
+                {"outcome": "Yes", "isCatchAll": False},
+                {"outcome": "No", "isCatchAll": False},
+            ],
             "category": "general",
             "resolutionDate": "2030-12-31T23:59:59",
             "liquidityParameter": 50,
@@ -475,7 +419,10 @@ class TestProposalCollateral:
         for i in range(2):
             payload = {
                 "question": f"Market {i}",
-                "outcomes": ["Yes", "No"],
+                "outcomes": [
+                    {"outcome": "Yes", "isCatchAll": False},
+                    {"outcome": "No", "isCatchAll": False},
+                ],
                 "category": "general",
                 "resolutionDate": "2030-12-31T23:59:59",
                 "liquidityParameter": 30,  # Small liquidity
@@ -503,7 +450,10 @@ class TestProposalCollateral:
         initial_wallet = resp.json()["wallet"]
 
         # Create market with many outcomes (requires more collateral)
-        outcomes = [f"Outcome {i}" for i in range(10)]  # 10 outcomes
+        outcomes = [
+            {"outcome": f"Outcome {i}", "value": float(i), "isCatchAll": False}
+            for i in range(10)
+        ]  # 10 outcomes
         liquidity = 100
         expected_collateral = int(liquidity * math.log(len(outcomes)) * 100)
 
@@ -521,7 +471,7 @@ class TestProposalCollateral:
         # Set wallet to just under required collateral
         user = (
             db_session.query(models.User)
-            .filter(models.User.email == "market_maker@example.com")
+            .filter(models.User.email == MARKET_MAKER_EMAIL)
             .first()
         )
         profile = (
@@ -545,3 +495,164 @@ class TestProposalCollateral:
         # Should succeed
         resp = market_maker_client.post(f"/proposals/{proposal_id}/publish")
         assert resp.status_code == 200
+
+
+class TestProposalUITypes:
+    """Test that different UI types propagate correctly through proposal flow."""
+
+    def test_ui_types_propagate_to_markets(
+        self, market_maker_client, admin_client, db_session
+    ):
+        """Verify all UI types work through proposal -> market flow."""
+        ui_test_cases = [
+            {
+                "ui_type": "bars-ordered",
+                "outcomes": [
+                    {"outcome": "Option A"},
+                    {"outcome": "Option B"},
+                    {"outcome": "Option C"},
+                ],
+            },
+            {
+                "ui_type": "bars-categorical",
+                "outcomes": [
+                    {"outcome": "Cat 1"},
+                    {"outcome": "Cat 2"},
+                    {"outcome": "Cat 3"},
+                ],
+            },
+            {
+                "ui_type": "year",
+                "outcomes": [
+                    {"outcome": "2025"},
+                    {"outcome": "2026"},
+                    {"outcome": "Never", "isCatchAll": True},
+                ],
+            },
+            {
+                "ui_type": "quarter",
+                "outcomes": [
+                    {"outcome": "2026 Q1"},
+                    {"outcome": "2026 Q2"},
+                    {"outcome": "2026 Q3"},
+                ],
+            },
+            {
+                "ui_type": "month",
+                "outcomes": [
+                    {"outcome": "2026-01"},
+                    {"outcome": "2026-02"},
+                    {"outcome": "2026-03"},
+                ],
+            },
+            {
+                "ui_type": "day",
+                "outcomes": [
+                    {"outcome": "2026-03-01"},
+                    {"outcome": "2026-03-02"},
+                    {"outcome": "2026-03-03"},
+                ],
+            },
+            {
+                "ui_type": "interval",
+                "outcomes": [
+                    {"outcome": "0-10", "value": 0},
+                    {"outcome": "10-20", "value": 10},
+                    {"outcome": "20-30", "value": 20},
+                ],
+            },
+        ]
+
+        for test_case in ui_test_cases:
+            ui_type = test_case["ui_type"]
+
+            # Create proposal with specific UI type
+            payload = {
+                "question": f"Test {ui_type} market",
+                "outcomes": test_case["outcomes"],
+                "category": "test",
+                "resolutionDate": "2030-12-31T23:59:59",
+                "liquidityParameter": 50,
+                "uiType": ui_type,
+            }
+            resp = market_maker_client.post("/proposals", json=payload)
+            assert resp.status_code == 201, f"Failed to create {ui_type} proposal"
+            proposal = resp.json()
+            proposal_id = proposal["id"]
+
+            # Verify proposal has correct UI type
+            assert proposal["uiType"] == ui_type
+
+            # Admin approves
+            resp = admin_client.post(
+                f"/proposals/{proposal_id}/review", json={"approved": True}
+            )
+            assert resp.status_code == 200
+
+            # Market maker publishes
+            resp = market_maker_client.post(f"/proposals/{proposal_id}/publish")
+            assert resp.status_code == 200
+            published_proposal = resp.json()
+
+            # Verify market was created with correct UI type
+            market_id = published_proposal["createdMarketId"]
+            assert market_id is not None
+
+            resp = market_maker_client.get(f"/markets/{market_id}")
+            assert resp.status_code == 200
+            market = resp.json()
+
+            # Verify UI type propagated correctly
+            assert (
+                market["uiType"] == ui_type
+            ), f"Expected {ui_type}, got {market['uiType']}"
+
+            # Verify outcomes match
+            assert len(market["securities"]) == len(test_case["outcomes"])
+
+            # For interval type, verify values are present
+            if ui_type == "interval":
+                for security in market["securities"]:
+                    assert "value" in security
+                    assert isinstance(security["value"], (int, float))
+
+    def test_interval_market_with_catch_all(
+        self, market_maker_client, admin_client, db_session
+    ):
+        """Test interval market with catch-all outcome."""
+        payload = {
+            "question": "Temperature range with catch-all",
+            "outcomes": [
+                {"outcome": "0-50°F", "value": 0},
+                {"outcome": "50-100°F", "value": 50},
+                {
+                    "outcome": "Above 100°F or never measured",
+                    "value": 1e9,
+                    "isCatchAll": True,
+                },
+            ],
+            "category": "climate",
+            "resolutionDate": "2030-12-31T23:59:59",
+            "liquidityParameter": 75,
+            "uiType": "interval",
+        }
+
+        # Create and approve proposal
+        resp = market_maker_client.post("/proposals", json=payload)
+        assert resp.status_code == 201
+        proposal_id = resp.json()["id"]
+
+        admin_client.post(f"/proposals/{proposal_id}/review", json={"approved": True})
+
+        # Publish
+        resp = market_maker_client.post(f"/proposals/{proposal_id}/publish")
+        assert resp.status_code == 200
+
+        market_id = resp.json()["createdMarketId"]
+        resp = market_maker_client.get(f"/markets/{market_id}")
+        market = resp.json()
+
+        # Verify catch-all is properly marked
+        catch_all_securities = [s for s in market["securities"] if s["isCatchAll"]]
+        assert len(catch_all_securities) == 1
+        assert "never measured" in catch_all_securities[0]["outcome"].lower()

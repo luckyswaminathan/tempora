@@ -103,8 +103,13 @@ export function MarketCreateForm({
   );
 
   // Generate outcomes from calendar config
-  const generateOutcomes = (): { text: string; isCatchAll: boolean }[] => {
-    const outcomes: { text: string; isCatchAll: boolean }[] = [];
+  const generateOutcomes = (): {
+    text: string;
+    isCatchAll: boolean;
+    value?: number;
+  }[] => {
+    const outcomes: { text: string; isCatchAll: boolean; value?: number }[] =
+      [];
 
     // Handle interval type
     if (formData.uiType === "interval") {
@@ -119,6 +124,7 @@ export function MarketCreateForm({
           outcomes.push({
             text: `${formConfig.lowerBoundLabel} ${min}${unit}`,
             isCatchAll: false,
+            value: min - step, // Value below minimum
           });
         }
 
@@ -128,6 +134,7 @@ export function MarketCreateForm({
           outcomes.push({
             text: `${i}-${rangeEnd}${unit}`,
             isCatchAll: false,
+            value: i, // Use start of interval as the value
           });
         }
 
@@ -136,6 +143,7 @@ export function MarketCreateForm({
           outcomes.push({
             text: `${formConfig.upperBoundLabel} ${max}${unit}`,
             isCatchAll: false,
+            value: max, // Value at or above maximum
           });
         }
       }
@@ -229,7 +237,11 @@ export function MarketCreateForm({
         category: formData.category,
         description: formData.description,
         resolutionDate: formData.resolutionDate,
-        outcomes: outcomes.map((o) => o.text),
+        outcomes: outcomes.map((o) => ({
+          outcome: o.text,
+          value: o.value,
+          isCatchAll: o.isCatchAll,
+        })),
         tags,
         liquidityParameter: formData.liquidityParameter
           ? parseInt(formData.liquidityParameter)

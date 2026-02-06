@@ -510,7 +510,10 @@ export default function MarketMakingPage() {
                         </p>
                       )}
                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <span>Outcomes: {proposal.outcomes.join(", ")}</span>
+                        <span>
+                          Outcomes:{" "}
+                          {proposal.outcomes.map((o) => o.outcome).join(", ")}
+                        </span>
                         <span>•</span>
                         <span>
                           Resolves:{" "}

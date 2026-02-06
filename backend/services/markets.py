@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from core import models
 from schemas.market import (
-    MarketCreate,
     MarketListResponse,
     MarketUpdate,
     MarketSettlement,
@@ -56,29 +55,25 @@ class MarketService:
             )
         return self._attach_quote(market)
 
-    def create_market(self, payload: MarketCreate) -> Market:
-        market = self.create_market_unquoted(payload)
-        return self._attach_quote(market)
-
-    def create_market_unquoted(
+    def create_market(
         self,
-        payload: MarketCreate,
-        creator_id: Optional[str] = None,
-        funding_collateral_cents: int = 0,
+        proposal: models.MarketProposal,
+        creator_id: str,
+        funding_collateral_cents: int,
     ) -> models.Market:
         """
-        Create a market with optional creator and funding collateral, returning the raw model.
-        Use create_market() for the standard API that returns the full schema.
+        Create a market from an approved proposal.
+        This should only be called from the proposal publish flow.
         """
         market = models.Market(
-            question=payload.question,
-            category=payload.category,
-            description=payload.description,
-            resolution_date=payload.resolution_date,
+            question=proposal.question,
+            category=proposal.category,
+            description=proposal.description,
+            resolution_date=proposal.resolution_date,
             status=models.MarketStatus.OPEN,
-            tags=payload.tags,
-            liquidity_parameter=payload.liquidity_parameter,
-            ui_type=payload.ui_type,
+            tags=proposal.tags,
+            liquidity_parameter=proposal.liquidity_parameter,
+            ui_type=proposal.ui_type,
             creator_id=creator_id,
             funding_collateral_cents=funding_collateral_cents,
             created_at=datetime.now(timezone.utc),
@@ -86,7 +81,13 @@ class MarketService:
         )
         self.session.add(market)
         self.session.flush()
-        self._create_securities(market.id, payload.outcomes)
+
+        # Convert outcomes from JSON dicts to OutcomeWithValue objects
+        outcomes = [
+            OutcomeWithValue(**o) if isinstance(o, dict) else o
+            for o in proposal.outcomes
+        ]
+        self._create_securities(market.id, outcomes)
         self.session.commit()
         self.session.refresh(market)
         return market

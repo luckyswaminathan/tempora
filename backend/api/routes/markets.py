@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, Query, status
 from api import deps
 from schemas.market import (
     Market,
-    MarketCreate,
     MarketListResponse,
     MarketUpdate,
     MarketSettlement,
@@ -25,15 +24,6 @@ def list_markets(
     service: MarketService = Depends(deps.get_market_service),
 ) -> MarketListResponse:
     return service.list_markets(category=category, status_filter=status_filter)
-
-
-@router.post("", response_model=Market, status_code=status.HTTP_201_CREATED)
-def create_market(
-    payload: MarketCreate,
-    service: MarketService = Depends(deps.get_market_service),
-    _: UserBase = Depends(deps.get_current_market_maker),
-) -> Market:
-    return service.create_market(payload)
 
 
 @router.get("/{market_id}", response_model=Market)

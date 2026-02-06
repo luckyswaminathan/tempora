@@ -3,11 +3,11 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from schemas.date import UTCDateTime
-from schemas.market import MarketBase
+from schemas.market import MarketBase, OutcomeWithValue
 
 
 class ProposalCreate(MarketBase):
-    outcomes: List[str]
+    outcomes: List[OutcomeWithValue]
 
 
 class ProposalReview(BaseModel):
@@ -23,20 +23,11 @@ class ProposerInfo(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class Proposal(BaseModel):
+class Proposal(MarketBase):
     id: str
     proposer_id: str = Field(alias="proposerId")
     proposer: Optional[ProposerInfo] = None
-    question: str
-    category: str
-    description: Optional[str] = None
-    resolution_date: UTCDateTime = Field(alias="resolutionDate")
-    outcomes: List[str]
-    tags: List[str]
-    liquidity_parameter: Optional[float] = Field(
-        default=None, alias="liquidityParameter"
-    )
-    ui_type: str = Field(default="bars-ordered", alias="uiType")
+    outcomes: List[OutcomeWithValue]
     status: str
     reviewer_id: Optional[str] = Field(default=None, alias="reviewerId")
     review_note: Optional[str] = Field(default=None, alias="reviewNote")
@@ -44,8 +35,6 @@ class Proposal(BaseModel):
     created_market_id: Optional[str] = Field(default=None, alias="createdMarketId")
     created_at: UTCDateTime = Field(alias="createdAt")
     updated_at: UTCDateTime = Field(alias="updatedAt")
-
-    model_config = ConfigDict(populate_by_name=True)
 
 
 class ProposalListResponse(BaseModel):

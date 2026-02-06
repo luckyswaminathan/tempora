@@ -16,7 +16,6 @@ from schemas.proposal import (
     ProposerInfo,
 )
 from services.markets import MarketService
-from schemas.market import MarketCreate, OutcomeWithValue
 from services.trades import TradeService
 
 
@@ -41,13 +40,16 @@ class ProposalService:
                 detail="At least 2 outcomes are required",
             )
 
+        # Convert Pydantic outcomes to dicts for JSON storage
+        outcomes = [o.model_dump(by_alias=True) for o in payload.outcomes]
+
         proposal = models.MarketProposal(
             proposer_id=proposer_id,
             question=payload.question,
             category=payload.category,
             description=payload.description,
             resolution_date=payload.resolution_date,
-            outcomes=payload.outcomes,
+            outcomes=outcomes,
             tags=payload.tags or [],
             liquidity_parameter=payload.liquidity_parameter,
             ui_type=payload.ui_type,
@@ -185,8 +187,7 @@ class ProposalService:
             )
 
         # Create the actual market with creator info
-        # Note: funding_collateral_cents is stored but not deducted from wallet
-        market = self._create_market_from_proposal(
+        market = self.market_service.create_market(
             proposal, user_id, funding_collateral_cents
         )
         proposal.created_market_id = market.id
@@ -196,37 +197,6 @@ class ProposalService:
         self.session.refresh(proposal)
 
         return self._to_schema(proposal, include_proposer=True)
-
-    def _create_market_from_proposal(
-        self,
-        proposal: models.MarketProposal,
-        creator_id: str,
-        funding_collateral_cents: int,
-    ) -> models.Market:
-        # Convert string outcomes to OutcomeWithValue objects
-        outcomes = [
-            OutcomeWithValue(outcome=o, value=float(i + 1), isCatchAll=False)
-            for i, o in enumerate(proposal.outcomes)
-        ]
-
-        market_data = MarketCreate(
-            question=proposal.question,
-            category=proposal.category,
-            description=proposal.description,
-            resolutionDate=proposal.resolution_date.isoformat(),
-            outcomes=outcomes,
-            tags=proposal.tags,
-            liquidityParameter=proposal.liquidity_parameter,
-            uiType=proposal.ui_type,
-        )
-
-        # Use method to create market with creator info
-        market = self.market_service.create_market_unquoted(
-            market_data,
-            creator_id=creator_id,
-            funding_collateral_cents=funding_collateral_cents,
-        )
-        return market
 
     def _to_schema(
         self, proposal: models.MarketProposal, include_proposer: bool = False

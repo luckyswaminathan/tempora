@@ -8,25 +8,51 @@ Collateral rules:
 - Existing long positions offset collateral requirements
 """
 
+from datetime import datetime, timezone
+from uuid import uuid4
+
 import pytest
 
-from schemas.market import Market
+from core import models
 
 
 @pytest.fixture()
-def market_2_outcomes(client) -> Market:
+def market_2_outcomes(db_session, market_maker_user):
     """Create a simple 2-outcome market for testing."""
-    payload = {
-        "question": "Test Market",
-        "outcomes": [{"outcome": "Yes"}, {"outcome": "No"}],
-        "category": "general",
-        "resolutionDate": "2030-01-01T00:00:00",
-        "description": "",
-        "liquidityParameter": "100",
-    }
-    resp = client.post("/markets", json=payload)
-    assert resp.status_code == 201
-    return Market.model_validate(resp.json())
+    market = models.Market(
+        id=str(uuid4()),
+        question="Test Market",
+        category="general",
+        description="",
+        resolution_date=datetime(2030, 1, 1, tzinfo=timezone.utc),
+        status=models.MarketStatus.OPEN,
+        tags=[],
+        liquidity_parameter=100,
+        ui_type="bars-ordered",
+        creator_id=market_maker_user.id,
+        funding_collateral_cents=0,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    db_session.add(market)
+    db_session.flush()
+
+    # Create securities
+    for outcome in ["Yes", "No"]:
+        security = models.Security(
+            id=str(uuid4()),
+            market_id=market.id,
+            outcome=outcome,
+            value=0.0,
+            is_catch_all=False,
+            created_at=datetime.now(timezone.utc),
+        )
+        db_session.add(security)
+
+    db_session.commit()
+    db_session.refresh(market)
+
+    return market
 
 
 class TestBuyBalanceValidation:

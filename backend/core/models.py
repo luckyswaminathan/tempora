@@ -171,7 +171,11 @@ class MarketProposal(MarketBase, Base):
     proposer_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    outcomes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    outcomes: Mapped[list[dict]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+    )
     status: Mapped[str] = mapped_column(
         Enum(ProposalStatus), nullable=False, default=ProposalStatus.PENDING
     )

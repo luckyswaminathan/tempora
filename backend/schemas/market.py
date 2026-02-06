@@ -67,10 +67,6 @@ class OutcomeWithValue(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class MarketCreate(MarketBase):
-    outcomes: List[OutcomeWithValue] = Field(default_factory=list)
-
-
 class SecurityUpdate(BaseModel):
     id: str
     outcome: str = Field(min_length=1)

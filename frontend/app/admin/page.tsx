@@ -374,7 +374,10 @@ export default function AdminDashboard() {
                           </p>
                         )}
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                          <span>Outcomes: {proposal.outcomes.join(", ")}</span>
+                          <span>
+                            Outcomes:{" "}
+                            {proposal.outcomes.map((o) => o.outcome).join(", ")}
+                          </span>
                           <span>
                             Resolves:{" "}
                             {new Date(
@@ -851,7 +854,10 @@ export default function AdminDashboard() {
                                 </h4>
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                                   <span>
-                                    Outcomes: {proposal.outcomes.join(", ")}
+                                    Outcomes:{" "}
+                                    {proposal.outcomes
+                                      .map((o) => o.outcome)
+                                      .join(", ")}
                                   </span>
                                   <span>
                                     Resolves:{" "}
