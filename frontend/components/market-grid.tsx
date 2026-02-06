@@ -22,34 +22,34 @@ export function MarketGrid({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchMarkets() {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await marketsApi.listMarkets({
-          category: category || undefined,
-          status: status === "all" ? undefined : status || "open",
-        });
+  const fetchMarkets = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await marketsApi.listMarkets({
+        category: category || undefined,
+        status: status === "all" ? undefined : status || "open",
+      });
 
-        // Filter by search query client-side
-        let filtered = response.items;
-        if (searchQuery.trim()) {
-          filtered = filtered.filter(
-            (m) =>
-              m.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              m.category.toLowerCase().includes(searchQuery.toLowerCase()),
-          );
-        }
-
-        setMarkets(filtered);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load markets");
-      } finally {
-        setLoading(false);
+      // Filter by search query client-side
+      let filtered = response.items;
+      if (searchQuery.trim()) {
+        filtered = filtered.filter(
+          (m) =>
+            m.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            m.category.toLowerCase().includes(searchQuery.toLowerCase()),
+        );
       }
-    }
 
+      setMarkets(filtered);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load markets");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchMarkets();
   }, [category, searchQuery, status]);
 
@@ -81,26 +81,7 @@ export function MarketGrid({
 
   const handleMarketUpdate = async () => {
     // Refetch markets after any market is updated (settled, edited, etc.)
-    try {
-      const response = await marketsApi.listMarkets({
-        category: category || undefined,
-        status: status === "all" ? undefined : status || "open",
-      });
-
-      // Filter by search query client-side
-      let filtered = response.items;
-      if (searchQuery.trim()) {
-        filtered = filtered.filter(
-          (m) =>
-            m.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            m.category.toLowerCase().includes(searchQuery.toLowerCase()),
-        );
-      }
-
-      setMarkets(filtered);
-    } catch (err) {
-      console.error("Failed to refresh markets:", err);
-    }
+    await fetchMarkets();
     onMarketUpdate?.();
   };
 
