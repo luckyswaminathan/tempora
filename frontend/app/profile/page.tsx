@@ -186,6 +186,22 @@ export default function ProfilePage() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="role">Role</Label>
+            <Input
+              id="profile-role"
+              value={
+                profile?.role
+                  .replace("_", " ")
+                  .replace(/\b\w/g, (c) => c.toUpperCase()) ?? ""
+              }
+              disabled
+            />
+            <p className="text-xs text-muted-foreground">
+              Your account role determines your permissions.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="displayName">Display Name</Label>
             <Input
               id="profile-display-name"

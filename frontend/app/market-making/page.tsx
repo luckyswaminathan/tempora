@@ -20,7 +20,12 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { proposalsApi, marketMakerApi, type Proposal, type MarketMakerDashboard } from "@/lib/api";
+import {
+  proposalsApi,
+  marketMakerApi,
+  type Proposal,
+  type MarketMakerDashboard,
+} from "@/lib/api";
 import { MarketCreateForm } from "@/components/market-create-form";
 
 type Tab = "dashboard" | "proposals" | "create";
@@ -36,7 +41,7 @@ export default function MarketMakingPage() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && (!profile?.isMarketMaker)) {
+    if (!authLoading && !(profile?.role === "market_maker")) {
       router.push("/");
     }
   }, [profile, authLoading, router]);
@@ -66,7 +71,7 @@ export default function MarketMakingPage() {
   };
 
   useEffect(() => {
-    if (profile?.isMarketMaker) {
+    if (profile?.role === "market_maker") {
       fetchProposals();
       fetchDashboard();
     }
@@ -127,7 +132,7 @@ export default function MarketMakingPage() {
   const liveCount = proposals.filter((p) => p.status === "live").length;
   const rejectedCount = proposals.filter((p) => p.status === "rejected").length;
 
-  if (authLoading || !profile?.isMarketMaker) {
+  if (authLoading || !(profile?.role === "market_maker")) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
@@ -264,10 +269,13 @@ export default function MarketMakingPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">
-                          Initial Funding
+                          Funding Collateral
                         </p>
                         <p className="text-2xl font-bold mt-1">
-                          ${(dashboard.totalInitialFundingCents / 100).toFixed(2)}
+                          $
+                          {(
+                            dashboard.totalFundingCollateralCents / 100
+                          ).toFixed(2)}
                         </p>
                       </div>
                       <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
@@ -314,12 +322,19 @@ export default function MarketMakingPage() {
                         <p className="text-sm font-medium text-muted-foreground">
                           Net P&L
                         </p>
-                        <p className={`text-2xl font-bold mt-1 ${dashboard.totalNetPnlCents >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {dashboard.totalNetPnlCents >= 0 ? '+' : ''}${(dashboard.totalNetPnlCents / 100).toFixed(2)}
+                        <p
+                          className={`text-2xl font-bold mt-1 ${dashboard.totalNetPnlCents >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                        >
+                          {dashboard.totalNetPnlCents >= 0 ? "+" : ""}$
+                          {(dashboard.totalNetPnlCents / 100).toFixed(2)}
                         </p>
                       </div>
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${dashboard.totalNetPnlCents >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
-                        <BarChart3 className={`w-5 h-5 ${dashboard.totalNetPnlCents >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${dashboard.totalNetPnlCents >= 0 ? "bg-emerald-500/10" : "bg-red-500/10"}`}
+                      >
+                        <BarChart3
+                          className={`w-5 h-5 ${dashboard.totalNetPnlCents >= 0 ? "text-emerald-500" : "text-red-500"}`}
+                        />
                       </div>
                     </div>
                   </Card>
@@ -332,7 +347,8 @@ export default function MarketMakingPage() {
                     <Card className="p-8 text-center">
                       <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
                       <p className="text-muted-foreground">
-                        No live markets yet. Create and publish a proposal to get started.
+                        No live markets yet. Create and publish a proposal to
+                        get started.
                       </p>
                     </Card>
                   ) : (
@@ -341,44 +357,68 @@ export default function MarketMakingPage() {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2">
-                              <Badge className={
-                                market.status === "resolved"
-                                  ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
-                                  : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                              }>
-                                {market.status === "resolved" ? "Resolved" : "Live"}
+                              <Badge
+                                className={
+                                  market.status === "resolved"
+                                    ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
+                                    : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                }
+                              >
+                                {market.status === "resolved"
+                                  ? "Resolved"
+                                  : "Live"}
                               </Badge>
                               <Badge variant="outline">{market.category}</Badge>
                             </div>
-                            <h4 className="font-medium mb-2 line-clamp-2">{market.question}</h4>
+                            <h4 className="font-medium mb-2 line-clamp-2">
+                              {market.question}
+                            </h4>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                               <div>
                                 <p className="text-muted-foreground">Funding</p>
-                                <p className="font-medium">${(market.initialFundingCents / 100).toFixed(2)}</p>
+                                <p className="font-medium">
+                                  $
+                                  {(
+                                    market.fundingCollateralCents / 100
+                                  ).toFixed(2)}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-muted-foreground">Revenue</p>
-                                <p className="font-medium text-emerald-600">${(market.revenueCents / 100).toFixed(2)}</p>
+                                <p className="font-medium text-emerald-600">
+                                  ${(market.revenueCents / 100).toFixed(2)}
+                                </p>
                               </div>
                               <div>
-                                <p className="text-muted-foreground">Liability</p>
-                                <p className="font-medium text-amber-600">${(market.liabilityCents / 100).toFixed(2)}</p>
+                                <p className="text-muted-foreground">
+                                  Liability
+                                </p>
+                                <p className="font-medium text-amber-600">
+                                  ${(market.liabilityCents / 100).toFixed(2)}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-muted-foreground">Net P&L</p>
-                                <p className={`font-medium ${market.netPnlCents >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                  {market.netPnlCents >= 0 ? '+' : ''}${(market.netPnlCents / 100).toFixed(2)}
+                                <p
+                                  className={`font-medium ${market.netPnlCents >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                                >
+                                  {market.netPnlCents >= 0 ? "+" : ""}$
+                                  {(market.netPnlCents / 100).toFixed(2)}
                                 </p>
                               </div>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-xs text-muted-foreground">{market.numTrades} trades</p>
+                            <p className="text-xs text-muted-foreground">
+                              {market.numTrades} trades
+                            </p>
                             <Button
                               variant="outline"
                               size="sm"
                               className="mt-2"
-                              onClick={() => router.push(`/?market=${market.id}`)}
+                              onClick={() =>
+                                router.push(`/?market=${market.id}`)
+                              }
                             >
                               View <ExternalLink className="w-3 h-3 ml-1" />
                             </Button>
@@ -404,9 +444,12 @@ export default function MarketMakingPage() {
         {activeTab === "create" && (
           <Card className="p-6 max-w-2xl">
             <div className="mb-6">
-              <h2 className="text-xl font-semibold">Submit a Market Proposal</h2>
+              <h2 className="text-xl font-semibold">
+                Submit a Market Proposal
+              </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Your proposal will be reviewed by an admin before becoming a live market.
+                Your proposal will be reviewed by an admin before becoming a
+                live market.
               </p>
             </div>
             <MarketCreateForm onSuccess={handleProposalCreated} />
@@ -467,22 +510,22 @@ export default function MarketMakingPage() {
                         </p>
                       )}
                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        <span>
-                          Outcomes: {proposal.outcomes.join(", ")}
-                        </span>
+                        <span>Outcomes: {proposal.outcomes.join(", ")}</span>
                         <span>•</span>
                         <span>
                           Resolves:{" "}
-                          {new Date(proposal.resolutionDate).toLocaleDateString()}
+                          {new Date(
+                            proposal.resolutionDate,
+                          ).toLocaleDateString()}
                         </span>
                       </div>
 
                       {proposal.reviewNote && (
                         <div
                           className={`mt-3 p-3 rounded-lg text-sm ${
-                            proposal.status === "approved"
-                              ? "bg-emerald-500/10 text-emerald-700"
-                              : "bg-red-500/10 text-red-700"
+                            proposal.status === "rejected"
+                              ? "bg-red-500/10 text-red-700"
+                              : "bg-emerald-500/10 text-emerald-700"
                           }`}
                         >
                           <span className="font-medium">Review note:</span>{" "}
@@ -518,7 +561,9 @@ export default function MarketMakingPage() {
                             variant="outline"
                             size="sm"
                             onClick={() =>
-                              router.push(`/?market=${proposal.createdMarketId}`)
+                              router.push(
+                                `/?market=${proposal.createdMarketId}`,
+                              )
                             }
                           >
                             View Market
@@ -535,4 +580,3 @@ export default function MarketMakingPage() {
     </div>
   );
 }
-

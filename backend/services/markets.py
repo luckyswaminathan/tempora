@@ -57,16 +57,19 @@ class MarketService:
         return self._attach_quote(market)
 
     def create_market(self, payload: MarketCreate) -> Market:
-        market = self._create_market_internal(payload)
+        market = self.create_market_unquoted(payload)
         return self._attach_quote(market)
 
-    def _create_market_internal(
+    def create_market_unquoted(
         self,
         payload: MarketCreate,
         creator_id: Optional[str] = None,
-        initial_funding_cents: int = 0,
+        funding_collateral_cents: int = 0,
     ) -> models.Market:
-        """Internal method to create a market without returning the schema."""
+        """
+        Create a market with optional creator and funding collateral, returning the raw model.
+        Use create_market() for the standard API that returns the full schema.
+        """
         market = models.Market(
             question=payload.question,
             category=payload.category,
@@ -77,7 +80,7 @@ class MarketService:
             liquidity_parameter=payload.liquidity_parameter,
             ui_type=payload.ui_type,
             creator_id=creator_id,
-            initial_funding_cents=initial_funding_cents,
+            funding_collateral_cents=funding_collateral_cents,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -145,11 +148,32 @@ class MarketService:
 
         total_payout = sum(user_pnl.values())
 
-        # Deduct payouts from market maker's wallet (if market has a creator)
+        # Validate and deduct payouts from market maker's wallet (if market has a creator)
         if market.creator_id and total_payout > 0:
             creator_profile = self.session.get(models.Profile, market.creator_id)
-            if creator_profile:
-                creator_profile.wallet -= int(total_payout)
+            if not creator_profile:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Market creator profile not found",
+                )
+
+            # Check if payout exceeds funding collateral (should be theoretically impossible with LMSR)
+            if total_payout > market.funding_collateral_cents:
+                # This indicates a serious error in the LMSR implementation
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"CRITICAL ERROR: Settlement payout (${total_payout/100:.2f}) exceeds funding collateral (${market.funding_collateral_cents/100:.2f}). This should be impossible with LMSR.",
+                )
+
+            # Check if market maker has sufficient funds to cover payout
+            if creator_profile.wallet < int(total_payout):
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"CRITICAL ERROR: Market maker has insufficient funds. Required: ${total_payout/100:.2f}, Available: ${creator_profile.wallet/100:.2f}",
+                )
+
+            # Deduct the payout from market maker's wallet
+            creator_profile.wallet -= int(total_payout)
 
         # Pay out winners
         if user_pnl:
@@ -242,6 +266,7 @@ class MarketService:
                 "description": market.description,
                 "tags": market.tags or [],
                 "uiType": market.ui_type,
+                "creatorId": market.creator_id,
                 "winningSecurityId": market.winning_security_id,
                 "quotes": quotes,
                 "securities": securities,
@@ -328,14 +353,14 @@ class MarketService:
         markets = self.session.scalars(stmt).all()
 
         market_data = []
-        total_initial_funding = 0
+        total_funding_collateral = 0
         total_revenue = 0
         total_liability = 0
 
         for market in markets:
             # Calculate revenue from trades (sum of all trade prices)
             revenue = sum(t.price_cents for t in market.trades)
-            
+
             # Calculate current liability (potential payout)
             # For each security, liability = 100 cents * quantity held by traders
             liability = 0
@@ -366,7 +391,7 @@ class MarketService:
                     status=market.status,
                     resolutionDate=market.resolution_date,
                     createdAt=market.created_at,
-                    initialFundingCents=market.initial_funding_cents or 0,
+                    fundingCollateralCents=market.funding_collateral_cents or 0,
                     revenueCents=revenue,
                     liabilityCents=liability,
                     netPnlCents=net_pnl,
@@ -375,7 +400,7 @@ class MarketService:
                 )
             )
 
-            total_initial_funding += market.initial_funding_cents or 0
+            total_funding_collateral += market.funding_collateral_cents or 0
             total_revenue += revenue
             total_liability += liability
 
@@ -383,7 +408,7 @@ class MarketService:
 
         return MarketMakerDashboard(
             markets=market_data,
-            totalInitialFundingCents=total_initial_funding,
+            totalFundingCollateralCents=total_funding_collateral,
             totalRevenueCents=total_revenue,
             totalLiabilityCents=total_liability,
             totalNetPnlCents=total_net_pnl,

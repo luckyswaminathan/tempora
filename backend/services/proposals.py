@@ -15,6 +15,9 @@ from schemas.proposal import (
     ProposalListResponse,
     ProposerInfo,
 )
+from services.markets import MarketService
+from schemas.market import MarketCreate, OutcomeWithValue
+from services.trades import TradeService
 
 
 def calculate_max_loss_cents(liquidity_parameter: float, num_outcomes: int) -> int:
@@ -27,6 +30,8 @@ def calculate_max_loss_cents(liquidity_parameter: float, num_outcomes: int) -> i
 class ProposalService:
     def __init__(self, session: Session) -> None:
         self.session = session
+        self.market_service = MarketService(self.session)
+        self.trade_service = TradeService(self.session)
 
     def create_proposal(self, proposer_id: str, payload: ProposalCreate) -> Proposal:
         """Create a new market proposal."""
@@ -45,6 +50,7 @@ class ProposalService:
             outcomes=payload.outcomes,
             tags=payload.tags or [],
             liquidity_parameter=payload.liquidity_parameter,
+            ui_type=payload.ui_type,
             status=ProposalStatus.PENDING,
         )
         self.session.add(proposal)
@@ -79,7 +85,9 @@ class ProposalService:
             count=len(proposals),
         )
 
-    def get_all_proposals(self, status_filter: Optional[str] = None) -> ProposalListResponse:
+    def get_all_proposals(
+        self, status_filter: Optional[str] = None
+    ) -> ProposalListResponse:
         """Get all proposals with optional status filter (for admin)."""
         query = self.session.query(models.MarketProposal)
         if status_filter:
@@ -91,7 +99,11 @@ class ProposalService:
         )
 
     def review_proposal(
-        self, proposal_id: str, reviewer_id: str, approved: bool, note: Optional[str] = None
+        self,
+        proposal_id: str,
+        reviewer_id: str,
+        approved: bool,
+        note: Optional[str] = None,
     ) -> Proposal:
         """Approve or reject a proposal."""
         proposal = self.session.get(models.MarketProposal, proposal_id)
@@ -152,23 +164,31 @@ class ProposalService:
                 detail="User profile not found",
             )
 
-        # Calculate the initial funding required (max loss = b * ln(N))
+        # Calculate the funding collateral (max loss = b * ln(N))
+        # This represents the worst-case loss for the market maker (the collateral they must have).
+        # The market maker does NOT pay this upfront - they only pay out during settlement.
         liquidity = proposal.liquidity_parameter or 100.0
         num_outcomes = len(proposal.outcomes)
-        initial_funding_cents = calculate_max_loss_cents(liquidity, num_outcomes)
+        funding_collateral_cents = calculate_max_loss_cents(liquidity, num_outcomes)
 
-        # Check if market maker has enough funds
-        if profile.wallet < initial_funding_cents:
+        # Calculate total collateral already locked (from short positions + other markets)
+        current_collateral_locked = self.trade_service._get_user_collateral_locked(
+            user_id
+        )
+
+        # Verify market maker has enough funds to cover worst-case loss plus existing collateral
+        total_collateral_required = current_collateral_locked + funding_collateral_cents
+        if profile.wallet < total_collateral_required:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient funds. Required: ${initial_funding_cents/100:.2f}, Available: ${profile.wallet/100:.2f}",
+                detail=f"Insufficient funds to cover collateral requirements. Total required: ${total_collateral_required/100:.2f} (Current locked: ${current_collateral_locked/100:.2f} + New market: ${funding_collateral_cents/100:.2f}), Available: ${profile.wallet/100:.2f}",
             )
 
-        # Deduct the funding from market maker's wallet
-        profile.wallet -= initial_funding_cents
-
         # Create the actual market with creator info
-        market = self._create_market_from_proposal(proposal, user_id, initial_funding_cents)
+        # Note: funding_collateral_cents is stored but not deducted from wallet
+        market = self._create_market_from_proposal(
+            proposal, user_id, funding_collateral_cents
+        )
         proposal.created_market_id = market.id
         proposal.status = ProposalStatus.LIVE
 
@@ -178,20 +198,17 @@ class ProposalService:
         return self._to_schema(proposal, include_proposer=True)
 
     def _create_market_from_proposal(
-        self, proposal: models.MarketProposal, creator_id: str, initial_funding_cents: int
+        self,
+        proposal: models.MarketProposal,
+        creator_id: str,
+        funding_collateral_cents: int,
     ) -> models.Market:
-        """Create a market from an approved proposal."""
-        from services.markets import MarketService
-        from schemas.market import MarketCreate, OutcomeWithValue
-
-        market_service = MarketService(self.session)
-        
         # Convert string outcomes to OutcomeWithValue objects
         outcomes = [
             OutcomeWithValue(outcome=o, value=float(i + 1), isCatchAll=False)
             for i, o in enumerate(proposal.outcomes)
         ]
-        
+
         market_data = MarketCreate(
             question=proposal.question,
             category=proposal.category,
@@ -200,14 +217,20 @@ class ProposalService:
             outcomes=outcomes,
             tags=proposal.tags,
             liquidityParameter=proposal.liquidity_parameter,
+            uiType=proposal.ui_type,
         )
-        # Use internal method to create market with creator info
-        market = market_service._create_market_internal(
-            market_data, creator_id=creator_id, initial_funding_cents=initial_funding_cents
+
+        # Use method to create market with creator info
+        market = self.market_service.create_market_unquoted(
+            market_data,
+            creator_id=creator_id,
+            funding_collateral_cents=funding_collateral_cents,
         )
         return market
 
-    def _to_schema(self, proposal: models.MarketProposal, include_proposer: bool = False) -> Proposal:
+    def _to_schema(
+        self, proposal: models.MarketProposal, include_proposer: bool = False
+    ) -> Proposal:
         """Convert a MarketProposal model to a Proposal schema."""
         proposer_info = None
         if include_proposer and proposal.proposer:
@@ -229,6 +252,7 @@ class ProposalService:
             outcomes=proposal.outcomes,
             tags=proposal.tags or [],
             liquidityParameter=proposal.liquidity_parameter,
+            uiType=proposal.ui_type,
             status=proposal.status,
             reviewerId=proposal.reviewer_id,
             reviewNote=proposal.review_note,
@@ -237,4 +261,3 @@ class ProposalService:
             createdAt=proposal.created_at,
             updatedAt=proposal.updated_at,
         )
-

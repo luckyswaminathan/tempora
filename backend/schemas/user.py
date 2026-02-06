@@ -10,7 +10,6 @@ class UserBase(BaseModel):
     id: str = Field(description="User UUID")
     email: EmailStr
     role: UserRole
-    is_market_maker: bool = Field(default=False, alias="isMarketMaker")
     created_at: Optional[UTCDateTime] = Field(default=None, alias="createdAt")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -20,7 +19,6 @@ class UserProfile(BaseModel):
     id: str
     email: EmailStr
     role: UserRole
-    is_market_maker: bool = Field(default=False, alias="isMarketMaker")
     display_name: Optional[str] = Field(default=None, alias="displayName")
     wallet: int
     joined_at: UTCDateTime = Field(alias="joinedAt")

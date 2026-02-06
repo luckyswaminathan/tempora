@@ -215,27 +215,27 @@ def seed_markets() -> None:
             },
         ]
 
-        # Get or create a seed user for initial trades
-        seed_user = (
+        # Get or create an admin user
+        admin_user = (
             session.query(models.User)
-            .filter(models.User.email == "seed@tempora.com")
+            .filter(models.User.email == "admin@tempora.com")
             .first()
         )
-        if not seed_user:
+        if not admin_user:
             from core.security import hash_password
 
-            seed_user = models.User(
-                email="seed@tempora.com",
-                password_hash=hash_password("seed123"),
+            admin_user = models.User(
+                email="admin@tempora.com",
+                role=models.UserRole.ADMIN,
+                password_hash=hash_password("admin123"),
                 created_at=datetime.now(timezone.utc),
             )
-            session.add(seed_user)
+            session.add(admin_user)
             session.flush()
-            # Create profile for seed user
             session.add(
                 models.Profile(
-                    id=seed_user.id,
-                    display_name="Seed User",
+                    id=admin_user.id,
+                    display_name="Admin",
                     joined_at=datetime.now(timezone.utc),
                 )
             )
@@ -251,6 +251,7 @@ def seed_markets() -> None:
                 tags=market["tags"],
                 liquidity_parameter=market["liquidity_parameter"],
                 ui_type=market["ui_type"],
+                creator_id=admin_user.id,  # For testing purposes
             )
             session.add(m)
             session.flush()
@@ -315,7 +316,7 @@ def seed_markets() -> None:
                 # Create a trade with random price
                 price = random.randint(30, 70)  # Price in cents
                 trade = models.Trade(
-                    user_id=seed_user.id,
+                    user_id=admin_user.id,
                     market_id=m.id,
                     security_id=sec.id,
                     quantity=qty,

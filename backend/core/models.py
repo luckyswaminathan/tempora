@@ -29,6 +29,18 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class MarketBase:
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolution_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
+    liquidity_parameter: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ui_type: Mapped[str] = mapped_column(String, nullable=False, default="bars-ordered")
+
+
 class MarketStatus(StrEnum):
     OPEN = "open"
     CLOSED = "closed"
@@ -45,6 +57,7 @@ class ProposalStatus(StrEnum):
 
 class UserRole(StrEnum):
     USER = "user"
+    MARKET_MAKER = "market_maker"
     ADMIN = "admin"
 
 
@@ -56,12 +69,9 @@ class User(Base):
     )
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     role: Mapped[str] = mapped_column(
-        Enum(UserRole),
-        default=UserRole.ADMIN if settings.environment == "test" else UserRole.USER,
-        nullable=False,
+        Enum(UserRole), default=UserRole.USER, nullable=False
     )
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
-    is_market_maker: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
@@ -102,35 +112,28 @@ class Profile(Base):
     user: Mapped[User] = relationship(back_populates="profile", viewonly=True)
 
 
-class Market(Base):
+class Market(MarketBase, Base):
     __tablename__ = "markets"
 
     id: Mapped[str] = mapped_column(
         String, primary_key=True, default=lambda: str(uuid4())
     )
-    creator_id: Mapped[str | None] = mapped_column(
-        String, ForeignKey("users.id"), nullable=True
+    creator_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id"), nullable=False
     )
-    question: Mapped[str] = mapped_column(Text, nullable=False)
-    category: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(
         Enum(MarketStatus), nullable=False, default=MarketStatus.OPEN
     )
-    resolution_date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
+    funding_collateral_cents: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
     )
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
-    liquidity_parameter: Mapped[float | None] = mapped_column(Float, nullable=True)
-    initial_funding_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    ui_type: Mapped[str] = mapped_column(String, nullable=False, default="bars-ordered")
     winning_security_id: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
     )
 
-    creator: Mapped[User | None] = relationship(foreign_keys=[creator_id])
+    creator: Mapped[User] = relationship(foreign_keys=[creator_id])
     securities: Mapped[List["Security"]] = relationship(
         back_populates="market", cascade="all, delete-orphan", viewonly=True
     )
@@ -159,7 +162,7 @@ class Security(Base):
     __table_args__ = (UniqueConstraint("id", "market_id", name="uq_security_market"),)
 
 
-class MarketProposal(Base):
+class MarketProposal(MarketBase, Base):
     __tablename__ = "market_proposals"
 
     id: Mapped[str] = mapped_column(
@@ -168,15 +171,7 @@ class MarketProposal(Base):
     proposer_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    question: Mapped[str] = mapped_column(Text, nullable=False)
-    category: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    resolution_date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
     outcomes: Mapped[list[str]] = mapped_column(JSON, nullable=False)
-    tags: Mapped[list[str]] = mapped_column(JSON, default=list)
-    liquidity_parameter: Mapped[float | None] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(
         Enum(ProposalStatus), nullable=False, default=ProposalStatus.PENDING
     )

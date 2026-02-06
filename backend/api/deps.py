@@ -4,6 +4,7 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.database import get_session
+from core.models import UserRole
 from schemas.user import UserBase
 from services.markets import MarketService
 from services.trades import TradeService
@@ -68,7 +69,7 @@ def get_current_admin(
     auth_service: AuthService = Depends(get_auth_service),
 ):
     user = get_current_user(authorization, auth_service)
-    if user.role != "admin":
+    if user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User does not have admin role",
@@ -81,11 +82,8 @@ def get_current_market_maker(
     auth_service: AuthService = Depends(get_auth_service),
     session: Session = Depends(get_session),
 ):
-    from core import models
-    
     user = get_current_user(authorization, auth_service)
-    db_user = session.get(models.User, user.id)
-    if not db_user or not db_user.is_market_maker:
+    if user.role != UserRole.MARKET_MAKER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only market makers can perform this action",

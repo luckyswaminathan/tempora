@@ -88,6 +88,7 @@ def client(test_user) -> TestClient:
     app = create_app()
     app.dependency_overrides[deps.get_current_user] = lambda: test_user
     app.dependency_overrides[deps.get_current_admin] = lambda: test_user
+    app.dependency_overrides[deps.get_current_market_maker] = lambda: test_user
     return TestClient(app)
 
 

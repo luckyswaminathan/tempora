@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, TrendingUp, Users } from "lucide-react";
+import { Trophy, TrendingUp, Shield, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usersApi } from "@/lib/api";
 
@@ -10,6 +10,7 @@ interface LeaderboardRow {
   rank: number;
   id: string;
   name: string;
+  role: "user" | "market_maker" | "admin";
   pnl: number;
 }
 
@@ -27,6 +28,7 @@ export default function LeaderboardPage() {
           rank: index + 1,
           id: user.id,
           name: user.displayName || user.email,
+          role: user.role,
           pnl: user.wallet,
         }));
         setLeaderboard(rows);
@@ -80,7 +82,24 @@ export default function LeaderboardPage() {
                     {row.rank}
                   </div>
                   <div>
-                    <div className="font-medium">{row.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{row.name}</span>
+                      {row.role === "admin" && (
+                        <span title="Admin">
+                          <Shield className="w-4 h-4 text-violet-600" />
+                        </span>
+                      )}
+                      {row.role === "market_maker" && (
+                        <span title="Market Maker">
+                          <TrendingUp className="w-4 h-4 text-emerald-600" />
+                        </span>
+                      )}
+                      {row.role === "user" && (
+                        <span title="User">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-8">

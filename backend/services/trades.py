@@ -99,8 +99,9 @@ class TradeService:
 
     def _get_user_collateral_locked(self, user_id: str) -> int:
         """
-        Calculate total collateral locked for all short positions.
-        This is the sum of |short quantity| * 100 cents for all net short positions.
+        Calculate total collateral locked for both:
+        1. Short positions: sum of |short quantity| * 100 cents for all net short positions
+        2. Market maker funding: sum of funding_collateral_cents for markets created by user
         """
         # Get all trades for open markets
         stmt = (
@@ -120,12 +121,24 @@ class TradeService:
             positions[key] = positions.get(key, 0) + trade.quantity
 
         # Sum up collateral for short positions
-        collateral = 0
+        short_collateral = 0
         for position in positions.values():
             if position < 0:  # Short position
-                collateral += abs(position) * 100  # $1 = 100 cents per share
+                short_collateral += abs(position) * 100  # $1 = 100 cents per share
 
-        return collateral
+        # Get all markets created by this user that are not resolved
+        markets_stmt = select(models.Market).where(
+            models.Market.creator_id == user_id,
+            models.Market.status != models.MarketStatus.RESOLVED,
+        )
+        markets = self.session.scalars(markets_stmt).all()
+
+        # Sum up market maker funding collateral
+        market_maker_collateral = sum(
+            market.funding_collateral_cents for market in markets
+        )
+
+        return short_collateral + market_maker_collateral
 
     def get_spendable_balance(self, user_id: str) -> int:
         """Get user's spendable balance (wallet minus locked collateral)."""

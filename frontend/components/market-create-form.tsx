@@ -56,7 +56,10 @@ interface MarketCreateFormProps {
   onSuccess?: () => void;
 }
 
-export function MarketCreateForm({ disabled = false, onSuccess }: MarketCreateFormProps) {
+export function MarketCreateForm({
+  disabled = false,
+  onSuccess,
+}: MarketCreateFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     question: "",
@@ -231,6 +234,7 @@ export function MarketCreateForm({ disabled = false, onSuccess }: MarketCreateFo
         liquidityParameter: formData.liquidityParameter
           ? parseInt(formData.liquidityParameter)
           : undefined,
+        uiType: formData.uiType,
       });
 
       toast.success("Market created successfully!");
@@ -248,6 +252,8 @@ export function MarketCreateForm({ disabled = false, onSuccess }: MarketCreateFo
         tags: "",
         liquidityParameter: "1000",
       });
+      // Call onSuccess callback to refresh parent component
+      onSuccess?.();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to submit proposal",
@@ -916,15 +922,15 @@ export function MarketCreateForm({ disabled = false, onSuccess }: MarketCreateFo
 
       {/* Manual Outcomes for default style */}
       {formData.uiType === "bars-ordered" && (
-      <div className="space-y-2">
-        <Label>Outcomes</Label>
         <div className="space-y-2">
-          {formData.outcomes.map((outcome, idx) => (
+          <Label>Outcomes</Label>
+          <div className="space-y-2">
+            {formData.outcomes.map((outcome, idx) => (
               <div key={idx} className="flex gap-2 items-center">
-              <Input
-                placeholder={`Outcome ${idx + 1}`}
+                <Input
+                  placeholder={`Outcome ${idx + 1}`}
                   value={outcome.text}
-                onChange={(e) => updateOutcome(idx, e.target.value)}
+                  onChange={(e) => updateOutcome(idx, e.target.value)}
                   className="flex-1"
                 />
                 <label className="flex items-center gap-2 whitespace-nowrap text-sm">
@@ -936,29 +942,29 @@ export function MarketCreateForm({ disabled = false, onSuccess }: MarketCreateFo
                   />
                   Catch-all
                 </label>
-              {formData.outcomes.length > 2 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeOutcome(idx)}
-                >
+                {formData.outcomes.length > 2 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeOutcome(idx)}
+                  >
                     <X className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          ))}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={addOutcome}
+          >
+            Add Outcome
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-2"
-          onClick={addOutcome}
-        >
-          Add Outcome
-        </Button>
-      </div>
       )}
 
       {/* Tags */}
@@ -986,7 +992,11 @@ export function MarketCreateForm({ disabled = false, onSuccess }: MarketCreateFo
         />
       </div>
 
-      <Button type="submit" disabled={submitting || disabled} className="w-full">
+      <Button
+        type="submit"
+        disabled={submitting || disabled}
+        className="w-full"
+      >
         {submitting ? "Submitting..." : "Submit for Review"}
       </Button>
     </form>

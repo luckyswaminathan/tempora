@@ -64,8 +64,7 @@ export interface AuthResponse {
   user: {
     id: string;
     email: string;
-    role: "user" | "admin";
-    isMarketMaker?: boolean;
+    role: "user" | "market_maker" | "admin";
     createdAt?: string;
   };
   tokens: {
@@ -126,6 +125,7 @@ export interface Market {
     | "month"
     | "day"
     | "interval";
+  creatorId: string;
   winningSecurityId?: string;
   quotes: Array<{
     securityId: string;
@@ -314,8 +314,7 @@ export const tradesApi = {
 export interface UserProfile {
   id: string;
   email: string;
-  role: "user" | "admin";
-  isMarketMaker?: boolean;
+  role: "user" | "market_maker" | "admin";
   displayName?: string;
   wallet: number;
   joinedAt: string;
@@ -327,8 +326,7 @@ export interface UserProfile {
 export interface AdminUserListItem {
   id: string;
   email: string;
-  role: "user" | "admin";
-  is_market_maker: boolean;
+  role: "user" | "market_maker" | "admin";
   display_name?: string;
   wallet: number;
   created_at?: string;
@@ -366,7 +364,7 @@ export interface LeaderboardResponse {
   leaderboard: Array<{
     id: string;
     email: string;
-    role: "user" | "admin";
+    role: "user" | "market_maker" | "admin";
     displayName?: string;
     wallet: number;
     joinedAt: string;
@@ -435,13 +433,13 @@ export const adminApi = {
     return fetchWithAuth("/admin/market-makers");
   },
 
-  async updateMarketMakerStatus(
+  async updateUserRole(
     userId: string,
-    isMarketMaker: boolean,
+    role: "user" | "market_maker" | "admin",
   ): Promise<AdminUserListItem> {
-    return fetchWithAuth(`/admin/users/${userId}/market-maker`, {
+    return fetchWithAuth(`/admin/users/${userId}/role`, {
       method: "PATCH",
-      body: JSON.stringify({ is_market_maker: isMarketMaker }),
+      body: JSON.stringify({ role }),
     });
   },
 
@@ -468,6 +466,7 @@ export interface Proposal {
   outcomes: string[];
   tags: string[];
   liquidityParameter?: number;
+  uiType: string;
   status: "pending" | "approved" | "rejected" | "live";
   reviewerId?: string;
   reviewNote?: string;
@@ -490,6 +489,7 @@ export interface ProposalCreate {
   outcomes: string[];
   tags?: string[];
   liquidityParameter?: number;
+  uiType?: string;
 }
 
 export const proposalsApi = {
@@ -539,7 +539,7 @@ export interface MarketMakerMarket {
   status: string;
   resolutionDate: string;
   createdAt: string;
-  initialFundingCents: number;
+  fundingCollateralCents: number;
   revenueCents: number;
   liabilityCents: number;
   netPnlCents: number;
@@ -549,7 +549,7 @@ export interface MarketMakerMarket {
 
 export interface MarketMakerDashboard {
   markets: MarketMakerMarket[];
-  totalInitialFundingCents: number;
+  totalFundingCollateralCents: number;
   totalRevenueCents: number;
   totalLiabilityCents: number;
   totalNetPnlCents: number;

@@ -57,7 +57,7 @@ export function Header() {
               >
                 Tutorial
               </a>
-              {!loading && profile?.isMarketMaker && (
+              {!loading && profile?.role === "market_maker" && (
                 <a
                   id="nav-market-making"
                   href="/market-making"

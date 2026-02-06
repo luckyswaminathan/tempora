@@ -24,7 +24,12 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { adminApi, proposalsApi, type AdminUserListItem, type Proposal } from "@/lib/api";
+import {
+  adminApi,
+  proposalsApi,
+  type AdminUserListItem,
+  type Proposal,
+} from "@/lib/api";
 
 type MainTab = "users" | "proposals";
 
@@ -38,14 +43,24 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
-  const [submittingProposalId, setSubmittingProposalId] = useState<string | null>(null);
-  const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
+  const [submittingProposalId, setSubmittingProposalId] = useState<
+    string | null
+  >(null);
+  const [editingProposalId, setEditingProposalId] = useState<string | null>(
+    null,
+  );
   const [reviewNote, setReviewNote] = useState("");
   const [mainTab, setMainTab] = useState<MainTab>("proposals");
   const [activeTab, setActiveTab] = useState<"all" | "market-makers">("all");
-  const [proposalFilter, setProposalFilter] = useState<"pending" | "all">("pending");
-  const [selectedUser, setSelectedUser] = useState<AdminUserListItem | null>(null);
-  const [selectedUserProposals, setSelectedUserProposals] = useState<Proposal[]>([]);
+  const [proposalFilter, setProposalFilter] = useState<"pending" | "all">(
+    "pending",
+  );
+  const [selectedUser, setSelectedUser] = useState<AdminUserListItem | null>(
+    null,
+  );
+  const [selectedUserProposals, setSelectedUserProposals] = useState<
+    Proposal[]
+  >([]);
   const [loadingUserProposals, setLoadingUserProposals] = useState(false);
 
   useEffect(() => {
@@ -56,9 +71,10 @@ export default function AdminDashboard() {
 
   const fetchProposals = async () => {
     try {
-      const response = proposalFilter === "pending" 
-        ? await proposalsApi.getPendingProposals()
-        : await proposalsApi.getAllProposals();
+      const response =
+        proposalFilter === "pending"
+          ? await proposalsApi.getPendingProposals()
+          : await proposalsApi.getAllProposals();
       setProposals(response.proposals);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load proposals");
@@ -102,7 +118,9 @@ export default function AdminDashboard() {
       const response = await adminApi.getUserProposals(u.id);
       setSelectedUserProposals(response.proposals);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load user proposals");
+      setError(
+        err instanceof Error ? err.message : "Failed to load user proposals",
+      );
       setSelectedUserProposals([]);
     } finally {
       setLoadingUserProposals(false);
@@ -116,29 +134,25 @@ export default function AdminDashboard() {
 
   const handleToggleMarketMaker = async (
     userId: string,
-    currentStatus: boolean,
+    currentRole: "user" | "market_maker" | "admin",
   ) => {
     setUpdatingUserId(userId);
     try {
-      const updated = await adminApi.updateMarketMakerStatus(
-        userId,
-        !currentStatus,
-      );
+      const newRole = currentRole === "market_maker" ? "user" : "market_maker";
+      const updated = await adminApi.updateUserRole(userId, newRole);
 
       // Update local state
       setUsers((prev) =>
-        prev.map((u) =>
-          u.id === userId ? { ...u, is_market_maker: updated.is_market_maker } : u,
-        ),
+        prev.map((u) => (u.id === userId ? { ...u, role: updated.role } : u)),
       );
 
       // Update market makers list
-      if (updated.is_market_maker) {
+      if (updated.role === "market_maker") {
         const userToAdd = users.find((u) => u.id === userId);
         if (userToAdd) {
           setMarketMakers((prev) => [
             ...prev,
-            { ...userToAdd, is_market_maker: true },
+            { ...userToAdd, role: "market_maker" },
           ]);
         }
       } else {
@@ -146,24 +160,36 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to update market maker status",
+        err instanceof Error
+          ? err.message
+          : "Failed to update market maker status",
       );
     } finally {
       setUpdatingUserId(null);
     }
   };
 
-  const handleReviewProposal = async (proposalId: string, approved: boolean) => {
+  const handleReviewProposal = async (
+    proposalId: string,
+    approved: boolean,
+  ) => {
     setSubmittingProposalId(proposalId);
     try {
-      const noteToSend = editingProposalId === proposalId ? reviewNote : undefined;
-      await proposalsApi.reviewProposal(proposalId, approved, noteToSend || undefined);
+      const noteToSend =
+        editingProposalId === proposalId ? reviewNote : undefined;
+      await proposalsApi.reviewProposal(
+        proposalId,
+        approved,
+        noteToSend || undefined,
+      );
       setReviewNote("");
       setEditingProposalId(null);
       // Refresh proposals
       await fetchProposals();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to review proposal");
+      setError(
+        err instanceof Error ? err.message : "Failed to review proposal",
+      );
     } finally {
       setSubmittingProposalId(null);
     }
@@ -177,7 +203,9 @@ export default function AdminDashboard() {
 
   const regularUsers = users.filter((u) => u.role === "user");
   const marketMakerCount = marketMakers.length;
-  const pendingProposalsCount = proposals.filter((p) => p.status === "pending").length;
+  const pendingProposalsCount = proposals.filter(
+    (p) => p.status === "pending",
+  ).length;
 
   if (authLoading || (!user && !authLoading)) {
     return (
@@ -293,116 +321,143 @@ export default function AdminDashboard() {
                 <Card className="p-12 text-center">
                   <FileText className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-medium mb-2">
-                    {proposalFilter === "pending" ? "No pending proposals" : "No proposals yet"}
+                    {proposalFilter === "pending"
+                      ? "No pending proposals"
+                      : "No proposals yet"}
                   </h3>
                   <p className="text-muted-foreground">
-                    {proposalFilter === "pending" 
+                    {proposalFilter === "pending"
                       ? "All market proposals have been reviewed."
                       : "Market makers haven't submitted any proposals yet."}
                   </p>
                 </Card>
               )}
 
-              {!loading && proposals.map((proposal) => (
-                <Card key={proposal.id} className="p-5 border-border/50">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        {proposal.status === "pending" && (
-                          <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Pending
-                          </Badge>
-                        )}
-                        {proposal.status === "approved" && (
-                          <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Ready to Publish
-                          </Badge>
-                        )}
-                        {proposal.status === "live" && (
-                          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                            <Zap className="w-3 h-3 mr-1" />
-                            Live
-                          </Badge>
-                        )}
-                        {proposal.status === "rejected" && (
-                          <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
-                            <XCircle className="w-3 h-3 mr-1" />
-                            Rejected
-                          </Badge>
-                        )}
-                        <Badge variant="outline">{proposal.category}</Badge>
-                      </div>
-                      <h3 className="font-semibold text-lg mb-1">{proposal.question}</h3>
-                      {proposal.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{proposal.description}</p>
-                      )}
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span>Outcomes: {proposal.outcomes.join(", ")}</span>
-                        <span>Resolves: {new Date(proposal.resolutionDate).toLocaleDateString()}</span>
-                        {proposal.proposer && (
-                          <span>By: {proposal.proposer.displayName || proposal.proposer.email}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(proposal.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-
-                  {proposal.status === "pending" && (
-                    <div className="pt-4 border-t border-border/50">
-                      <div className="flex items-center gap-3">
-                        <Input
-                          placeholder="Add a note (optional)..."
-                          value={editingProposalId === proposal.id ? reviewNote : ""}
-                          onChange={(e) => {
-                            setEditingProposalId(proposal.id);
-                            setReviewNote(e.target.value);
-                          }}
-                          className="flex-1 text-sm"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => handleReviewProposal(proposal.id, true)}
-                          disabled={submittingProposalId === proposal.id}
-                          className="bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          {submittingProposalId === proposal.id ? (
-                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <>
-                              <Check className="w-4 h-4 mr-1" />
-                              Approve
-                            </>
+              {!loading &&
+                proposals.map((proposal) => (
+                  <Card key={proposal.id} className="p-5 border-border/50">
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          {proposal.status === "pending" && (
+                            <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Pending
+                            </Badge>
                           )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleReviewProposal(proposal.id, false)}
-                          disabled={submittingProposalId === proposal.id}
-                          className="border-red-500/30 text-red-600 hover:bg-red-500/10"
-                        >
-                          <X className="w-4 h-4 mr-1" />
-                          Reject
-                        </Button>
+                          {proposal.status === "approved" && (
+                            <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Ready to Publish
+                            </Badge>
+                          )}
+                          {proposal.status === "live" && (
+                            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                              <Zap className="w-3 h-3 mr-1" />
+                              Live
+                            </Badge>
+                          )}
+                          {proposal.status === "rejected" && (
+                            <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Rejected
+                            </Badge>
+                          )}
+                          <Badge variant="outline">{proposal.category}</Badge>
+                        </div>
+                        <h3 className="font-semibold text-lg mb-1">
+                          {proposal.question}
+                        </h3>
+                        {proposal.description && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {proposal.description}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span>Outcomes: {proposal.outcomes.join(", ")}</span>
+                          <span>
+                            Resolves:{" "}
+                            {new Date(
+                              proposal.resolutionDate,
+                            ).toLocaleDateString()}
+                          </span>
+                          {proposal.proposer && (
+                            <span>
+                              By:{" "}
+                              {proposal.proposer.displayName ||
+                                proposal.proposer.email}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(proposal.createdAt).toLocaleDateString()}
                       </div>
                     </div>
-                  )}
 
-                  {proposal.reviewNote && proposal.status !== "pending" && (
-                    <div className={`mt-3 p-3 rounded-lg text-sm ${
-                      proposal.status === "rejected"
-                        ? "bg-red-500/10 text-red-700"
-                        : "bg-emerald-500/10 text-emerald-700"
-                    }`}>
-                      <span className="font-medium">Review note:</span> {proposal.reviewNote}
-                    </div>
-                  )}
-                </Card>
-              ))}
+                    {proposal.status === "pending" && (
+                      <div className="pt-4 border-t border-border/50">
+                        <div className="flex items-center gap-3">
+                          <Input
+                            placeholder="Add a note (optional)..."
+                            value={
+                              editingProposalId === proposal.id
+                                ? reviewNote
+                                : ""
+                            }
+                            onChange={(e) => {
+                              setEditingProposalId(proposal.id);
+                              setReviewNote(e.target.value);
+                            }}
+                            className="flex-1 text-sm"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              handleReviewProposal(proposal.id, true)
+                            }
+                            disabled={submittingProposalId === proposal.id}
+                            className="bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            {submittingProposalId === proposal.id ? (
+                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <>
+                                <Check className="w-4 h-4 mr-1" />
+                                Approve
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleReviewProposal(proposal.id, false)
+                            }
+                            disabled={submittingProposalId === proposal.id}
+                            className="border-red-500/30 text-red-600 hover:bg-red-500/10"
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {proposal.reviewNote && proposal.status !== "pending" && (
+                      <div
+                        className={`mt-3 p-3 rounded-lg text-sm ${
+                          proposal.status === "rejected"
+                            ? "bg-red-500/10 text-red-700"
+                            : "bg-emerald-500/10 text-emerald-700"
+                        }`}
+                      >
+                        <span className="font-medium">Review note:</span>{" "}
+                        {proposal.reviewNote}
+                      </div>
+                    )}
+                  </Card>
+                ))}
             </div>
           </>
         )}
@@ -432,7 +487,9 @@ export default function AdminDashboard() {
                     <p className="text-sm font-medium text-muted-foreground">
                       Market Makers
                     </p>
-                    <p className="text-3xl font-bold mt-1">{marketMakerCount}</p>
+                    <p className="text-3xl font-bold mt-1">
+                      {marketMakerCount}
+                    </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
                     <TrendingUp className="w-6 h-6 text-emerald-500" />
@@ -447,7 +504,7 @@ export default function AdminDashboard() {
                       Regular Users
                     </p>
                     <p className="text-3xl font-bold mt-1">
-                      {regularUsers.length - marketMakerCount}
+                      {regularUsers.length}
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
@@ -555,7 +612,7 @@ export default function AdminDashboard() {
                                   Admin
                                 </Badge>
                               )}
-                              {u.is_market_maker && (
+                              {u.role === "market_maker" && (
                                 <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                                   <Sparkles className="w-3 h-3 mr-1" />
                                   Market Maker
@@ -570,7 +627,9 @@ export default function AdminDashboard() {
 
                         <div className="flex items-center gap-6 shrink-0">
                           <div className="text-right hidden sm:block">
-                            <p className="text-xs text-muted-foreground">Wallet</p>
+                            <p className="text-xs text-muted-foreground">
+                              Wallet
+                            </p>
                             <p className="font-semibold text-emerald-600">
                               ${(u.wallet / 100).toFixed(2)}
                             </p>
@@ -578,30 +637,43 @@ export default function AdminDashboard() {
 
                           {u.role === "user" && (
                             <Button
-                              variant={u.is_market_maker ? "outline" : "default"}
+                              variant="default"
                               size="sm"
                               disabled={updatingUserId === u.id}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleToggleMarketMaker(u.id, u.is_market_maker);
+                                handleToggleMarketMaker(u.id, u.role);
                               }}
-                              className={
-                                u.is_market_maker
-                                  ? "border-destructive/30 text-destructive hover:bg-destructive/10"
-                                  : "bg-emerald-600 hover:bg-emerald-700"
-                              }
+                              className="bg-emerald-600 hover:bg-emerald-700"
                             >
                               {updatingUserId === u.id ? (
                                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                              ) : u.is_market_maker ? (
-                                <>
-                                  <X className="w-4 h-4 mr-1" />
-                                  Remove
-                                </>
                               ) : (
                                 <>
                                   <Check className="w-4 h-4 mr-1" />
                                   Make MM
+                                </>
+                              )}
+                            </Button>
+                          )}
+
+                          {u.role === "market_maker" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={updatingUserId === u.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleMarketMaker(u.id, u.role);
+                              }}
+                              className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                            >
+                              {updatingUserId === u.id ? (
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <>
+                                  <X className="w-4 h-4 mr-1" />
+                                  Remove
                                 </>
                               )}
                             </Button>
@@ -643,7 +715,8 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
                       <span className="text-2xl font-semibold text-violet-600">
-                        {(selectedUser.display_name || selectedUser.email)[0].toUpperCase()}
+                        {(selectedUser.display_name ||
+                          selectedUser.email)[0].toUpperCase()}
                       </span>
                     </div>
                     <div>
@@ -656,37 +729,51 @@ export default function AdminDashboard() {
                             Admin
                           </Badge>
                         )}
-                        {selectedUser.is_market_maker && (
+                        {selectedUser.role === "market_maker" && (
                           <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                             <Sparkles className="w-3 h-3 mr-1" />
                             Market Maker
                           </Badge>
                         )}
                       </div>
-                      <p className="text-muted-foreground">{selectedUser.email}</p>
+                      <p className="text-muted-foreground">
+                        {selectedUser.email}
+                      </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Wallet</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Wallet
+                      </p>
                       <p className="text-lg font-semibold text-emerald-600">
                         ${(selectedUser.wallet / 100).toFixed(2)}
                       </p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <p className="text-xs text-muted-foreground mb-1">Role</p>
-                      <p className="text-lg font-semibold capitalize">{selectedUser.role}</p>
+                      <p className="text-lg font-semibold capitalize">
+                        {selectedUser.role}
+                      </p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Proposals</p>
-                      <p className="text-lg font-semibold">{selectedUserProposals.length}</p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Joined</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Proposals
+                      </p>
                       <p className="text-lg font-semibold">
-                        {selectedUser.created_at 
-                          ? new Date(selectedUser.created_at).toLocaleDateString()
+                        {selectedUserProposals.length}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Joined
+                      </p>
+                      <p className="text-lg font-semibold">
+                        {selectedUser.created_at
+                          ? new Date(
+                              selectedUser.created_at,
+                            ).toLocaleDateString()
                           : "N/A"}
                       </p>
                     </div>
@@ -709,73 +796,93 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  {!loadingUserProposals && selectedUserProposals.length === 0 && (
-                    <Card className="p-8 text-center border-border/50">
-                      <FileText className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-                      <p className="text-muted-foreground">
-                        This user hasn&apos;t submitted any market proposals yet.
-                      </p>
-                    </Card>
-                  )}
+                  {!loadingUserProposals &&
+                    selectedUserProposals.length === 0 && (
+                      <Card className="p-8 text-center border-border/50">
+                        <FileText className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
+                        <p className="text-muted-foreground">
+                          This user hasn&apos;t submitted any market proposals
+                          yet.
+                        </p>
+                      </Card>
+                    )}
 
-                  {!loadingUserProposals && selectedUserProposals.length > 0 && (
-                    <div className="space-y-3">
-                      {selectedUserProposals.map((proposal) => (
-                        <Card key={proposal.id} className="p-4 border-border/50">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                {proposal.status === "pending" && (
-                                  <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    Pending
+                  {!loadingUserProposals &&
+                    selectedUserProposals.length > 0 && (
+                      <div className="space-y-3">
+                        {selectedUserProposals.map((proposal) => (
+                          <Card
+                            key={proposal.id}
+                            className="p-4 border-border/50"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  {proposal.status === "pending" && (
+                                    <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      Pending
+                                    </Badge>
+                                  )}
+                                  {proposal.status === "approved" && (
+                                    <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                                      Ready to Publish
+                                    </Badge>
+                                  )}
+                                  {proposal.status === "live" && (
+                                    <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                                      <Zap className="w-3 h-3 mr-1" />
+                                      Live
+                                    </Badge>
+                                  )}
+                                  {proposal.status === "rejected" && (
+                                    <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      Rejected
+                                    </Badge>
+                                  )}
+                                  <Badge variant="outline">
+                                    {proposal.category}
                                   </Badge>
-                                )}
-                                {proposal.status === "approved" && (
-                                  <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                                    Ready to Publish
-                                  </Badge>
-                                )}
-                                {proposal.status === "live" && (
-                                  <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                                    <Zap className="w-3 h-3 mr-1" />
-                                    Live
-                                  </Badge>
-                                )}
-                                {proposal.status === "rejected" && (
-                                  <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    Rejected
-                                  </Badge>
-                                )}
-                                <Badge variant="outline">{proposal.category}</Badge>
-                              </div>
-                              <h4 className="font-medium mb-1">{proposal.question}</h4>
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                <span>Outcomes: {proposal.outcomes.join(", ")}</span>
-                                <span>
-                                  Resolves: {new Date(proposal.resolutionDate).toLocaleDateString()}
-                                </span>
-                              </div>
-                              {proposal.reviewNote && (
-                                <div className={`mt-2 p-2 rounded text-xs ${
-                                  proposal.status === "rejected"
-                                    ? "bg-red-500/10 text-red-700"
-                                    : "bg-emerald-500/10 text-emerald-700"
-                                }`}>
-                                  <span className="font-medium">Note:</span> {proposal.reviewNote}
                                 </div>
-                              )}
+                                <h4 className="font-medium mb-1">
+                                  {proposal.question}
+                                </h4>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                  <span>
+                                    Outcomes: {proposal.outcomes.join(", ")}
+                                  </span>
+                                  <span>
+                                    Resolves:{" "}
+                                    {new Date(
+                                      proposal.resolutionDate,
+                                    ).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                {proposal.reviewNote && (
+                                  <div
+                                    className={`mt-2 p-2 rounded text-xs ${
+                                      proposal.status === "rejected"
+                                        ? "bg-red-500/10 text-red-700"
+                                        : "bg-emerald-500/10 text-emerald-700"
+                                    }`}
+                                  >
+                                    <span className="font-medium">Note:</span>{" "}
+                                    {proposal.reviewNote}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {new Date(
+                                  proposal.createdAt,
+                                ).toLocaleDateString()}
+                              </span>
                             </div>
-                            <span className="text-xs text-muted-foreground shrink-0">
-                              {new Date(proposal.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                          </Card>
+                        ))}
+                      </div>
+                    )}
                 </div>
               </div>
             )}
@@ -785,4 +892,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-

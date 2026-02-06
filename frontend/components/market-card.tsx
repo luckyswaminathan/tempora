@@ -15,11 +15,12 @@ import { useAuth } from "@/contexts/auth-context";
 
 interface MarketCardProps {
   initialMarket: Market;
+  onMarketUpdate?: () => void;
 }
 
 type ViewMode = "individual" | "interval";
 
-export function MarketCard({ initialMarket }: MarketCardProps) {
+export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
   const { user } = useAuth();
   const [market, setMarket] = useState(initialMarket);
 
@@ -82,6 +83,11 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
     setDialogOpen(false);
     setIntervalRange([-1, -1]);
     refreshMarket();
+  };
+
+  const handleMarketUpdated = () => {
+    refreshMarket();
+    onMarketUpdate?.();
   };
 
   if (!market) {
@@ -270,7 +276,7 @@ export function MarketCard({ initialMarket }: MarketCardProps) {
         setShowSettleForm={setShowSettleForm}
         showEditForm={showEditForm}
         setShowEditForm={setShowEditForm}
-        onSuccess={refreshMarket}
+        onSuccess={handleMarketUpdated}
       />
     </>
   );

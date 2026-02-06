@@ -3,18 +3,11 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from schemas.date import UTCDateTime
+from schemas.market import MarketBase
 
 
-class ProposalCreate(BaseModel):
-    question: str
-    category: str
-    description: Optional[str] = None
-    resolution_date: UTCDateTime = Field(alias="resolutionDate")
+class ProposalCreate(MarketBase):
     outcomes: List[str]
-    tags: Optional[List[str]] = None
-    liquidity_parameter: Optional[float] = Field(default=None, alias="liquidityParameter")
-
-    model_config = ConfigDict(populate_by_name=True)
 
 
 class ProposalReview(BaseModel):
@@ -40,7 +33,10 @@ class Proposal(BaseModel):
     resolution_date: UTCDateTime = Field(alias="resolutionDate")
     outcomes: List[str]
     tags: List[str]
-    liquidity_parameter: Optional[float] = Field(default=None, alias="liquidityParameter")
+    liquidity_parameter: Optional[float] = Field(
+        default=None, alias="liquidityParameter"
+    )
+    ui_type: str = Field(default="bars-ordered", alias="uiType")
     status: str
     reviewer_id: Optional[str] = Field(default=None, alias="reviewerId")
     review_note: Optional[str] = Field(default=None, alias="reviewNote")
@@ -55,4 +51,3 @@ class Proposal(BaseModel):
 class ProposalListResponse(BaseModel):
     proposals: List[Proposal]
     count: int
-
