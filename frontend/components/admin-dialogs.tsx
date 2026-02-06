@@ -159,6 +159,9 @@ function AdminEditDialog({
   const [resolutionDate, setResolutionDate] = useState(
     market.resolutionDate.split("T")[0],
   );
+  const [status, setStatus] = useState<"open" | "closed" | "suspended">(
+    market.status,
+  );
   const [outcomes, setOutcomes] = useState<
     Array<{ id: string; outcome: string }>
   >(market.securities);
@@ -198,6 +201,7 @@ function AdminEditDialog({
         question: question.trim(),
         description: description.trim(),
         resolutionDate: new Date(resolutionDate).toISOString(),
+        status,
         securities: outcomes,
       });
       toast.success("Market updated successfully");
@@ -256,6 +260,35 @@ function AdminEditDialog({
               onChange={(e) => setResolutionDate(e.target.value)}
               className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-2">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as typeof status)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+              <option value="suspended">Suspended</option>
+            </select>
+            {status === "closed" && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  <strong>Closed:</strong> No new trades can be placed. Existing
+                  positions remain until market is resolved.
+                </p>
+              </div>
+            )}
+            {status === "suspended" && (
+              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  <strong>Suspended:</strong> Trading is temporarily halted due
+                  to administrative review or technical issues.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>

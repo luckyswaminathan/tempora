@@ -28,17 +28,26 @@ class MarketQuote(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class Market(BaseModel):
-    id: str
+class MarketBase(BaseModel):
     question: str = Field(min_length=1)
     category: str
-    status: MarketStatus = MarketStatus.OPEN
+    description: Optional[str] = None
     resolution_date: UTCDateTime = Field(alias="resolutionDate")
+    tags: List[str] = Field(default_factory=list)
+    liquidity_parameter: Optional[float] = Field(
+        default=None, alias="liquidityParameter", ge=0.0
+    )
+    ui_type: str = Field(default="bars-ordered", alias="uiType")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class Market(MarketBase):
+    id: str
+    status: MarketStatus = MarketStatus.OPEN
     created_at: UTCDateTime = Field(alias="createdAt")
     updated_at: UTCDateTime = Field(alias="updatedAt")
-    description: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
-    ui_type: str = Field(default="bars-ordered", alias="uiType")
+    creator_id: str = Field(alias="creatorId")
     winning_security_id: Optional[str] = Field(default=None, alias="winningSecurityId")
 
     quotes: List[MarketQuote] = Field(default_factory=list)
@@ -49,8 +58,6 @@ class Market(BaseModel):
         default=None, alias="liquidityParameter", ge=0.0
     )
 
-    model_config = ConfigDict(populate_by_name=True)
-
 
 class OutcomeWithValue(BaseModel):
     outcome: str = Field(min_length=1)
@@ -58,19 +65,6 @@ class OutcomeWithValue(BaseModel):
     is_catch_all: bool = Field(default=False, alias="isCatchAll")
 
     model_config = ConfigDict(populate_by_name=True)
-
-
-class MarketCreate(BaseModel):
-    question: str = Field(min_length=1)
-    outcomes: List[OutcomeWithValue] = Field(default_factory=list)
-    category: str
-    resolution_date: UTCDateTime = Field(alias="resolutionDate")
-    description: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
-    liquidity_parameter: Optional[float] = Field(
-        default=None, alias="liquidityParameter", ge=0.0
-    )
-    ui_type: str = Field(default="bars-ordered", alias="uiType")
 
 
 class SecurityUpdate(BaseModel):
@@ -105,5 +99,40 @@ class MarketSettlementResponse(BaseModel):
     id: str
     winning_outcome: str = Field(alias="winningOutcome")
     net_payout: int = Field(alias="netPayout")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class MarketMakerMarket(BaseModel):
+    """Market with P&L info for market makers."""
+
+    id: str
+    question: str
+    category: str
+    status: MarketStatus
+    resolution_date: UTCDateTime = Field(alias="resolutionDate")
+    created_at: UTCDateTime = Field(alias="createdAt")
+    funding_collateral_cents: int = Field(alias="fundingCollateralCents")
+    revenue_cents: int = Field(alias="revenueCents")  # Total received from trades
+    liability_cents: int = Field(
+        alias="liabilityCents"
+    )  # Potential payout if resolved now
+    net_pnl_cents: int = Field(
+        alias="netPnlCents"
+    )  # Revenue - liability (or actual P&L if resolved)
+    num_trades: int = Field(alias="numTrades")
+    winning_security_id: Optional[str] = Field(default=None, alias="winningSecurityId")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class MarketMakerDashboard(BaseModel):
+    """Dashboard data for market makers."""
+
+    markets: List[MarketMakerMarket]
+    total_funding_collateral_cents: int = Field(alias="totalFundingCollateralCents")
+    total_revenue_cents: int = Field(alias="totalRevenueCents")
+    total_liability_cents: int = Field(alias="totalLiabilityCents")
+    total_net_pnl_cents: int = Field(alias="totalNetPnlCents")
 
     model_config = ConfigDict(populate_by_name=True)

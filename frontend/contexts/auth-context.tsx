@@ -46,7 +46,8 @@ function getCachedUser(): AuthUser | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(getCachedUser());
+  const cachedUser = getCachedUser();
+  const [user, setUser] = useState<AuthUser | null>(cachedUser);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -117,6 +118,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = async () => {
     await fetchProfile();
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider

@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, Query, status
 from api import deps
 from schemas.market import (
     Market,
-    MarketCreate,
     MarketListResponse,
     MarketUpdate,
     MarketSettlement,
     MarketSettlementResponse,
+    MarketMakerDashboard,
 )
 from schemas.user import UserBase
 from services.markets import MarketService
@@ -24,15 +24,6 @@ def list_markets(
     service: MarketService = Depends(deps.get_market_service),
 ) -> MarketListResponse:
     return service.list_markets(category=category, status_filter=status_filter)
-
-
-@router.post("", response_model=Market, status_code=status.HTTP_201_CREATED)
-def create_market(
-    payload: MarketCreate,
-    service: MarketService = Depends(deps.get_market_service),
-    _: UserBase = Depends(deps.get_current_admin),
-) -> Market:
-    return service.create_market(payload)
 
 
 @router.get("/{market_id}", response_model=Market)
@@ -60,3 +51,12 @@ def settle_market(
     _: UserBase = Depends(deps.get_current_admin),
 ) -> MarketSettlementResponse:
     return service.settle_market(payload)
+
+
+@router.get("/maker/dashboard", response_model=MarketMakerDashboard)
+def get_market_maker_dashboard(
+    service: MarketService = Depends(deps.get_market_service),
+    current_user: UserBase = Depends(deps.get_current_market_maker),
+) -> MarketMakerDashboard:
+    """Get market maker dashboard with P&L for all their markets."""
+    return service.get_market_maker_dashboard(current_user.id)

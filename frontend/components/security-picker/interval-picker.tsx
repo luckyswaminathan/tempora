@@ -7,7 +7,6 @@ import { Slider } from "@/components/ui/slider";
 import {
   BarChart,
   Bar,
-  CartesianGrid,
   XAxis,
   YAxis,
   ResponsiveContainer,
@@ -106,7 +105,6 @@ export function IntervalPicker({
               }))}
               margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
             >
-              <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="name"
                 angle={-45}
@@ -183,8 +181,8 @@ export function IntervalPicker({
             className="my-3"
           />
           <div className="flex justify-between text-xs text-gray-600">
-            <span>{regularOutcomes[0]?.value}</span>
-            <span>{regularOutcomes[regularOutcomes.length - 1]?.value}</span>
+            <span>{regularOutcomes[0]?.outcome}</span>
+            <span>{regularOutcomes[regularOutcomes.length - 1]?.outcome}</span>
           </div>
         </div>
       </div>

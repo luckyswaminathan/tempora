@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { marketsApi } from "@/lib/api";
+import { proposalsApi } from "@/lib/api";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { MONTHS, QUARTERS } from "@/lib/utils";
@@ -51,7 +51,15 @@ interface FormConfig {
   catchAllLabel: string;
 }
 
-export function MarketCreateForm() {
+interface MarketCreateFormProps {
+  disabled?: boolean;
+  onSuccess?: () => void;
+}
+
+export function MarketCreateForm({
+  disabled = false,
+  onSuccess,
+}: MarketCreateFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     question: "",
@@ -95,8 +103,13 @@ export function MarketCreateForm() {
   );
 
   // Generate outcomes from calendar config
-  const generateOutcomes = (): { text: string; isCatchAll: boolean }[] => {
-    const outcomes: { text: string; isCatchAll: boolean }[] = [];
+  const generateOutcomes = (): {
+    text: string;
+    isCatchAll: boolean;
+    value?: number;
+  }[] => {
+    const outcomes: { text: string; isCatchAll: boolean; value?: number }[] =
+      [];
 
     // Handle interval type
     if (formData.uiType === "interval") {
@@ -111,6 +124,7 @@ export function MarketCreateForm() {
           outcomes.push({
             text: `${formConfig.lowerBoundLabel} ${min}${unit}`,
             isCatchAll: false,
+            value: min - step, // Value below minimum
           });
         }
 
@@ -120,6 +134,7 @@ export function MarketCreateForm() {
           outcomes.push({
             text: `${i}-${rangeEnd}${unit}`,
             isCatchAll: false,
+            value: i, // Use start of interval as the value
           });
         }
 
@@ -128,6 +143,7 @@ export function MarketCreateForm() {
           outcomes.push({
             text: `${formConfig.upperBoundLabel} ${max}${unit}`,
             isCatchAll: false,
+            value: max, // Value at or above maximum
           });
         }
       }
@@ -216,23 +232,25 @@ export function MarketCreateForm() {
         .map((t) => t.trim())
         .filter((t) => t);
 
-      await marketsApi.createMarket({
+      await proposalsApi.createProposal({
         question: formData.question,
         category: formData.category,
         description: formData.description,
         resolutionDate: formData.resolutionDate,
         outcomes: outcomes.map((o) => ({
           outcome: o.text,
+          value: o.value,
           isCatchAll: o.isCatchAll,
         })),
         tags,
         liquidityParameter: formData.liquidityParameter
           ? parseInt(formData.liquidityParameter)
           : undefined,
-        uiType: formData.uiType as any,
+        uiType: formData.uiType,
       });
 
       toast.success("Market created successfully!");
+      // Reset form
       setFormData({
         question: "",
         category: "General",
@@ -246,26 +264,11 @@ export function MarketCreateForm() {
         tags: "",
         liquidityParameter: "1000",
       });
-      setFormConfig({
-        startDate: "",
-        endDate: "",
-        selectedMonths: [],
-        selectedQuarters: [],
-        selectedYears: [],
-        intervalMin: "",
-        intervalMax: "",
-        intervalStep: "",
-        intervalUnit: "",
-        includeLowerBound: false,
-        lowerBoundLabel: "Below",
-        includeUpperBound: false,
-        upperBoundLabel: "Above",
-        includeCatchAll: true,
-        catchAllLabel: "Later or never",
-      });
+      // Call onSuccess callback to refresh parent component
+      onSuccess?.();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to create market",
+        error instanceof Error ? error.message : "Failed to submit proposal",
       );
     } finally {
       setSubmitting(false);
@@ -1001,8 +1004,12 @@ export function MarketCreateForm() {
         />
       </div>
 
-      <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Creating..." : "Create Market"}
+      <Button
+        type="submit"
+        disabled={submitting || disabled}
+        className="w-full"
+      >
+        {submitting ? "Submitting..." : "Submit for Review"}
       </Button>
     </form>
   );

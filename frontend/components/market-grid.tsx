@@ -9,45 +9,47 @@ interface MarketGridProps {
   category?: string | null;
   searchQuery?: string;
   status?: string | null;
+  onMarketUpdate?: () => void;
 }
 
 export function MarketGrid({
   category,
   searchQuery = "",
   status,
+  onMarketUpdate,
 }: MarketGridProps) {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchMarkets() {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await marketsApi.listMarkets({
-          category: category || undefined,
-          status: status === "all" ? undefined : status || "open",
-        });
+  const fetchMarkets = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await marketsApi.listMarkets({
+        category: category || undefined,
+        status: status === "all" ? undefined : status || "open",
+      });
 
-        // Filter by search query client-side
-        let filtered = response.items;
-        if (searchQuery.trim()) {
-          filtered = filtered.filter(
-            (m) =>
-              m.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              m.category.toLowerCase().includes(searchQuery.toLowerCase()),
-          );
-        }
-
-        setMarkets(filtered);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load markets");
-      } finally {
-        setLoading(false);
+      // Filter by search query client-side
+      let filtered = response.items;
+      if (searchQuery.trim()) {
+        filtered = filtered.filter(
+          (m) =>
+            m.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            m.category.toLowerCase().includes(searchQuery.toLowerCase()),
+        );
       }
-    }
 
+      setMarkets(filtered);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load markets");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchMarkets();
   }, [category, searchQuery, status]);
 
@@ -77,6 +79,12 @@ export function MarketGrid({
     );
   }
 
+  const handleMarketUpdate = async () => {
+    // Refetch markets after any market is updated (settled, edited, etc.)
+    await fetchMarkets();
+    onMarketUpdate?.();
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {markets.map((market, index) => (
@@ -84,7 +92,10 @@ export function MarketGrid({
           key={market.id}
           id={index === 0 ? "dashboard-market-card" : undefined}
         >
-          <MarketCard initialMarket={market} />
+          <MarketCard
+            initialMarket={market}
+            onMarketUpdate={handleMarketUpdate}
+          />
         </div>
       ))}
     </div>

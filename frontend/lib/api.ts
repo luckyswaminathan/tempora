@@ -64,7 +64,7 @@ export interface AuthResponse {
   user: {
     id: string;
     email: string;
-    role: "user" | "admin";
+    role: "user" | "market_maker" | "admin";
     createdAt?: string;
   };
   tokens: {
@@ -125,6 +125,7 @@ export interface Market {
     | "month"
     | "day"
     | "interval";
+  creatorId: string;
   winningSecurityId?: string;
   quotes: Array<{
     securityId: string;
@@ -152,30 +153,6 @@ export interface MarketListResponse {
   count: number;
 }
 
-export interface OutcomeWithValue {
-  outcome: string;
-  value?: number;
-  isCatchAll?: boolean;
-}
-
-export interface MarketCreate {
-  question: string;
-  outcomes: OutcomeWithValue[];
-  category: string;
-  resolutionDate: string;
-  description?: string;
-  tags?: string[];
-  liquidityParameter?: number;
-  uiType?:
-    | "bars-ordered"
-    | "bars-categorical"
-    | "year"
-    | "quarter"
-    | "month"
-    | "day"
-    | "interval";
-}
-
 export interface SecurityUpdate {
   id: string;
   outcome: string;
@@ -187,6 +164,7 @@ export interface MarketUpdate {
   resolutionDate: string;
   description?: string;
   tags?: string[];
+  status?: "open" | "closed" | "suspended";
   securities: SecurityUpdate[];
 }
 
@@ -211,13 +189,6 @@ export const marketsApi = {
 
   async getMarket(id: string): Promise<Market> {
     return fetchWithAuth(`/markets/${id}`);
-  },
-
-  async createMarket(data: MarketCreate): Promise<Market> {
-    return fetchWithAuth("/markets", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
   },
 
   async updateMarket(id: string, data: Partial<MarketUpdate>): Promise<Market> {
@@ -313,12 +284,27 @@ export const tradesApi = {
 export interface UserProfile {
   id: string;
   email: string;
-  role: "user" | "admin";
+  role: "user" | "market_maker" | "admin";
   displayName?: string;
   wallet: number;
   joinedAt: string;
   lastSeenAt?: string;
   tutorialCompletions?: Record<string, boolean>;
+}
+
+// Admin types
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  role: "user" | "market_maker" | "admin";
+  display_name?: string;
+  wallet: number;
+  created_at?: string;
+}
+
+export interface AdminUserListResponse {
+  users: AdminUserListItem[];
+  count: number;
 }
 
 export interface PortfolioSnapshot {
@@ -348,7 +334,7 @@ export interface LeaderboardResponse {
   leaderboard: Array<{
     id: string;
     email: string;
-    role: "user" | "admin";
+    role: "user" | "market_maker" | "admin";
     displayName?: string;
     wallet: number;
     joinedAt: string;
@@ -404,5 +390,149 @@ export const usersApi = {
       method: "POST",
       body: JSON.stringify({ amount }),
     });
+  },
+};
+
+// Admin API
+export const adminApi = {
+  async listUsers(): Promise<AdminUserListResponse> {
+    return fetchWithAuth("/admin/users");
+  },
+
+  async listMarketMakers(): Promise<AdminUserListResponse> {
+    return fetchWithAuth("/admin/market-makers");
+  },
+
+  async updateUserRole(
+    userId: string,
+    role: "user" | "market_maker" | "admin",
+  ): Promise<AdminUserListItem> {
+    return fetchWithAuth(`/admin/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  async getUserProposals(userId: string): Promise<ProposalListResponse> {
+    return fetchWithAuth(`/admin/users/${userId}/proposals`);
+  },
+};
+
+// Proposals API
+export interface ProposerInfo {
+  id: string;
+  email: string;
+  displayName?: string;
+}
+
+export interface OutcomeWithValue {
+  outcome: string;
+  value?: number;
+  isCatchAll?: boolean;
+}
+
+export interface Proposal {
+  id: string;
+  proposerId: string;
+  proposer?: ProposerInfo;
+  question: string;
+  category: string;
+  description?: string;
+  resolutionDate: string;
+  outcomes: OutcomeWithValue[];
+  tags: string[];
+  liquidityParameter?: number;
+  uiType: string;
+  status: "pending" | "approved" | "rejected" | "live";
+  reviewerId?: string;
+  reviewNote?: string;
+  reviewedAt?: string;
+  createdMarketId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProposalListResponse {
+  proposals: Proposal[];
+  count: number;
+}
+
+export interface ProposalCreate {
+  question: string;
+  category: string;
+  description?: string;
+  resolutionDate: string;
+  outcomes: OutcomeWithValue[];
+  tags?: string[];
+  liquidityParameter?: number;
+  uiType?: string;
+}
+
+export const proposalsApi = {
+  async createProposal(data: ProposalCreate): Promise<Proposal> {
+    return fetchWithAuth("/proposals", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getMyProposals(): Promise<ProposalListResponse> {
+    return fetchWithAuth("/proposals/mine");
+  },
+
+  async getPendingProposals(): Promise<ProposalListResponse> {
+    return fetchWithAuth("/proposals/pending");
+  },
+
+  async getAllProposals(status?: string): Promise<ProposalListResponse> {
+    const params = status ? `?status=${status}` : "";
+    return fetchWithAuth(`/proposals${params}`);
+  },
+
+  async reviewProposal(
+    proposalId: string,
+    approved: boolean,
+    note?: string,
+  ): Promise<Proposal> {
+    return fetchWithAuth(`/proposals/${proposalId}/review`, {
+      method: "POST",
+      body: JSON.stringify({ approved, note }),
+    });
+  },
+
+  async publishProposal(proposalId: string): Promise<Proposal> {
+    return fetchWithAuth(`/proposals/${proposalId}/publish`, {
+      method: "POST",
+    });
+  },
+};
+
+// Market Maker Dashboard Types
+export interface MarketMakerMarket {
+  id: string;
+  question: string;
+  category: string;
+  status: string;
+  resolutionDate: string;
+  createdAt: string;
+  fundingCollateralCents: number;
+  revenueCents: number;
+  liabilityCents: number;
+  netPnlCents: number;
+  numTrades: number;
+  winningSecurityId?: string;
+}
+
+export interface MarketMakerDashboard {
+  markets: MarketMakerMarket[];
+  totalFundingCollateralCents: number;
+  totalRevenueCents: number;
+  totalLiabilityCents: number;
+  totalNetPnlCents: number;
+}
+
+export const marketMakerApi = {
+  async getDashboard(): Promise<MarketMakerDashboard> {
+    return fetchWithAuth("/markets/maker/dashboard");
   },
 };

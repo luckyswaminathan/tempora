@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from core import models
 from schemas.market import (
-    MarketCreate,
     MarketListResponse,
     MarketUpdate,
     MarketSettlement,
@@ -18,6 +17,8 @@ from schemas.market import (
     Market,
     Security,
     OutcomeWithValue,
+    MarketMakerMarket,
+    MarketMakerDashboard,
 )
 from schemas.trade import TradeRecord
 from services.pricing import calculate_market_quotes
@@ -54,25 +55,42 @@ class MarketService:
             )
         return self._attach_quote(market)
 
-    def create_market(self, payload: MarketCreate) -> Market:
+    def create_market(
+        self,
+        proposal: models.MarketProposal,
+        creator_id: str,
+        funding_collateral_cents: int,
+    ) -> models.Market:
+        """
+        Create a market from an approved proposal.
+        This should only be called from the proposal publish flow.
+        """
         market = models.Market(
-            question=payload.question,
-            category=payload.category,
-            description=payload.description,
-            resolution_date=payload.resolution_date,
+            question=proposal.question,
+            category=proposal.category,
+            description=proposal.description,
+            resolution_date=proposal.resolution_date,
             status=models.MarketStatus.OPEN,
-            tags=payload.tags,
-            liquidity_parameter=payload.liquidity_parameter,
-            ui_type=payload.ui_type,
+            tags=proposal.tags,
+            liquidity_parameter=proposal.liquidity_parameter,
+            ui_type=proposal.ui_type,
+            creator_id=creator_id,
+            funding_collateral_cents=funding_collateral_cents,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
         self.session.add(market)
         self.session.flush()
-        self._create_securities(market.id, payload.outcomes)
+
+        # Convert outcomes from JSON dicts to OutcomeWithValue objects
+        outcomes = [
+            OutcomeWithValue(**o) if isinstance(o, dict) else o
+            for o in proposal.outcomes
+        ]
+        self._create_securities(market.id, outcomes)
         self.session.commit()
         self.session.refresh(market)
-        return self._attach_quote(market)
+        return market
 
     def update_market(self, market_id: str, payload: MarketUpdate) -> Market:
         market = self.session.get(models.Market, market_id)
@@ -129,6 +147,36 @@ class MarketService:
         for trade in trades:
             user_pnl[trade.user_id] += 100 * trade.quantity
 
+        total_payout = sum(user_pnl.values())
+
+        # Validate and deduct payouts from market maker's wallet (if market has a creator)
+        if market.creator_id and total_payout > 0:
+            creator_profile = self.session.get(models.Profile, market.creator_id)
+            if not creator_profile:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Market creator profile not found",
+                )
+
+            # Check if payout exceeds funding collateral (should be theoretically impossible with LMSR)
+            if total_payout > market.funding_collateral_cents:
+                # This indicates a serious error in the LMSR implementation
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"CRITICAL ERROR: Settlement payout (${total_payout/100:.2f}) exceeds funding collateral (${market.funding_collateral_cents/100:.2f}). This should be impossible with LMSR.",
+                )
+
+            # Check if market maker has sufficient funds to cover payout
+            if creator_profile.wallet < int(total_payout):
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"CRITICAL ERROR: Market maker has insufficient funds. Required: ${total_payout/100:.2f}, Available: ${creator_profile.wallet/100:.2f}",
+                )
+
+            # Deduct the payout from market maker's wallet
+            creator_profile.wallet -= int(total_payout)
+
+        # Pay out winners
         if user_pnl:
             case_expr = case(
                 {user_id: delta for user_id, delta in user_pnl.items()},
@@ -152,7 +200,7 @@ class MarketService:
             {
                 "id": market.id,
                 "winning_outcome": security.outcome,
-                "net_payout": sum(user_pnl.values()),
+                "net_payout": total_payout,
             }
         )
 
@@ -219,6 +267,7 @@ class MarketService:
                 "description": market.description,
                 "tags": market.tags or [],
                 "uiType": market.ui_type,
+                "creatorId": market.creator_id,
                 "winningSecurityId": market.winning_security_id,
                 "quotes": quotes,
                 "securities": securities,
@@ -288,4 +337,80 @@ class MarketService:
                 "created_at": record.created_at
                 or datetime.now(timezone.utc).isoformat(),
             }
+        )
+
+    def get_market_maker_dashboard(self, creator_id: str) -> MarketMakerDashboard:
+        """Get dashboard data for a market maker showing their markets and P&L."""
+        # Get all markets created by this user
+        stmt = (
+            select(models.Market)
+            .where(models.Market.creator_id == creator_id)
+            .options(
+                selectinload(models.Market.securities),
+                selectinload(models.Market.trades),
+            )
+            .order_by(models.Market.created_at.desc())
+        )
+        markets = self.session.scalars(stmt).all()
+
+        market_data = []
+        total_funding_collateral = 0
+        total_revenue = 0
+        total_liability = 0
+
+        for market in markets:
+            # Calculate revenue from trades (sum of all trade prices)
+            revenue = sum(t.price_cents for t in market.trades)
+
+            # Calculate current liability (potential payout)
+            # For each security, liability = 100 cents * quantity held by traders
+            liability = 0
+            for security in market.securities:
+                security_quantity = sum(
+                    t.quantity for t in market.trades if t.security_id == security.id
+                )
+                # Each share pays out 100 cents if it wins
+                liability = max(liability, security_quantity * 100)
+
+            # If market is resolved, actual P&L is known
+            if market.status == models.MarketStatus.RESOLVED:
+                # Find winning security trades
+                winning_payout = 0
+                for t in market.trades:
+                    if t.security_id == market.winning_security_id:
+                        winning_payout += t.quantity * 100
+                net_pnl = revenue - winning_payout
+            else:
+                # Unrealized P&L: revenue minus max potential liability
+                net_pnl = revenue - liability
+
+            market_data.append(
+                MarketMakerMarket(
+                    id=market.id,
+                    question=market.question,
+                    category=market.category,
+                    status=market.status,
+                    resolutionDate=market.resolution_date,
+                    createdAt=market.created_at,
+                    fundingCollateralCents=market.funding_collateral_cents or 0,
+                    revenueCents=revenue,
+                    liabilityCents=liability,
+                    netPnlCents=net_pnl,
+                    numTrades=len(market.trades),
+                    winningSecurityId=market.winning_security_id,
+                )
+            )
+
+            total_funding_collateral += market.funding_collateral_cents or 0
+            total_revenue += revenue
+            total_liability += liability
+
+        total_net_pnl = sum(m.net_pnl_cents for m in market_data)
+
+        return MarketMakerDashboard(
+            markets=market_data,
+            totalFundingCollateralCents=total_funding_collateral,
+            totalRevenueCents=total_revenue,
+            totalLiabilityCents=total_liability,
+            totalNetPnlCents=total_net_pnl,
         )

@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { AuthDialog } from "@/components/auth-dialog";
 
 export function Header() {
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
 
@@ -57,20 +57,27 @@ export function Header() {
               >
                 Tutorial
               </a>
-              {!loading && user?.role === "admin" && (
+              {user?.role === "market_maker" && (
                 <a
-                  id="nav-create"
-                  href="/create"
+                  id="nav-market-making"
+                  href="/market-making"
                   className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
                 >
-                  Create Market
+                  Market Making
+                </a>
+              )}
+              {user?.role === "admin" && (
+                <a
+                  id="nav-admin"
+                  href="/admin"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Admin
                 </a>
               )}
             </nav>
             <div className="flex items-center gap-3">
-              {loading ? (
-                <div className="w-20 h-8" />
-              ) : profile ? (
+              {profile ? (
                 <>
                   <a
                     href="/profile"

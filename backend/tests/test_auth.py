@@ -41,7 +41,7 @@ def test_register_and_login_flow():
 
         data = me_resp.json()
         assert data["email"] == register_payload["email"]
-        assert data["role"] == "admin"
+        assert data["role"] == "user"
 
         me_resp_login = live_client.get(
             "/auth/me",
