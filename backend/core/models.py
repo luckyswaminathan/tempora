@@ -68,8 +68,10 @@ class User(Base):
         String, primary_key=True, default=lambda: str(uuid4())
     )
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    role: Mapped[str] = mapped_column(
-        Enum(UserRole), default=UserRole.USER, nullable=False
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, values_callable=lambda x: [e.value for e in x]),
+        default=UserRole.USER,
+        nullable=False,
     )
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
