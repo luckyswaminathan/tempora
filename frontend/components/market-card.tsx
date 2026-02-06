@@ -187,6 +187,38 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
           </div>
         )}
 
+        {market.status === "closed" && (
+          <div className="mb-4">
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className="bg-amber-600 text-white">Closed</Badge>
+              </div>
+              <p className="text-sm font-medium text-amber-900">
+                Trading Closed
+              </p>
+              <p className="text-xs text-amber-700 mt-1">
+                No new trades can be placed. Existing positions remain until market is resolved.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {market.status === "suspended" && (
+          <div className="mb-4">
+            <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className="bg-red-600 text-white">Suspended</Badge>
+              </div>
+              <p className="text-sm font-medium text-red-900">
+                Trading Suspended
+              </p>
+              <p className="text-xs text-red-700 mt-1">
+                Trading is temporarily halted due to administrative review or technical issues.
+              </p>
+            </div>
+          </div>
+        )}
+
         {market.status === "open" && (
           <div className="mb-4">
             <SecurityPicker

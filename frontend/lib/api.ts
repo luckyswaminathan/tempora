@@ -164,6 +164,7 @@ export interface MarketUpdate {
   resolutionDate: string;
   description?: string;
   tags?: string[];
+  status?: "open" | "closed" | "suspended";
   securities: SecurityUpdate[];
 }
 
