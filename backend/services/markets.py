@@ -99,6 +99,12 @@ class MarketService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Market not found"
             )
 
+        if market.status == models.MarketStatus.RESOLVED:
+            raise HTTPException(
+                status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+                detail="Cannot update a resolved market",
+            )
+
         if payload.question is not None:
             market.question = payload.question
         if payload.category is not None:
