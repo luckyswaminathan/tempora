@@ -742,7 +742,8 @@ export function MarketCreateForm({
           <Label>Define Numeric Range</Label>
           <p className="text-sm text-muted-foreground mb-2">
             Create intervals for numeric predictions (e.g., temperature, prices,
-            scores)
+            scores) Create intervals for numeric predictions (e.g., temperature,
+            prices, scores)
           </p>
           <div className="border rounded-lg p-4 space-y-4">
             <div className="grid grid-cols-3 gap-4">
