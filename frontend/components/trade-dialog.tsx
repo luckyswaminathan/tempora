@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Loader2, AlertTriangle, Wallet } from "lucide-react";
 import type { Market, PortfolioSnapshot } from "@/lib/api";
-import { tradesApi, usersApi } from "@/lib/api";
+import { ordersApi, usersApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import { ProbabilityGraph } from "@/components/probability-graph";
@@ -95,7 +95,7 @@ export function TradeDialog({
           quantity: shares,
         }));
 
-        const priceData = await tradesApi.priceTrade({
+        const priceData = await ordersApi.priceOrder({
           marketId: market.id,
           legs,
         });
@@ -189,7 +189,7 @@ export function TradeDialog({
         quantity: shares,
       }));
 
-      await tradesApi.placeTrade({
+      await ordersApi.placeOrder({
         marketId: market.id,
         legs,
       });

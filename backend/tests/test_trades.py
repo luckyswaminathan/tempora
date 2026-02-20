@@ -6,7 +6,7 @@ of executing trades, calculating prices, and updating balances.
 
 What this tests:
 - LMSR price calculation algorithm
-- Trade execution API (/trades and /trades/price endpoints)
+- Trade execution API (/orders and /orders/price endpoints)
 - Wallet balance updates during trades
 - Trade transaction mechanics
 
@@ -32,7 +32,7 @@ def test_price_trade(trader_client, trade_market):
             "marketId": trade_market.id,
             "legs": [{"securityId": security.id, "quantity": 1}],
         }
-        resp = trader_client.post("/trades/price", json=payload)
+        resp = trader_client.post("/orders/price", json=payload)
         assert resp.status_code == 200
 
         data = resp.json()
@@ -55,7 +55,7 @@ def test_place_trade(trader_client, trade_market):
             "marketId": trade_market.id,
             "legs": [{"securityId": security.id, "quantity": 1}],
         }
-        resp = trader_client.post("/trades", json=payload)
+        resp = trader_client.post("/orders", json=payload)
         assert resp.status_code == 201
 
         data = resp.json()
@@ -77,7 +77,7 @@ def test_sell_trade(trader_client, trade_market):
         "marketId": trade_market.id,
         "legs": [{"securityId": security_id, "quantity": 10}],
     }
-    resp = trader_client.post("/trades", json=buy_payload)
+    resp = trader_client.post("/orders", json=buy_payload)
     assert resp.status_code == 201
     buy_cost = resp.json()["priceCents"]
 
@@ -90,7 +90,7 @@ def test_sell_trade(trader_client, trade_market):
         "marketId": trade_market.id,
         "legs": [{"securityId": security_id, "quantity": -5}],
     }
-    resp = trader_client.post("/trades", json=sell_payload)
+    resp = trader_client.post("/orders", json=sell_payload)
     assert resp.status_code == 201
     sell_price = resp.json()["priceCents"]
 
@@ -118,7 +118,7 @@ def test_multi_leg_trade(trader_client, trade_market):
     ]
     payload = {"marketId": trade_market.id, "legs": legs}
 
-    resp = trader_client.post("/trades", json=payload)
+    resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 201
     cost = resp.json()["priceCents"]
 
@@ -139,15 +139,15 @@ def test_price_impact(trader_client, trade_market):
         "marketId": trade_market.id,
         "legs": [{"securityId": security_id, "quantity": 10}],
     }
-    resp = trader_client.post("/trades/price", json=payload)
+    resp = trader_client.post("/orders/price", json=payload)
     first_price = resp.json()["priceCents"]
 
     # Execute first trade
-    resp = trader_client.post("/trades", json=payload)
+    resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 201
 
     # Price second identical trade
-    resp = trader_client.post("/trades/price", json=payload)
+    resp = trader_client.post("/orders/price", json=payload)
     second_price = resp.json()["priceCents"]
 
     # Second trade should be more expensive (price impact)
@@ -167,7 +167,7 @@ def test_round_trip_trade(trader_client, trade_market):
         "marketId": trade_market.id,
         "legs": [{"securityId": security_id, "quantity": 10}],
     }
-    resp = trader_client.post("/trades", json=buy_payload)
+    resp = trader_client.post("/orders", json=buy_payload)
     buy_cost = resp.json()["priceCents"]
 
     # Immediately sell same 10 shares
@@ -175,7 +175,7 @@ def test_round_trip_trade(trader_client, trade_market):
         "marketId": trade_market.id,
         "legs": [{"securityId": security_id, "quantity": -10}],
     }
-    resp = trader_client.post("/trades", json=sell_payload)
+    resp = trader_client.post("/orders", json=sell_payload)
     sell_proceeds = -resp.json()["priceCents"]  # Negative cost = proceeds
 
     # Final wallet
@@ -194,7 +194,7 @@ def test_invalid_market_id(trader_client, trade_market):
         "marketId": "invalid-market-id",
         "legs": [{"securityId": trade_market.securities[0].id, "quantity": 1}],
     }
-    resp = trader_client.post("/trades", json=payload)
+    resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 400
 
 
@@ -204,7 +204,7 @@ def test_invalid_security_id(trader_client, trade_market):
         "marketId": trade_market.id,
         "legs": [{"securityId": "invalid-security-id", "quantity": 1}],
     }
-    resp = trader_client.post("/trades", json=payload)
+    resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 404
 
 
@@ -214,7 +214,7 @@ def test_zero_quantity_trade(trader_client, trade_market):
         "marketId": trade_market.id,
         "legs": [{"securityId": trade_market.securities[0].id, "quantity": 0}],
     }
-    resp = trader_client.post("/trades", json=payload)
+    resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 201
     # Zero quantity trade should cost nothing
     assert resp.json()["priceCents"] == 0
@@ -228,7 +228,7 @@ def test_mixed_buy_sell_trade(trader_client, trade_market):
             "marketId": trade_market.id,
             "legs": [{"securityId": trade_market.securities[i].id, "quantity": 10}],
         }
-        trader_client.post("/trades", json=payload)
+        trader_client.post("/orders", json=payload)
 
     # Get wallet before mixed trade
     resp = trader_client.get("/users/me/profile")
@@ -242,7 +242,7 @@ def test_mixed_buy_sell_trade(trader_client, trade_market):
             {"securityId": trade_market.securities[2].id, "quantity": 5},  # Buy
         ],
     }
-    resp = trader_client.post("/trades", json=mixed_payload)
+    resp = trader_client.post("/orders", json=mixed_payload)
     assert resp.status_code == 201
     net_cost = resp.json()["priceCents"]
 
@@ -259,10 +259,10 @@ def test_trade_list_endpoint(trader_client, trade_market):
             "marketId": trade_market.id,
             "legs": [{"securityId": trade_market.securities[i].id, "quantity": 1}],
         }
-        trader_client.post("/trades", json=payload)
+        trader_client.post("/orders", json=payload)
 
     # Get trade list
-    resp = trader_client.get("/trades")
+    resp = trader_client.get("/orders")
     assert resp.status_code == 200
 
     data = resp.json()
@@ -279,7 +279,7 @@ def test_large_quantity_trade(trader_client, trade_market):
         "marketId": trade_market.id,
         "legs": [{"securityId": security_id, "quantity": 100}],
     }
-    resp = trader_client.post("/trades/price", json=payload)
+    resp = trader_client.post("/orders/price", json=payload)
     assert resp.status_code == 200
     price = resp.json()["priceCents"]
 
@@ -289,10 +289,10 @@ def test_large_quantity_trade(trader_client, trade_market):
 
     # Execute if balance sufficient
     if price <= wallet:
-        resp = trader_client.post("/trades", json=payload)
+        resp = trader_client.post("/orders", json=payload)
         assert resp.status_code == 201
     else:
-        resp = trader_client.post("/trades", json=payload)
+        resp = trader_client.post("/orders", json=payload)
         assert resp.status_code == 400
 
 
@@ -308,7 +308,7 @@ def test_probability_converges_with_trades(trader_client, trade_market):
         "marketId": trade_market.id,
         "legs": [{"securityId": security_id, "quantity": 50}],
     }
-    resp = trader_client.post("/trades", json=payload)
+    resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 201
 
     # Get updated market data

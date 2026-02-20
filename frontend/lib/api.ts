@@ -210,41 +210,44 @@ export const marketsApi = {
   },
 };
 
-// Trades API
+// Orders API
 export interface Leg {
   securityId: string;
   quantity: number;
 }
 
-export interface TradeCreate {
+export interface OrderCreateRequest {
   marketId: string;
   legs: Leg[];
 }
 
 export interface TradeRecord {
   id: string;
-  userId: string;
-  marketId: string;
-  tradeGroupId: string;
   securityId: string;
   quantity: number;
   priceCents: number;
   createdAt: string;
 }
 
-export interface TradeListResponse {
-  items: TradeRecord[];
+export interface OrderRecord {
+  id: string;
+  type: string;
+  userId: string;
+  marketId: string;
+  createdAt: string;
+  filled: boolean;
+  trades: TradeRecord[];
+  priceCents: number;
+}
+
+export interface OrderListResponse {
+  items: OrderRecord[];
   count: number;
 }
 
-export interface TradePriceResponse {
+export interface OrderPriceResponse {
   priceCents: number;
   pricedAt: string;
-}
-
-export interface TradePlaceResponse {
-  priceCents: number;
-  executedAt: string;
 }
 
 export interface ProbabilityHistData {
@@ -256,24 +259,24 @@ export interface ProbabilityHistResponse {
   history: ProbabilityHistData[];
 }
 
-export const tradesApi = {
-  async listTrades(params?: { marketId?: string }): Promise<TradeListResponse> {
+export const ordersApi = {
+  async listOrders(params?: { marketId?: string }): Promise<OrderListResponse> {
     const searchParams = new URLSearchParams();
     if (params?.marketId) searchParams.set("marketId", params.marketId);
 
     const query = searchParams.toString();
-    return fetchWithAuth(`/trades${query ? `?${query}` : ""}`);
+    return fetchWithAuth(`/orders${query ? `?${query}` : ""}`);
   },
 
-  async priceTrade(data: TradeCreate): Promise<TradePriceResponse> {
-    return fetchWithAuth("/trades/price", {
+  async priceOrder(data: OrderCreateRequest): Promise<OrderPriceResponse> {
+    return fetchWithAuth("/orders/price", {
       method: "POST",
       body: JSON.stringify(data),
     });
   },
 
-  async placeTrade(data: TradeCreate): Promise<TradePlaceResponse> {
-    return fetchWithAuth("/trades", {
+  async placeOrder(data: OrderCreateRequest): Promise<OrderRecord> {
+    return fetchWithAuth("/orders", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -379,17 +382,20 @@ export const usersApi = {
     });
   },
 
-  async getProbabilityHistory(
-    securityId: string,
-  ): Promise<ProbabilityHistResponse> {
-    return fetchWithAuth(`/trades/probability/${securityId}`);
-  },
-
   async addFunds(amount: number): Promise<UserProfile> {
     return fetchWithAuth("/users/me/wallet/add-funds", {
       method: "POST",
       body: JSON.stringify({ amount }),
     });
+  },
+};
+
+// History API
+export const historyApi = {
+  async getProbabilityHistory(
+    securityId: string,
+  ): Promise<ProbabilityHistResponse> {
+    return fetchWithAuth(`/history/probability/${securityId}`);
   },
 };
 

@@ -10,7 +10,7 @@ class Leg(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class TradeCreateRequest(BaseModel):
+class OrderCreateRequest(BaseModel):
     """Request payload from client (without userId)."""
 
     market_id: str = Field(alias="marketId")
@@ -19,8 +19,8 @@ class TradeCreateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class TradeCreate(BaseModel):
-    """Internal trade creation model (with userId)."""
+class OrderCreate(BaseModel):
+    """Internal order creation model (with userId)."""
 
     user_id: str = Field(alias="userId")
     market_id: str = Field(alias="marketId")
@@ -29,14 +29,17 @@ class TradeCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class OrderPriceResponse(BaseModel):
+    price_cents: int = Field(alias="priceCents")
+    priced_at: UTCDateTime = Field(alias="pricedAt")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class TradeRecord(BaseModel):
+    """Trade record nested within an Order."""
+
     id: str
-    user_id: str = Field(alias="userId")
-    market_id: str = Field(alias="marketId")
-    trade_group_id: str = Field(
-        alias="tradeGroupId",
-        description="identifies the multi-leg trade that this leg belongs to",
-    )
     security_id: str = Field(alias="securityId")
     quantity: int = Field(description="amount the trader is buying/selling")
     price_cents: int = Field(
@@ -47,35 +50,24 @@ class TradeRecord(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class TradeListResponse(BaseModel):
-    items: list[TradeRecord]
+class OrderRecord(BaseModel):
+    id: str
+    type: str
+    user_id: str = Field(alias="userId")
+    market_id: str = Field(alias="marketId")
+    created_at: UTCDateTime = Field(alias="createdAt")
+    filled: bool
+    trades: list[TradeRecord] = Field(default_factory=list)
+    price_cents: int = Field(
+        alias="priceCents",
+        description="total price of all trades in this order",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class OrderListResponse(BaseModel):
+    items: list[OrderRecord]
     count: int
-
-    model_config = ConfigDict(populate_by_name=True)
-
-
-class TradePriceResponse(BaseModel):
-    price_cents: int = Field(alias="priceCents")
-    priced_at: UTCDateTime = Field(alias="pricedAt")
-
-    model_config = ConfigDict(populate_by_name=True)
-
-
-class TradePlaceResponse(BaseModel):
-    price_cents: int = Field(alias="priceCents")
-    executed_at: UTCDateTime = Field(alias="executedAt")
-
-    model_config = ConfigDict(populate_by_name=True)
-
-
-class ProbabilityHistData(BaseModel):
-    probability: float
-    date: UTCDateTime
-
-    model_config = ConfigDict(populate_by_name=True)
-
-
-class ProbabilityHistResponse(BaseModel):
-    history: list[ProbabilityHistData]
 
     model_config = ConfigDict(populate_by_name=True)

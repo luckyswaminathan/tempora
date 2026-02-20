@@ -71,7 +71,7 @@ class TestBuyBalanceValidation:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": 1}],
         }
-        resp = client.post("/trades", json=payload)
+        resp = client.post("/orders", json=payload)
         assert resp.status_code == 201
         cost = resp.json()["priceCents"]
 
@@ -94,7 +94,7 @@ class TestBuyBalanceValidation:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": 10000}],
         }
-        resp = client.post("/trades", json=payload)
+        resp = client.post("/orders", json=payload)
         assert resp.status_code == 400
         error_detail = resp.json()["detail"]
         assert "Insufficient balance" in error_detail
@@ -116,7 +116,7 @@ class TestShortCollateral:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": 10}],
         }
-        resp = client.post("/trades", json=buy_payload)
+        resp = client.post("/orders", json=buy_payload)
         assert resp.status_code == 201
 
         # Get balance after buy
@@ -129,7 +129,7 @@ class TestShortCollateral:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": -5}],
         }
-        resp = client.post("/trades", json=sell_payload)
+        resp = client.post("/orders", json=sell_payload)
         assert resp.status_code == 201
         sell_proceeds = -resp.json()["priceCents"]  # Negative cost = proceeds
 
@@ -148,7 +148,7 @@ class TestShortCollateral:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": 5}],
         }
-        resp = client.post("/trades", json=buy_payload)
+        resp = client.post("/orders", json=buy_payload)
         assert resp.status_code == 201
 
         # Sell 10 shares (5 closing, 5 new short) - should work with collateral
@@ -156,7 +156,7 @@ class TestShortCollateral:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": -10}],
         }
-        resp = client.post("/trades", json=sell_payload)
+        resp = client.post("/orders", json=sell_payload)
         # This should succeed since we receive money and use it for collateral
         assert resp.status_code == 201
 
@@ -169,7 +169,7 @@ class TestShortCollateral:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": -5}],
         }
-        resp = client.post("/trades", json=sell_payload)
+        resp = client.post("/orders", json=sell_payload)
         # Should succeed - we receive premium and need collateral
         assert resp.status_code == 201
 
@@ -185,7 +185,7 @@ class TestShortCollateral:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": -10000}],
         }
-        resp = client.post("/trades", json=sell_payload)
+        resp = client.post("/orders", json=sell_payload)
         assert resp.status_code == 400
         assert "collateral" in resp.json()["detail"].lower()
 
@@ -207,7 +207,7 @@ class TestSpendableBalance:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": -10}],
         }
-        resp = client.post("/trades", json=sell_payload)
+        resp = client.post("/orders", json=sell_payload)
         assert resp.status_code == 201
         sell_proceeds = -resp.json()["priceCents"]  # Negative cost = proceeds
 
@@ -227,7 +227,7 @@ class TestSpendableBalance:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_a, "quantity": -50}],
         }
-        resp = client.post("/trades", json=sell_payload)
+        resp = client.post("/orders", json=sell_payload)
         assert resp.status_code == 201
 
         # Now try to buy a huge amount of security B
@@ -236,7 +236,7 @@ class TestSpendableBalance:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_b, "quantity": 10000}],
         }
-        resp = client.post("/trades", json=buy_payload)
+        resp = client.post("/orders", json=buy_payload)
         assert resp.status_code == 400
         error_detail = resp.json()["detail"]
         assert "Insufficient balance" in error_detail
@@ -254,7 +254,7 @@ class TestCollateralRelease:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": -10}],
         }
-        resp = client.post("/trades", json=sell_payload)
+        resp = client.post("/orders", json=sell_payload)
         assert resp.status_code == 201
 
         # Get balance after short
@@ -267,7 +267,7 @@ class TestCollateralRelease:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": 10}],
         }
-        resp = client.post("/trades", json=buy_payload)
+        resp = client.post("/orders", json=buy_payload)
         assert resp.status_code == 201
         buy_cost = resp.json()["priceCents"]
 
@@ -291,7 +291,7 @@ class TestMultipleLegTrades:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_a, "quantity": 10}],
         }
-        resp = client.post("/trades", json=buy_payload)
+        resp = client.post("/orders", json=buy_payload)
         assert resp.status_code == 201
 
         # Now do a multi-leg: sell A, buy B
@@ -302,7 +302,7 @@ class TestMultipleLegTrades:
                 {"securityId": security_b, "quantity": 5},
             ],
         }
-        resp = client.post("/trades", json=multi_payload)
+        resp = client.post("/orders", json=multi_payload)
         assert resp.status_code == 201
 
 
@@ -318,7 +318,7 @@ class TestPriceEndpoint:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": 10000}],
         }
-        resp = client.post("/trades/price", json=payload)
+        resp = client.post("/orders/price", json=payload)
         # Price endpoint should succeed
         assert resp.status_code == 200
         assert "priceCents" in resp.json()
@@ -331,7 +331,7 @@ class TestPriceEndpoint:
             "marketId": market_2_outcomes.id,
             "legs": [{"securityId": security_id, "quantity": -10}],
         }
-        resp = client.post("/trades/price", json=payload)
+        resp = client.post("/orders/price", json=payload)
         assert resp.status_code == 200
         # Shorting should give negative price (you receive money)
         assert resp.json()["priceCents"] < 0

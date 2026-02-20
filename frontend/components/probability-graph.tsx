@@ -12,7 +12,7 @@ import {
 } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
-import { usersApi, type ProbabilityHistData } from "@/lib/api";
+import { historyApi, type ProbabilityHistData } from "@/lib/api";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 
@@ -34,7 +34,7 @@ export function ProbabilityGraph({
     const fetchHistory = async () => {
       setLoading(true);
       try {
-        const response = await usersApi.getProbabilityHistory(securityId);
+        const response = await historyApi.getProbabilityHistory(securityId);
         const formattedData = response.history.map((item) => ({
           ...item,
           dateFormatted: format(parseISO(item.date), "MMM d, h:mm a"),

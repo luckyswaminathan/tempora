@@ -7,11 +7,12 @@ from core.database import get_session
 from core.models import UserRole
 from schemas.user import UserBase
 from services.markets import MarketService
-from services.trades import TradeService
+from services.orders import OrderService
 from services.auth import AuthService
 from services.portfolio import PortfolioService
 from services.leaderboard import LeaderboardService
 from services.tutorial import TutorialService
+from services.history import HistoryService
 
 
 def get_auth_service(session: Session = Depends(get_session)) -> AuthService:
@@ -22,8 +23,8 @@ def get_market_service(session: Session = Depends(get_session)) -> MarketService
     return MarketService(session)
 
 
-def get_trade_service(session: Session = Depends(get_session)) -> TradeService:
-    return TradeService(session)
+def get_order_service(session: Session = Depends(get_session)) -> OrderService:
+    return OrderService(session)
 
 
 def get_portfolio_service(session: Session = Depends(get_session)) -> PortfolioService:
@@ -38,6 +39,10 @@ def get_leaderboard_service(
 
 def get_tutorial_service(session: Session = Depends(get_session)) -> TutorialService:
     return TutorialService(session)
+
+
+def get_history_service(session: Session = Depends(get_session)) -> HistoryService:
+    return HistoryService(session)
 
 
 def get_current_user(

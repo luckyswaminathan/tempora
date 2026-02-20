@@ -20,8 +20,7 @@ from schemas.market import (
     MarketMakerMarket,
     MarketMakerDashboard,
 )
-from schemas.trade import TradeRecord
-from services.pricing import calculate_market_quotes
+from utils.pricing import calculate_market_quotes
 
 
 class MarketService:
@@ -41,7 +40,6 @@ class MarketService:
         markets = self.session.scalars(
             stmt.options(
                 selectinload(models.Market.securities),
-                selectinload(models.Market.trades),
             )
         ).all()
         items = [self._attach_quote(market) for market in markets]
@@ -228,21 +226,13 @@ class MarketService:
         # Sort securities by value (ascending)
         securities.sort(key=lambda s: s.value)
 
-        trades = [
-            TradeRecord.model_validate(
-                {
-                    "id": t.id,
-                    "user_id": t.user_id,
-                    "market_id": t.market_id,
-                    "trade_group_id": t.trade_group_id,
-                    "security_id": t.security_id,
-                    "quantity": t.quantity,
-                    "price_cents": t.price_cents,
-                    "created_at": t.created_at or datetime.now(timezone.utc),
-                }
-            )
-            for t in market.trades
-        ]
+        # Get trades for this market
+        trades_stmt = (
+            select(models.Trade)
+            .join(models.Security)
+            .where(models.Security.market_id == market.id)
+        )
+        trades = self.session.scalars(trades_stmt).all()
 
         # Compute quantities per security
         quantities = {s.id: 0 for s in securities}
@@ -353,7 +343,6 @@ class MarketService:
             .where(models.Market.creator_id == creator_id)
             .options(
                 selectinload(models.Market.securities),
-                selectinload(models.Market.trades),
             )
             .order_by(models.Market.created_at.desc())
         )
@@ -365,15 +354,23 @@ class MarketService:
         total_liability = 0
 
         for market in markets:
+            # Get all trades for this market
+            trades_stmt = (
+                select(models.Trade)
+                .join(models.Security)
+                .where(models.Security.market_id == market.id)
+            )
+            market_trades = self.session.scalars(trades_stmt).all()
+
             # Calculate revenue from trades (sum of all trade prices)
-            revenue = sum(t.price_cents for t in market.trades)
+            revenue = sum(t.price_cents for t in market_trades)
 
             # Calculate current liability (potential payout)
             # For each security, liability = 100 cents * quantity held by traders
             liability = 0
             for security in market.securities:
                 security_quantity = sum(
-                    t.quantity for t in market.trades if t.security_id == security.id
+                    t.quantity for t in market_trades if t.security_id == security.id
                 )
                 # Each share pays out 100 cents if it wins
                 liability = max(liability, security_quantity * 100)
@@ -382,7 +379,7 @@ class MarketService:
             if market.status == models.MarketStatus.RESOLVED:
                 # Find winning security trades
                 winning_payout = 0
-                for t in market.trades:
+                for t in market_trades:
                     if t.security_id == market.winning_security_id:
                         winning_payout += t.quantity * 100
                 net_pnl = revenue - winning_payout
@@ -402,7 +399,7 @@ class MarketService:
                     revenueCents=revenue,
                     liabilityCents=liability,
                     netPnlCents=net_pnl,
-                    numTrades=len(market.trades),
+                    numTrades=len(market_trades),
                     winningSecurityId=market.winning_security_id,
                 )
             )

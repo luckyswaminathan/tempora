@@ -313,11 +313,22 @@ def seed_markets() -> None:
                 else:
                     qty = base_qty - random.randint(5, 15)  # Lower for late outcomes
 
+                # Create an order for this trade
+                order = models.Order(
+                    user_id=admin_user.id,
+                    market_id=m.id,
+                    type=models.OrderType.MARKET,
+                    filled=True,
+                    created_at=datetime.now(timezone.utc),
+                )
+                session.add(order)
+                session.flush()
+
                 # Create a trade with random price
                 price = random.randint(30, 70)  # Price in cents
                 trade = models.Trade(
+                    order_id=order.id,
                     user_id=admin_user.id,
-                    market_id=m.id,
                     security_id=sec.id,
                     quantity=qty,
                     price_cents=price,

@@ -196,7 +196,7 @@ class TestSettlementPayouts:
             "marketId": market.id,
             "legs": [{"securityId": yes_security_id, "quantity": 20}],
         }
-        resp = user_client.post("/trades", json=trade_payload)
+        resp = user_client.post("/orders", json=trade_payload)
         assert resp.status_code == 201
         trade_cost = resp.json()["priceCents"]
 
@@ -258,7 +258,7 @@ class TestSettlementPayouts:
             "marketId": market.id,
             "legs": [{"securityId": yes_security_id, "quantity": 10}],
         }
-        user_client.post("/trades", json=trade_payload)
+        user_client.post("/orders", json=trade_payload)
 
         # Settlement should succeed
         settlement_payload = {"winningSecurityId": yes_security_id}
@@ -325,14 +325,14 @@ class TestSettlementPayouts:
             "marketId": market.id,
             "legs": [{"securityId": yes_security_id, "quantity": 10}],
         }
-        user_client.post("/trades", json=trade_payload)
+        user_client.post("/orders", json=trade_payload)
 
         # User 2 buys 15 shares
         trade_payload = {
             "marketId": market.id,
             "legs": [{"securityId": yes_security_id, "quantity": 15}],
         }
-        user2_client.post("/trades", json=trade_payload)
+        user2_client.post("/orders", json=trade_payload)
 
         # Get wallets before settlement
         user1 = (
@@ -470,14 +470,14 @@ class TestSettlementEdgeCases:
             "marketId": market.id,
             "legs": [{"securityId": yes_security_id, "quantity": 10}],
         }
-        user_client.post("/trades", json=trade_payload)
+        user_client.post("/orders", json=trade_payload)
 
         # Sell 15 shares (net -5)
         trade_payload = {
             "marketId": market.id,
             "legs": [{"securityId": yes_security_id, "quantity": -15}],
         }
-        user_client.post("/trades", json=trade_payload)
+        user_client.post("/orders", json=trade_payload)
 
         # Get wallet before settlement
         from core import models
@@ -526,14 +526,14 @@ class TestSettlementEdgeCases:
             "marketId": market.id,
             "legs": [{"securityId": q2_security_id, "quantity": 8}],
         }
-        user_client.post("/trades", json=trade_payload)
+        user_client.post("/orders", json=trade_payload)
 
         # Buy Q3 shares (different outcome)
         trade_payload = {
             "marketId": market.id,
             "legs": [{"securityId": q3_security_id, "quantity": 5}],
         }
-        user_client.post("/trades", json=trade_payload)
+        user_client.post("/orders", json=trade_payload)
 
         # Get wallet before
         from core import models

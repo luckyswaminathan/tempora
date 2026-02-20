@@ -9,14 +9,13 @@ from fastapi import HTTPException, status
 from core import models
 from schemas.portfolio import Holding, PortfolioSnapshot, PortfolioSummary
 from services.markets import MarketService
-from services.trades import TradeService
+from utils.collateral import get_user_collateral_locked
 
 
 class PortfolioService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.market_service = MarketService(session)
-        self.trade_service = TradeService(session)
 
     def get_portfolio(self, user_id: str) -> PortfolioSnapshot:
         profile = self.session.get(models.Profile, user_id)
@@ -27,7 +26,8 @@ class PortfolioService:
 
         stmt = (
             select(models.Trade)
-            .join(models.Market, models.Trade.market_id == models.Market.id)
+            .join(models.Security)
+            .join(models.Market, models.Security.market_id == models.Market.id)
             .where(
                 models.Trade.user_id == user_id,
                 models.Market.status != models.MarketStatus.RESOLVED,
@@ -37,7 +37,7 @@ class PortfolioService:
 
         metrics_by_security = defaultdict(lambda: {"quantity": 0, "cost_basis": 0})
         for trade in open_trades:
-            key = (trade.market_id, trade.security_id)
+            key = (trade.security.market_id, trade.security_id)
             metrics_by_security[key]["quantity"] += trade.quantity or 0
             metrics_by_security[key]["cost_basis"] += trade.price_cents or 0
 
@@ -95,7 +95,7 @@ class PortfolioService:
         )
 
         # Calculate collateral locked for short positions
-        collateral_locked = self.trade_service._get_user_collateral_locked(user_id)
+        collateral_locked = get_user_collateral_locked(self.session, user_id)
         spendable_balance = max(0, profile.wallet - collateral_locked)
 
         return PortfolioSnapshot(

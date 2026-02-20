@@ -16,7 +16,7 @@ from schemas.proposal import (
     ProposerInfo,
 )
 from services.markets import MarketService
-from services.trades import TradeService
+from utils.collateral import get_user_collateral_locked
 
 
 def calculate_max_loss_cents(liquidity_parameter: float, num_outcomes: int) -> int:
@@ -30,7 +30,6 @@ class ProposalService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.market_service = MarketService(self.session)
-        self.trade_service = TradeService(self.session)
 
     def create_proposal(self, proposer_id: str, payload: ProposalCreate) -> Proposal:
         """Create a new market proposal."""
@@ -174,9 +173,7 @@ class ProposalService:
         funding_collateral_cents = calculate_max_loss_cents(liquidity, num_outcomes)
 
         # Calculate total collateral already locked (from short positions + other markets)
-        current_collateral_locked = self.trade_service._get_user_collateral_locked(
-            user_id
-        )
+        current_collateral_locked = get_user_collateral_locked(self.session, user_id)
 
         # Verify market maker has enough funds to cover worst-case loss plus existing collateral
         total_collateral_required = current_collateral_locked + funding_collateral_cents
