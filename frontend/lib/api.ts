@@ -259,16 +259,6 @@ export interface OrderPriceResponse {
   estimatedFillProbability?: number; // For limit orders, likelihood of fill
 }
 
-export interface TradePlaceResponse {
-  priceCents: number;
-  executedAt: string;
-  orderId?: string; // For pending limit orders
-  orderStatus?: "filled" | "pending" | "partial"; // Status of the order
-  orderType?: OrderType;
-  filledQuantity?: number; // For partial fills, how many shares were filled
-  requestedQuantity?: number; // Original requested quantity
-}
-
 export interface ProbabilityHistData {
   probability: number;
   date: string;

@@ -114,7 +114,7 @@ export function TradeDialog({
           quantity: shares,
         }));
 
-        const priceData = await tradesApi.priceTrade({
+        const priceData = await ordersApi.priceOrder({
           marketId: market.id,
           legs,
         });
@@ -266,7 +266,7 @@ export function TradeDialog({
       }));
 
       // Build trade request with advanced options
-      const tradeRequest: Parameters<typeof tradesApi.placeTrade>[0] = {
+      const tradeRequest: Parameters<typeof ordersApi.placeOrder>[0] = {
         marketId: market.id,
         legs,
         orderType,
@@ -277,10 +277,12 @@ export function TradeDialog({
             : undefined,
       };
 
-      const result = await tradesApi.placeTrade(tradeRequest);
+      const result = await ordersApi.placeOrder(tradeRequest);
 
       const action = isBuy ? "Bought" : "Sold";
       const orderTypeLabel = orderType === "market" ? "" : " (limit order)";
+
+      // TODO: fix this up
 
       if (result.orderStatus === "pending") {
         toast.success(`Limit order placed! Your order is pending execution.`);
