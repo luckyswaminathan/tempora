@@ -211,6 +211,9 @@ export const marketsApi = {
 };
 
 // Orders API
+export type OrderType = "market" | "limit";
+export type TimeInForce = "gtc" | "day";
+
 export interface Leg {
   securityId: string;
   quantity: number;
@@ -219,6 +222,10 @@ export interface Leg {
 export interface OrderCreateRequest {
   marketId: string;
   legs: Leg[];
+  // Advanced order options (optional - defaults to market order)
+  orderType?: OrderType;
+  limitPriceCents?: number; // Max avg price for limit orders (LMSR will partial fill if needed)
+  timeInForce?: TimeInForce; // Defaults to 'gtc' (good til cancelled)
 }
 
 export interface TradeRecord {
@@ -248,6 +255,18 @@ export interface OrderListResponse {
 export interface OrderPriceResponse {
   priceCents: number;
   pricedAt: string;
+  orderType?: OrderType;
+  estimatedFillProbability?: number; // For limit orders, likelihood of fill
+}
+
+export interface TradePlaceResponse {
+  priceCents: number;
+  executedAt: string;
+  orderId?: string; // For pending limit orders
+  orderStatus?: "filled" | "pending" | "partial"; // Status of the order
+  orderType?: OrderType;
+  filledQuantity?: number; // For partial fills, how many shares were filled
+  requestedQuantity?: number; // Original requested quantity
 }
 
 export interface ProbabilityHistData {
