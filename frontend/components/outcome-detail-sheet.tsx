@@ -1,13 +1,21 @@
+import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Wallet, History, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import {
+  Wallet,
+  History,
+  ArrowUpRight,
+  ArrowDownRight,
+  ExternalLink,
+} from "lucide-react";
 import { ordersApi, type PortfolioSnapshot, type OrderRecord } from "@/lib/api";
 
 interface OutcomeDetailSheetProps {

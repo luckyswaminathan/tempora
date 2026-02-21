@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,14 +11,27 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
 } from "lucide-react";
-import { usersApi, type CollateralBreakdown } from "@/lib/api";
+import {
+  usersApi,
+  type CollateralBreakdown,
+  type PortfolioSnapshot,
+} from "@/lib/api";
 
 interface CollateralTabProps {
   totalCollateralLocked: number;
+  /** Portfolio holdings, used to open OutcomeDetailSheet for short positions */
+  holdings?: PortfolioSnapshot["holdings"];
+  /** Open an outcome detail sheet for a holding */
+  openOutcomeDetail?: (holding: PortfolioSnapshot["holdings"][0]) => void;
 }
 
-export function CollateralTab({ totalCollateralLocked }: CollateralTabProps) {
+export function CollateralTab({
+  totalCollateralLocked,
+  holdings = [],
+  openOutcomeDetail,
+}: CollateralTabProps) {
   const [collateralBreakdown, setCollateralBreakdown] =
     useState<CollateralBreakdown | null>(null);
   const [loading, setLoading] = useState(true);
@@ -160,25 +174,29 @@ export function CollateralTab({ totalCollateralLocked }: CollateralTabProps) {
               const isExpanded = expandedMarkets.has(idx);
               return (
                 <Card key={idx} className="p-4">
-                  {/* Market header - always visible, clickable */}
-                  <button
-                    onClick={() => toggleMarket(idx)}
-                    className="w-full flex items-start justify-between gap-4 text-left hover:opacity-80 transition-opacity"
-                  >
-                    <div className="flex-1 min-w-0 flex items-start gap-2">
-                      {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm line-clamp-2">
-                          {market.question}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                  {/* Market header */}
+                  <div className="w-full flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <Link
+                        href={`/market/${market.marketId}`}
+                        className="group/link font-medium text-sm line-clamp-2 mb-1 inline-flex items-start gap-1 hover:underline"
+                      >
+                        {market.question}
+                        <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover/link:opacity-60 transition-opacity mt-0.5" />
+                      </Link>
+                      <div>
+                        <button
+                          onClick={() => toggleMarket(idx)}
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="w-3 h-3" />
+                          ) : (
+                            <ChevronRight className="w-3 h-3" />
+                          )}
                           {market.positions.length} short position
                           {market.positions.length !== 1 ? "s" : ""}
-                        </p>
+                        </button>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
@@ -189,27 +207,54 @@ export function CollateralTab({ totalCollateralLocked }: CollateralTabProps) {
                         ${(market.collateralCents / 100).toFixed(2)}
                       </div>
                     </div>
-                  </button>
+                  </div>
 
                   {/* Expanded positions detail */}
                   {isExpanded && (
                     <div className="space-y-1 mt-3 pt-3 border-t">
-                      {market.positions.map((pos, posIdx) => (
-                        <div
-                          key={posIdx}
-                          className="flex items-center gap-2 text-xs pl-6"
-                        >
-                          <Badge
-                            variant="outline"
-                            className="text-red-600 border-red-300"
+                      {market.positions.map((pos, posIdx) => {
+                        const matchingHolding = holdings.find(
+                          (h) =>
+                            h.marketId === market.marketId &&
+                            h.outcome === pos.outcome,
+                        );
+                        const isClickable = !!(
+                          matchingHolding && openOutcomeDetail
+                        );
+                        return isClickable ? (
+                          <button
+                            key={posIdx}
+                            onClick={() => openOutcomeDetail!(matchingHolding!)}
+                            className="w-full flex items-center gap-2 text-xs pl-6 py-1 rounded hover:bg-muted/50 transition-colors group"
                           >
-                            {pos.outcome}
-                          </Badge>
-                          <span className="text-muted-foreground">
-                            {pos.quantity} shares (short)
-                          </span>
-                        </div>
-                      ))}
+                            <Badge
+                              variant="outline"
+                              className="text-red-600 border-red-300"
+                            >
+                              {pos.outcome}
+                            </Badge>
+                            <span className="text-muted-foreground flex-1 text-left">
+                              {pos.quantity} shares
+                            </span>
+                            <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                        ) : (
+                          <div
+                            key={posIdx}
+                            className="flex items-center gap-2 text-xs pl-6"
+                          >
+                            <Badge
+                              variant="outline"
+                              className="text-red-600 border-red-300"
+                            >
+                              {pos.outcome}
+                            </Badge>
+                            <span className="text-muted-foreground">
+                              {pos.quantity} shares
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </Card>
@@ -235,9 +280,13 @@ export function CollateralTab({ totalCollateralLocked }: CollateralTabProps) {
               <Card key={order.orderId} className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm line-clamp-1 mb-1">
+                    <Link
+                      href={`/market/${order.marketId}`}
+                      className="group/link font-medium text-sm line-clamp-1 mb-1 inline-flex items-center gap-1 hover:underline"
+                    >
                       {order.question}
-                    </p>
+                      <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover/link:opacity-60 transition-opacity" />
+                    </Link>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge
                         variant="outline"
@@ -278,9 +327,13 @@ export function CollateralTab({ totalCollateralLocked }: CollateralTabProps) {
               <Card key={market.marketId} className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm line-clamp-1 mb-1">
+                    <Link
+                      href={`/market/${market.marketId}`}
+                      className="group/link font-medium text-sm line-clamp-1 mb-1 inline-flex items-center gap-1 hover:underline"
+                    >
                       {market.question}
-                    </p>
+                      <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover/link:opacity-60 transition-opacity" />
+                    </Link>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge
                         variant="outline"

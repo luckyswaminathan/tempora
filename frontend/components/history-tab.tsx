@@ -1,7 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Clock, Search, Calendar } from "lucide-react";
+import Link from "next/link";
+import { Clock, Search, ExternalLink } from "lucide-react";
 import type { OrderRecord } from "@/lib/api";
 
 interface HistoryTabProps {
@@ -9,6 +10,10 @@ interface HistoryTabProps {
   loading: boolean;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  /** Hide the search bar (e.g. when used on a single-market page) */
+  hideSearch?: boolean;
+  /** Called when a history card is clicked */
+  onOrderClick?: (order: OrderRecord) => void;
 }
 
 export function HistoryTab({
@@ -16,6 +21,8 @@ export function HistoryTab({
   loading,
   searchQuery,
   setSearchQuery,
+  hideSearch = false,
+  onOrderClick,
 }: HistoryTabProps) {
   // Filter orders by search query
   const filteredOrders = orders.filter((order) =>
@@ -49,18 +56,20 @@ export function HistoryTab({
   return (
     <>
       {/* Search Bar */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search markets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+      {!hideSearch && (
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search markets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {filteredOrders.length === 0 ? (
         <div className="text-center py-12">
@@ -99,13 +108,21 @@ export function HistoryTab({
                   }));
 
             return (
-              <Card key={order.id} className="p-4">
-                {/* Header row with date and badges */}
-                <div className="flex items-center justify-between mb-3 pb-3 border-b">
-                  <div className="flex items-center gap-2">
+              <Card
+                key={order.id}
+                className={`px-4 py-3${
+                  onOrderClick
+                    ? " cursor-pointer hover:bg-muted/30 transition-colors"
+                    : ""
+                }`}
+                onClick={() => onOrderClick?.(order)}
+              >
+                {/* Row 1: badges left, timestamp right */}
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-1">
                     <Badge
                       variant={isBuy ? "default" : "secondary"}
-                      className={`font-mono text-xs ${
+                      className={`font-mono text-xs px-1.5 py-0 h-5 ${
                         isBuy ? "bg-green-600" : "bg-red-600 text-white"
                       }`}
                     >
@@ -113,144 +130,90 @@ export function HistoryTab({
                     </Badge>
                     <Badge
                       variant="outline"
-                      className={
+                      className={`text-xs px-1.5 py-0 h-5 ${
                         isLimit
                           ? "text-purple-600 border-purple-300"
                           : "text-blue-600 border-blue-300"
-                      }
+                      }`}
                     >
                       {isLimit ? "LIMIT" : "MARKET"}
                     </Badge>
-                    {order.filled && (
+                    {order.filled ? (
                       <Badge
                         variant="outline"
-                        className="text-green-600 border-green-300"
+                        className="text-xs px-1.5 py-0 h-5 text-green-600 border-green-300"
                       >
                         FILLED
                       </Badge>
-                    )}
-                    {order.canceled && (
+                    ) : order.canceled ? (
                       <Badge
                         variant="outline"
-                        className="text-red-600 border-red-300"
+                        className="text-xs px-1.5 py-0 h-5 text-red-600 border-red-300"
                       >
                         CANCELED
                       </Badge>
-                    )}
-                    {!order.filled && !order.canceled && (
+                    ) : (
                       <Badge
                         variant="outline"
-                        className="text-amber-600 border-amber-300"
+                        className="text-xs px-1.5 py-0 h-5 text-amber-600 border-amber-300"
                       >
                         PENDING
                       </Badge>
                     )}
                   </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Calendar className="w-3 h-3" />
-                      <span>
-                        {new Date(order.createdAt).toLocaleDateString(
-                          undefined,
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          },
-                        )}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground font-mono">
+                  <div className="flex flex-col items-end shrink-0">
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(order.createdAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-mono">
                       {new Date(order.createdAt).toLocaleTimeString(undefined, {
                         hour: "2-digit",
                         minute: "2-digit",
                         second: "2-digit",
                       })}
-                    </div>
+                    </span>
                   </div>
                 </div>
 
-                {/* Market question */}
-                <div className="mb-3">
-                  <h3 className="font-medium text-sm line-clamp-2 text-balance">
-                    {order.question}
-                  </h3>
-                </div>
-
-                {/* Order details in grid */}
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  {/* Outcomes - More compact */}
-                  <div>
-                    <div className="text-xs text-muted-foreground mb-1">
-                      Outcomes ({outcomes.length})
-                    </div>
-                    <div className="text-xs">
-                      {outcomes.slice(0, 3).map((item, idx) => (
-                        <div key={idx} className="truncate">
-                          <span className="font-medium">{item.outcome}</span>
-                          <span className="text-muted-foreground">
-                            {" "}
-                            ({item.quantity > 0 ? "+" : ""}
-                            {item.quantity})
-                          </span>
-                        </div>
-                      ))}
-                      {outcomes.length > 3 && (
-                        <div className="text-muted-foreground italic">
-                          +{outcomes.length - 3} more
-                        </div>
-                      )}
-                    </div>
+                {/* Row 2: question left, price right */}
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/market/${order.marketId}`}
+                      className="group/link text-sm font-medium line-clamp-1 leading-snug hover:underline inline-flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {order.question}
+                      <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover/link:opacity-60 transition-opacity" />
+                    </Link>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate leading-snug">
+                      {outcomes
+                        .slice(0, 3)
+                        .map(
+                          (o) =>
+                            `${o.outcome} (${o.quantity > 0 ? "+" : ""}${o.quantity})`,
+                        )
+                        .join(" · ")}
+                      {outcomes.length > 3 && ` +${outcomes.length - 3} more`}
+                    </p>
                   </div>
-
-                  {/* Pricing */}
-                  <div>
-                    <div className="text-xs text-muted-foreground mb-1">
-                      Pricing
-                    </div>
-                    <div className="space-y-1 text-xs">
-                      {order.filled ? (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">
-                              Avg per share:
-                            </span>
-                            <span className="font-medium tabular-nums">
-                              {Math.abs(avgPricePerShare).toFixed(2)}¢
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">
-                              Total {isBuy ? "cost" : "received"}:
-                            </span>
-                            <span className="font-semibold tabular-nums">
-                              ${(Math.abs(order.priceCents) / 100).toFixed(2)}
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          {isLimit && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">
-                                Limit price:
-                              </span>
-                              <span className="font-medium tabular-nums text-purple-600">
-                                ${(order.limitPriceCents / 100).toFixed(2)}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">
-                              Status:
-                            </span>
-                            <span className="font-medium">
-                              {order.canceled ? "Canceled" : "Pending"}
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold font-mono tabular-nums">
+                      {order.filled
+                        ? `$${(order.priceCents / 100).toFixed(2)}`
+                        : isLimit
+                          ? `$${(order.limitPriceCents / 100).toFixed(2)}`
+                          : "—"}
+                    </p>
+                    {totalShares > 0 && avgPricePerShare > 0 && (
+                      <p className="text-xs text-muted-foreground font-mono tabular-nums">
+                        {avgPricePerShare.toFixed(2)}¢/sh
+                      </p>
+                    )}
                   </div>
                 </div>
               </Card>

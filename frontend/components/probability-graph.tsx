@@ -150,7 +150,7 @@ export function ProbabilityGraph({
                 dataKey="probability"
                 tick={{ fontSize: 8, fill: "#6b7280" }}
                 stroke="#9ca3af"
-                domain={[0, "auto"]}
+                domain={[(dataMin: number) => Math.max(0, dataMin), "auto"]}
                 tickFormatter={(value) => `${(value * 100).toFixed(2)}%`}
               />
               <Tooltip
@@ -169,11 +169,12 @@ export function ProbabilityGraph({
                 }}
               />
               <Area
-                type="monotone"
+                type="linear"
                 dataKey="probability"
-                stroke="none"
+                stroke="#3b82f6"
+                strokeWidth={1.5}
                 fill="#3b82f6"
-                fillOpacity={0.6}
+                fillOpacity={0.15}
                 isAnimationActive={false}
               />
             </AreaChart>

@@ -21,6 +21,7 @@ import { OpenOrdersTab } from "@/components/open-orders-tab";
 import { CollateralTab } from "@/components/collateral-tab";
 import { HistoryTab } from "@/components/history-tab";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
+import { OrderDetailSheet } from "@/components/order-detail-sheet";
 
 // Group holdings by market
 interface MarketGroup {
@@ -56,6 +57,7 @@ export default function PortfolioPage() {
   const [allOrders, setAllOrders] = useState<OrderRecord[]>([]);
   const [loadingAllOrders, setLoadingAllOrders] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
 
   const pnlTutorial = useTutorial({
     steps: UNDERSTANDING_PNL_STEPS,
@@ -381,7 +383,11 @@ export default function PortfolioPage() {
 
         {/* Collateral Tab */}
         <TabsContent value="collateral">
-          <CollateralTab totalCollateralLocked={portfolio.collateralLocked} />
+          <CollateralTab
+            totalCollateralLocked={portfolio.collateralLocked}
+            holdings={portfolio.holdings}
+            openOutcomeDetail={openOutcomeDetail}
+          />
         </TabsContent>
 
         {/* History Tab */}
@@ -391,6 +397,7 @@ export default function PortfolioPage() {
             loading={loadingAllOrders}
             searchQuery={historySearchQuery}
             setSearchQuery={setHistorySearchQuery}
+            onOrderClick={(order) => setSelectedOrder(order)}
           />
         </TabsContent>
       </Tabs>
@@ -402,6 +409,13 @@ export default function PortfolioPage() {
         tradeHistory={tradeHistory}
         loadingHistory={loadingHistory}
         fetchTradeHistory={fetchTradeHistory}
+      />
+
+      {/* Order Detail Sheet (history tab) */}
+      <OrderDetailSheet
+        order={selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onOrderCancelled={handleOrderCancelled}
       />
     </div>
   );

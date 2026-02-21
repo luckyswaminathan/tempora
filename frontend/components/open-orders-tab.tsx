@@ -1,15 +1,26 @@
+import Link from "next/link";
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Clock,
   X,
   AlertCircle,
-  Calendar,
   Search,
   ChevronRight,
+  ExternalLink,
 } from "lucide-react";
 import { ordersApi, type OrderRecord } from "@/lib/api";
 import { OrderDetailSheet } from "@/components/order-detail-sheet";
@@ -25,14 +36,24 @@ interface OpenOrdersTabProps {
   pendingOrders: OrderRecord[];
   loadingOrders: boolean;
   onOrderCancelled: () => void;
+  /** Hide the search bar (e.g. when used on a single-market page) */
+  hideSearch?: boolean;
+  /** Hide market question links and "View ↗" buttons (e.g. when already on that market's page) */
+  hideMarketLinks?: boolean;
+  /** Render as a flat list of rows instead of grouped cards (for single-market context) */
+  listMode?: boolean;
 }
 
 export function OpenOrdersTab({
   pendingOrders,
   loadingOrders,
   onOrderCancelled,
+  hideSearch = false,
+  hideMarketLinks = false,
+  listMode = false,
 }: OpenOrdersTabProps) {
   const [cancellingOrder, setCancellingOrder] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
 
@@ -83,6 +104,13 @@ export function OpenOrdersTab({
     }
   };
 
+  const handleConfirmCancel = async () => {
+    if (!confirmCancelId) return;
+    const id = confirmCancelId;
+    setConfirmCancelId(null);
+    await handleCancelOrder(id);
+  };
+
   if (loadingOrders) {
     return (
       <div className="text-center py-12">
@@ -108,22 +136,82 @@ export function OpenOrdersTab({
   return (
     <>
       {/* Search Bar */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search markets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+      {!hideSearch && (
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search markets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {filteredGroups.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No markets match your search</p>
+        </div>
+      ) : listMode ? (
+        <div className="space-y-1.5">
+          {filteredGroups.flatMap((group) =>
+            group.orders.map((order) => {
+              const isBuy =
+                order.legs.length > 0 ? order.legs[0].quantity > 0 : true;
+              return (
+                <div
+                  key={order.id}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => setSelectedOrder(order)}
+                >
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge
+                      className={`text-xs px-1.5 py-0 h-5 ${
+                        isBuy ? "bg-green-600" : "bg-red-600 text-white"
+                      }`}
+                    >
+                      {isBuy ? "BUY" : "SELL"}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className="text-xs px-1.5 py-0 h-5 text-purple-600 border-purple-300"
+                    >
+                      LIMIT
+                    </Badge>
+                  </div>
+                  <div className="flex-1 min-w-0 text-sm text-muted-foreground truncate">
+                    {order.legs.map((l) => l.outcome).join(", ")}
+                  </div>
+                  <span className="text-sm font-semibold font-mono shrink-0">
+                    $
+                    {(order.type === "limit"
+                      ? order.limitPriceCents / 100
+                      : 0
+                    ).toFixed(2)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 shrink-0 hover:bg-destructive/10 hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmCancelId(order.id);
+                    }}
+                    disabled={cancellingOrder === order.id}
+                  >
+                    {cancellingOrder === order.id ? (
+                      <span className="animate-spin text-xs">⏳</span>
+                    ) : (
+                      <X className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
+                </div>
+              );
+            }),
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -134,9 +222,20 @@ export function OpenOrdersTab({
             >
               {/* Market Header */}
               <div className="p-4 border-b">
-                <h3 className="font-medium leading-snug text-balance line-clamp-2 mb-2">
-                  {group.question}
-                </h3>
+                {hideMarketLinks ? (
+                  <p className="font-medium leading-snug text-balance line-clamp-2 mb-2">
+                    {group.question}
+                  </p>
+                ) : (
+                  <Link
+                    href={`/market/${group.marketId}`}
+                    className="group/link font-medium leading-snug line-clamp-2 mb-2 hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {group.question}
+                    <ExternalLink className="inline w-3 h-3 ml-1 opacity-0 group-hover/link:opacity-60 transition-opacity align-middle" />
+                  </Link>
+                )}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Clock className="w-3 h-3" />
                   <span>
@@ -190,7 +289,7 @@ export function OpenOrdersTab({
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCancelOrder(order.id);
+                            setConfirmCancelId(order.id);
                           }}
                           disabled={cancellingOrder === order.id}
                           className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
@@ -207,16 +306,8 @@ export function OpenOrdersTab({
                 })}
               </div>
 
-              {/* Total Limit Price - Compact */}
-              <div className="px-3 py-2 bg-muted/50 border-t flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total Limit</span>
-                <div className="font-semibold text-purple-600">
-                  ${(group.totalLimitPrice / 100).toFixed(2)}
-                </div>
-              </div>
-
-              {/* Hint */}
-              <div className="px-3 py-1.5 border-t bg-muted/30 text-center">
+              {/* Cancel hint */}
+              <div className="px-3 py-1.5 bg-muted/30 border-t flex items-center">
                 <span className="text-xs text-muted-foreground">
                   Click order for details or <X className="w-3 h-3 inline" /> to
                   cancel
@@ -227,22 +318,6 @@ export function OpenOrdersTab({
         </div>
       )}
 
-      {/* Info Card */}
-      <Card className="p-4 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 mt-6">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium text-amber-800 dark:text-amber-200">
-              Limit Order Info
-            </p>
-            <p className="text-amber-700 dark:text-amber-300 mt-1">
-              Pending limit orders will be filled when the market price reaches
-              your limit price. You can cancel unfilled orders at any time.
-            </p>
-          </div>
-        </div>
-      </Card>
-
       {/* Order Detail Sheet */}
       <OrderDetailSheet
         order={selectedOrder}
@@ -250,6 +325,31 @@ export function OpenOrdersTab({
         onCancel={handleCancelOrder}
         cancellingOrder={cancellingOrder}
       />
+
+      {/* Inline X cancel confirmation */}
+      <AlertDialog
+        open={confirmCancelId !== null}
+        onOpenChange={(open) => !open && setConfirmCancelId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel the pending limit order. This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Order</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmCancel}
+            >
+              Yes, Cancel Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

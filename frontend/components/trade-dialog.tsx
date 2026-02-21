@@ -77,6 +77,11 @@ export function TradeDialog({
     }
   }, [open, user]);
 
+  // Reset history index when outcomes change (e.g. switching interval → single)
+  useEffect(() => {
+    setSelectedHistoryIndex(0);
+  }, [selectedOutcomes]);
+
   // For single outcome, get the security directly
   const securityId = isSingle ? selectedOutcomes[0].id : undefined;
 
