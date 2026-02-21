@@ -9,6 +9,7 @@ from schemas.order import (
     OrderCreateRequest,
     OrderCreate,
     OrderPriceResponse,
+    OrderPlaceResponse,
 )
 from schemas.user import UserBase
 from services.markets import MarketService
@@ -40,16 +41,18 @@ def list_orders(
     return order_service.list_orders(user_id=user.id, market_id=market_id)
 
 
-@router.post("", response_model=OrderRecord, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=OrderPlaceResponse, status_code=status.HTTP_201_CREATED)
 def place_order(
     payload: OrderCreateRequest = Depends(validate_same_market),
     order_service: OrderService = Depends(deps.get_order_service),
     user: UserBase = Depends(deps.get_current_user),
-) -> OrderRecord:
+) -> OrderPlaceResponse:
     # Create OrderCreate with userId from authenticated user
     order_data = OrderCreate(
         userId=user.id,
         marketId=payload.market_id,
+        orderType=payload.order_type,
+        limitPriceCents=payload.limit_price_cents,
         legs=payload.legs,
     )
     return order_service.place_order(order_data)
@@ -63,3 +66,12 @@ def price_order(
     order_service: OrderService = Depends(deps.get_order_service),
 ) -> OrderPriceResponse:
     return order_service.price_order(payload)
+
+
+@router.post("/{order_id}/cancel", response_model=OrderRecord)
+def cancel_order(
+    order_id: str,
+    order_service: OrderService = Depends(deps.get_order_service),
+    user: UserBase = Depends(deps.get_current_user),
+) -> OrderRecord:
+    return order_service.cancel_order(order_id, user.id)

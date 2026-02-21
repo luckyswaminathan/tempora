@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional
 
 from schemas.date import UTCDateTime
 
@@ -14,6 +15,8 @@ class OrderCreateRequest(BaseModel):
     """Request payload from client (without userId)."""
 
     market_id: str = Field(alias="marketId")
+    order_type: str = Field(default="market", alias="orderType")
+    limit_price_cents: Optional[int] = Field(default=None, alias="limitPriceCents")
     legs: list[Leg] = Field(default_factory=list)
 
     model_config = ConfigDict(populate_by_name=True)
@@ -24,6 +27,8 @@ class OrderCreate(BaseModel):
 
     user_id: str = Field(alias="userId")
     market_id: str = Field(alias="marketId")
+    order_type: str = Field(default="market", alias="orderType")
+    limit_price_cents: Optional[int] = Field(default=None, alias="limitPriceCents")
     legs: list[Leg] = Field(default_factory=list)
 
     model_config = ConfigDict(populate_by_name=True)
@@ -55,8 +60,11 @@ class OrderRecord(BaseModel):
     type: str
     user_id: str = Field(alias="userId")
     market_id: str = Field(alias="marketId")
+    limit_price_cents: Optional[int] = Field(default=None, alias="limitPriceCents")
+    collateral_locked_cents: int = Field(default=0, alias="collateralLockedCents")
     created_at: UTCDateTime = Field(alias="createdAt")
     filled: bool
+    canceled: bool = Field(default=False)
     trades: list[TradeRecord] = Field(default_factory=list)
     price_cents: int = Field(
         alias="priceCents",
@@ -69,5 +77,12 @@ class OrderRecord(BaseModel):
 class OrderListResponse(BaseModel):
     items: list[OrderRecord]
     count: int
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class OrderPlaceResponse(BaseModel):
+    order: OrderRecord
+    filled: bool
 
     model_config = ConfigDict(populate_by_name=True)

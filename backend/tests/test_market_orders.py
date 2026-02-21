@@ -1,22 +1,21 @@
 """
-Tests for trading functionality and LMSR pricing.
+Tests for market order trading functionality and LMSR pricing.
 
-SCOPE: These tests verify the trading MECHANISM itself - the core functionality
-of executing trades, calculating prices, and updating balances.
+SCOPE: These tests verify the market order execution mechanism - immediate
+execution at current market prices with LMSR pricing.
 
 What this tests:
 - LMSR price calculation algorithm
-- Trade execution API (/orders and /orders/price endpoints)
+- Market order execution API (/orders and /orders/price endpoints)
 - Wallet balance updates during trades
 - Trade transaction mechanics
+- Multi-leg trades
+- Price impact
 
 What this does NOT test:
+- Limit orders - see test_limit_orders.py
 - Settlement/resolution of markets - see test_settlement.py
 - Market creation - see test_proposals.py
-- Position tracking after settlement
-
-NOTE: Settlement tests (test_settlement.py) use trading as a SETUP step to create
-positions before testing settlement logic. They assume trading works correctly.
 """
 
 import pytest
@@ -58,7 +57,7 @@ def test_place_trade(trader_client, trade_market):
         resp = trader_client.post("/orders", json=payload)
         assert resp.status_code == 201
 
-        data = resp.json()
+        data = resp.json()["order"]
         assert abs(data["priceCents"] - 100 / outcomes) <= 0.5
         wallet -= data["priceCents"]
 
@@ -79,7 +78,7 @@ def test_sell_trade(trader_client, trade_market):
     }
     resp = trader_client.post("/orders", json=buy_payload)
     assert resp.status_code == 201
-    buy_cost = resp.json()["priceCents"]
+    buy_cost = resp.json()["order"]["priceCents"]
 
     # Get wallet after buy
     resp = trader_client.get("/users/me/profile")
@@ -92,7 +91,7 @@ def test_sell_trade(trader_client, trade_market):
     }
     resp = trader_client.post("/orders", json=sell_payload)
     assert resp.status_code == 201
-    sell_price = resp.json()["priceCents"]
+    sell_price = resp.json()["order"]["priceCents"]
 
     # Selling should credit the wallet (negative price)
     assert sell_price < 0
@@ -120,7 +119,7 @@ def test_multi_leg_trade(trader_client, trade_market):
 
     resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 201
-    cost = resp.json()["priceCents"]
+    cost = resp.json()["order"]["priceCents"]
 
     # Cost of complete set should be close to $1 (100 cents)
     assert abs(cost - 100) < 5  # Allow small deviation for liquidity parameter
@@ -168,7 +167,7 @@ def test_round_trip_trade(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 10}],
     }
     resp = trader_client.post("/orders", json=buy_payload)
-    buy_cost = resp.json()["priceCents"]
+    buy_cost = resp.json()["order"]["priceCents"]
 
     # Immediately sell same 10 shares
     sell_payload = {
@@ -176,7 +175,7 @@ def test_round_trip_trade(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": -10}],
     }
     resp = trader_client.post("/orders", json=sell_payload)
-    sell_proceeds = -resp.json()["priceCents"]  # Negative cost = proceeds
+    sell_proceeds = -resp.json()["order"]["priceCents"]  # Negative cost = proceeds
 
     # Final wallet
     resp = trader_client.get("/users/me/profile")
@@ -217,7 +216,7 @@ def test_zero_quantity_trade(trader_client, trade_market):
     resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 201
     # Zero quantity trade should cost nothing
-    assert resp.json()["priceCents"] == 0
+    assert resp.json()["order"]["priceCents"] == 0
 
 
 def test_mixed_buy_sell_trade(trader_client, trade_market):
@@ -244,7 +243,7 @@ def test_mixed_buy_sell_trade(trader_client, trade_market):
     }
     resp = trader_client.post("/orders", json=mixed_payload)
     assert resp.status_code == 201
-    net_cost = resp.json()["priceCents"]
+    net_cost = resp.json()["order"]["priceCents"]
 
     # Verify wallet changed by net cost
     resp = trader_client.get("/users/me/profile")

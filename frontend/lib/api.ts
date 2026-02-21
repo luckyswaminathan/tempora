@@ -212,7 +212,6 @@ export const marketsApi = {
 
 // Orders API
 export type OrderType = "market" | "limit";
-export type TimeInForce = "gtc" | "day";
 
 export interface Leg {
   securityId: string;
@@ -225,7 +224,6 @@ export interface OrderCreateRequest {
   // Advanced order options (optional - defaults to market order)
   orderType?: OrderType;
   limitPriceCents?: number; // Max avg price for limit orders (LMSR will partial fill if needed)
-  timeInForce?: TimeInForce; // Defaults to 'gtc' (good til cancelled)
 }
 
 export interface TradeRecord {
@@ -241,8 +239,10 @@ export interface OrderRecord {
   type: string;
   userId: string;
   marketId: string;
+  limitPriceCents?: number;
   createdAt: string;
   filled: boolean;
+  canceled: boolean;
   trades: TradeRecord[];
   priceCents: number;
 }
@@ -250,6 +250,11 @@ export interface OrderRecord {
 export interface OrderListResponse {
   items: OrderRecord[];
   count: number;
+}
+
+export interface OrderPlaceResponse {
+  order: OrderRecord;
+  filled: boolean;
 }
 
 export interface OrderPriceResponse {
@@ -284,10 +289,16 @@ export const ordersApi = {
     });
   },
 
-  async placeOrder(data: OrderCreateRequest): Promise<OrderRecord> {
+  async placeOrder(data: OrderCreateRequest): Promise<OrderPlaceResponse> {
     return fetchWithAuth("/orders", {
       method: "POST",
       body: JSON.stringify(data),
+    });
+  },
+
+  async cancelOrder(orderId: string): Promise<OrderRecord> {
+    return fetchWithAuth(`/orders/${orderId}/cancel`, {
+      method: "POST",
     });
   },
 };

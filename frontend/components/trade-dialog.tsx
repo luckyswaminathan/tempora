@@ -21,12 +21,7 @@ import {
   ChevronUp,
   Settings2,
 } from "lucide-react";
-import type {
-  Market,
-  PortfolioSnapshot,
-  OrderType,
-  TimeInForce,
-} from "@/lib/api";
+import type { Market, PortfolioSnapshot, OrderType } from "@/lib/api";
 import { ordersApi, usersApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
@@ -71,7 +66,6 @@ export function TradeDialog({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");
-  const [timeInForce, setTimeInForce] = useState<TimeInForce>("gtc");
 
   // Fetch portfolio when dialog opens
   useEffect(() => {
@@ -270,7 +264,6 @@ export function TradeDialog({
         marketId: market.id,
         legs,
         orderType,
-        timeInForce: orderType === "limit" ? timeInForce : undefined,
         limitPriceCents:
           orderType === "limit" && limitPrice
             ? Math.round(parseFloat(limitPrice) * 100)
@@ -282,14 +275,8 @@ export function TradeDialog({
       const action = isBuy ? "Bought" : "Sold";
       const orderTypeLabel = orderType === "market" ? "" : " (limit order)";
 
-      // TODO: fix this up
-
-      if (result.orderStatus === "pending") {
-        toast.success(`Limit order placed! Your order is pending execution.`);
-      } else if (result.orderStatus === "partial" && result.filledQuantity) {
-        toast.success(
-          `Partial fill${orderTypeLabel}! ${action} ${result.filledQuantity} of ${Math.abs(shares)} requested shares at your max avg price.`,
-        );
+      if (!result.filled) {
+        toast.success(`Limit order placed! Order ID: ${result.order.id}`);
       } else if (isInterval) {
         toast.success(
           `Interval trade placed${orderTypeLabel}! ${action} ${Math.abs(
@@ -523,7 +510,7 @@ export function TradeDialog({
                 </button>
 
                 {showAdvanced && (
-                  <div className="p-3 pt-0 space-y-4 border-t">
+                  <div className="p-3 pt-4 space-y-4 border-t">
                     {/* Order Type Selection */}
                     <div className="space-y-2">
                       <Label htmlFor="orderType">Order Type</Label>
@@ -608,30 +595,6 @@ export function TradeDialog({
                       </div>
                     )}
 
-                    {/* Time In Force */}
-                    {orderType === "limit" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="timeInForce">Time In Force</Label>
-                        <select
-                          id="timeInForce"
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          value={timeInForce}
-                          onChange={(e) =>
-                            setTimeInForce(e.target.value as TimeInForce)
-                          }
-                        >
-                          <option value="gtc">Good Til Cancelled (GTC)</option>
-                          <option value="day">Day Only</option>
-                        </select>
-                        <p className="text-xs text-muted-foreground">
-                          {timeInForce === "gtc" &&
-                            "Order remains active until filled or cancelled."}
-                          {timeInForce === "day" &&
-                            "Order expires at end of trading day."}
-                        </p>
-                      </div>
-                    )}
-
                     {/* Order type indicator info */}
                     {orderType === "limit" && (
                       <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
@@ -639,13 +602,14 @@ export function TradeDialog({
                           <Settings2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                           <div className="text-xs text-blue-700">
                             <span className="font-medium">
-                              How LMSR limit orders work:
+                              How limit orders work:
                             </span>{" "}
-                            The system will fill as many shares as possible
-                            while keeping your average price at or below your
-                            limit. For example, if you request 1000 shares at
-                            $0.50 avg but LMSR can only fill 500 at that price,
-                            you'll get a partial fill of 500 shares.
+                            The system will complete the order as soon as it is
+                            possible to fill the entire order while keeping your
+                            average price at or below your limit. Limit orders
+                            are good til canceled (GTC), which means the order
+                            remains active until it is filled or cancelled by
+                            the trader.
                           </div>
                         </div>
                       </div>
@@ -781,10 +745,7 @@ export function TradeDialog({
                           LMSR market maker
                         </>
                       ) : (
-                        <>
-                          ✓ {orderType.replace("_", "-")} order •{" "}
-                          {timeInForce.toUpperCase()}
-                        </>
+                        <>✓ {orderType.replace("_", "-")} order</>
                       )}
                     </div>
                   </>

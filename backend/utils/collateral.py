@@ -91,7 +91,20 @@ def get_user_collateral_locked(session: Session, user_id: str) -> int:
     # Sum up market maker funding collateral
     market_maker_collateral = sum(market.funding_collateral_cents for market in markets)
 
-    return short_collateral + market_maker_collateral
+    # Get all unfilled, non-canceled limit orders for this user
+    orders_stmt = select(models.Order).where(
+        models.Order.user_id == user_id,
+        models.Order.filled == False,
+        models.Order.canceled == False,
+    )
+    unfilled_orders = session.scalars(orders_stmt).all()
+
+    # Sum up collateral locked for limit orders
+    limit_order_collateral = sum(
+        order.collateral_locked_cents for order in unfilled_orders
+    )
+
+    return short_collateral + market_maker_collateral + limit_order_collateral
 
 
 def get_spendable_balance(session: Session, user_id: str) -> int:

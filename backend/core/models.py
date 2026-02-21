@@ -216,7 +216,13 @@ class Order(Base):
     market_id: Mapped[str] = mapped_column(
         String, ForeignKey("markets.id"), nullable=False, index=True
     )
+    legs: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    limit_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    collateral_locked_cents: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
     filled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    canceled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     user: Mapped[User] = relationship()
