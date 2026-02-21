@@ -178,7 +178,7 @@ class PortfolioService:
                         market_id=market.id,
                         question=market.question,
                         funding_collateral_cents=market.funding_collateral_cents,
-                        end_date=market.end_date.isoformat(),
+                        end_date=market.resolution_date.strftime("%b %d, %Y"),
                     )
                 )
                 total_market_maker_collateral += market.funding_collateral_cents

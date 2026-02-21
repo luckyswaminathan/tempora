@@ -119,13 +119,12 @@ class OrderService:
         leg_prices_sum = 0
 
         for i, leg in enumerate(legs):
-            # For all legs except the last, calculate price sequentially
             if i < len(legs) - 1:
+                # For all legs except the last, calculate price sequentially
                 price = self._price_trade(market, [leg], simulated_quantities)
                 leg_prices_sum += price
-                simulated_quantities[leg.security_id] += leg.quantity
             else:
-                # Last leg absorbs any difference
+                # Last leg absorbs any difference from quoted price
                 price = total_cost - leg_prices_sum
 
             trade = models.Trade(
@@ -138,9 +137,8 @@ class OrderService:
             )
             self.session.add(trade)
 
-            # Update simulated quantities for last leg too
-            if i == len(legs) - 1:
-                simulated_quantities[leg.security_id] += leg.quantity
+            # Update simulated quantities
+            simulated_quantities[leg.security_id] += leg.quantity
 
     def _route_payment_to_market_maker(self, market_id: str, total_cost: int) -> None:
         """Route payment to market maker (if market has a creator)."""

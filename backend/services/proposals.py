@@ -174,13 +174,14 @@ class ProposalService:
 
         # Calculate total collateral already locked (from short positions + other markets)
         current_collateral_locked = get_user_collateral_locked(self.session, user_id)
+        spendable_balance = max(0, profile.wallet - current_collateral_locked)
 
         # Verify market maker has enough funds to cover worst-case loss plus existing collateral
         total_collateral_required = current_collateral_locked + funding_collateral_cents
         if profile.wallet < total_collateral_required:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient funds to cover collateral requirements. Total required: ${total_collateral_required/100:.2f} (Current locked: ${current_collateral_locked/100:.2f} + New market: ${funding_collateral_cents/100:.2f}), Available: ${profile.wallet/100:.2f}",
+                detail=f"Insufficient funds to cover collateral requirements. Collateral required for new market: ${funding_collateral_cents/100:.2f}, Available: ${spendable_balance/100:.2f}",
             )
 
         # Create the actual market with creator info
