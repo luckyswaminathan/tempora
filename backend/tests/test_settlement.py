@@ -198,7 +198,7 @@ class TestSettlementPayouts:
         }
         resp = user_client.post("/orders", json=trade_payload)
         assert resp.status_code == 201
-        trade_cost = resp.json()["order"]["priceCents"]
+        trade_cost = resp.json()["priceCents"]
 
         # Market maker receives the trade cost when user buys
         # Get wallet after trade but before settlement

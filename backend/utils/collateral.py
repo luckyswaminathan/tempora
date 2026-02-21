@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Tuple
+from collections import defaultdict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -51,13 +52,18 @@ def get_user_position(session: Session, user_id: str, security_id: str) -> int:
     return sum(trade.quantity for trade in trades)
 
 
-def get_user_collateral_locked(session: Session, user_id: str) -> int:
+def get_short_positions_data(
+    session: Session, user_id: str
+) -> dict[str, Tuple[models.Market, List[Tuple[models.Security, int]], int]]:
     """
-    Calculate total collateral locked for both:
-    1. Short positions: sum of |short quantity| * 100 cents for all net short positions
-    2. Market maker funding: sum of funding_collateral_cents for markets created by user
+    Get detailed short position data grouped by market.
+
+    Returns dict mapping market_id to:
+        (market, [(security, quantity), ...], collateral_cents)
+
+    Collateral for each market = max(abs(quantity)) * 100, since only one
+    outcome can win in a mutually exclusive market.
     """
-    # Get all trades for open markets
     stmt = (
         select(models.Trade)
         .join(models.Security)
@@ -67,44 +73,88 @@ def get_user_collateral_locked(session: Session, user_id: str) -> int:
             models.Market.status != models.MarketStatus.RESOLVED,
         )
     )
-    trades = session.scalars(stmt).all()
+    open_trades = session.scalars(stmt).all()
 
-    # Calculate net position per security
-    positions: dict[str, int] = {}
-    for trade in trades:
-        key = f"{trade.security.market_id}:{trade.security_id}"
-        positions[key] = positions.get(key, 0) + trade.quantity
-
-    # Sum up collateral for short positions
-    short_collateral = 0
-    for position in positions.values():
-        if position < 0:  # Short position
-            short_collateral += abs(position) * 100  # $1 = 100 cents per share
-
-    # Get all markets created by this user that are not resolved
-    markets_stmt = select(models.Market).where(
-        models.Market.creator_id == user_id,
-        models.Market.status != models.MarketStatus.RESOLVED,
+    # Group by security to get net positions
+    positions_by_security = defaultdict(
+        lambda: {"quantity": 0, "market_id": "", "security": None}
     )
-    markets = session.scalars(markets_stmt).all()
+    for trade in open_trades:
+        key = trade.security_id
+        positions_by_security[key]["quantity"] += trade.quantity or 0
+        positions_by_security[key]["market_id"] = trade.security.market_id
+        positions_by_security[key]["security"] = trade.security
 
-    # Sum up market maker funding collateral
-    market_maker_collateral = sum(market.funding_collateral_cents for market in markets)
+    # Group short positions by market
+    shorts_by_market = defaultdict(list)
+    for _, data in positions_by_security.items():
+        if data["quantity"] < 0:
+            market_id = data["market_id"]
+            shorts_by_market[market_id].append((data["security"], data["quantity"]))
 
-    # Get all unfilled, non-canceled limit orders for this user
-    orders_stmt = select(models.Order).where(
+    # Calculate collateral per market (max short position)
+    result = {}
+    for market_id, positions in shorts_by_market.items():
+        # Get market object
+        market = session.get(models.Market, market_id)
+        if not market:
+            continue
+
+        # Find the maximum short position (most negative)
+        max_short_quantity = min(qty for _, qty in positions)  # most negative
+        collateral = abs(max_short_quantity) * 100
+
+        result[market_id] = (market, positions, collateral)
+
+    return result
+
+
+def get_limit_orders_data(session: Session, user_id: str) -> List[models.Order]:
+    """Get all unfilled, non-canceled limit orders for user."""
+    stmt = select(models.Order).where(
         models.Order.user_id == user_id,
         models.Order.filled == False,
         models.Order.canceled == False,
+        models.Order.type == models.OrderType.LIMIT,
     )
-    unfilled_orders = session.scalars(orders_stmt).all()
+    return list(session.scalars(stmt).all())
 
-    # Sum up collateral locked for limit orders
+
+def get_market_maker_markets_data(
+    session: Session, user_id: str
+) -> List[models.Market]:
+    """Get all open markets created by user that have funding collateral."""
+    stmt = select(models.Market).where(
+        models.Market.creator_id == user_id,
+        models.Market.status != models.MarketStatus.RESOLVED,
+    )
+    return list(session.scalars(stmt).all())
+
+
+def get_user_collateral_locked(session: Session, user_id: str) -> int:
+    """
+    Calculate total collateral locked for:
+    1. Short positions: max short per market * 100 cents (only one outcome can win)
+    2. Limit orders: sum of collateral_locked_cents for all unfilled orders
+    3. Market maker funding: sum of funding_collateral_cents for markets created by user
+    """
+    # Sum up collateral for short positions (per market, using max)
+    short_data_by_market = get_short_positions_data(session, user_id)
+    short_collateral = sum(
+        collateral for _, _, collateral in short_data_by_market.values()
+    )
+
+    # Sum up limit order collateral
+    limit_orders = get_limit_orders_data(session, user_id)
     limit_order_collateral = sum(
-        order.collateral_locked_cents for order in unfilled_orders
+        order.collateral_locked_cents for order in limit_orders
     )
 
-    return short_collateral + market_maker_collateral + limit_order_collateral
+    # Sum up market maker funding collateral
+    markets = get_market_maker_markets_data(session, user_id)
+    market_maker_collateral = sum(market.funding_collateral_cents for market in markets)
+
+    return short_collateral + limit_order_collateral + market_maker_collateral
 
 
 def get_spendable_balance(session: Session, user_id: str) -> int:

@@ -46,9 +46,7 @@ def test_limit_order_executes_within_limit(trader_client, trade_market):
 
     result = resp.json()
     assert result["filled"] is True
-    assert result["order"]["filled"] is True
-    assert result["order"]["type"] == "limit"
-    assert len(result["order"]["trades"]) == 1
+    assert result["priceCents"] > 0
 
 
 def test_limit_order_not_filled_above_limit(trader_client, trade_market):
@@ -75,10 +73,7 @@ def test_limit_order_not_filled_above_limit(trader_client, trade_market):
 
     result = resp.json()
     assert result["filled"] is False
-    assert result["order"]["filled"] is False
-    assert result["order"]["type"] == "limit"
-    assert len(result["order"]["trades"]) == 0
-    assert result["order"]["priceCents"] == 0
+    assert result["priceCents"] == 0
 
 
 def test_cancel_unfilled_limit_order(trader_client, trade_market):
@@ -100,7 +95,12 @@ def test_cancel_unfilled_limit_order(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 10}],
     }
     resp = trader_client.post("/orders", json=limit_payload)
-    order_id = resp.json()["order"]["id"]
+    assert resp.status_code == 201
+
+    # Get the order ID from orders list
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order_id = orders[0]["id"]  # Most recent order
 
     # Cancel the order
     resp = trader_client.post(f"/orders/{order_id}/cancel")
@@ -121,7 +121,12 @@ def test_cannot_cancel_filled_order(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 10}],
     }
     resp = trader_client.post("/orders", json=payload)
-    order_id = resp.json()["order"]["id"]
+    assert resp.status_code == 201
+
+    # Get the order ID from orders list
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order_id = orders[0]["id"]  # Most recent order
 
     # Try to cancel filled order
     resp = trader_client.post(f"/orders/{order_id}/cancel")
@@ -157,8 +162,14 @@ def test_limit_order_locks_collateral(trader_client, trade_market):
 
     result = resp.json()
     assert result["filled"] is False
-    order_id = result["order"]["id"]
-    collateral_locked = result["order"]["collateralLockedCents"]
+
+    # Get the order details from orders list
+
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order = orders[0]  # Most recent order
+    order_id = order["id"]
+    collateral_locked = order["collateralLockedCents"]
     assert collateral_locked == market_price - 100  # Limit price is max we'll pay
 
     # Wallet should not change (no execution yet)
@@ -193,8 +204,15 @@ def test_limit_order_fills_when_price_improves(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 20}],
     }
     resp = trader_client.post("/orders", json=limit_payload)
-    limit_order_id = resp.json()["order"]["id"]
-    assert resp.json()["filled"] is False
+    assert resp.status_code == 201
+    result = resp.json()
+    assert result["filled"] is False
+
+    # Get the order ID from orders list
+
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    limit_order_id = orders[0]["id"]  # Most recent order
 
     # Get wallet before
     resp = trader_client.get("/users/me/profile")
@@ -248,8 +266,16 @@ def test_limit_order_time_priority(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 10}],
     }
     resp = trader_client.post("/orders", json=limit_payload_1)
-    order_1_id = resp.json()["order"]["id"]
-    assert resp.json()["filled"] is False
+    assert resp.status_code == 201
+    result = resp.json()
+    assert result["filled"] is False
+
+    # Get trader user ID
+
+    # Get the first order ID
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order_1_id = orders[0]["id"]  # Most recent order
 
     # Place second limit order at same or similar limit
     limit_payload_2 = {
@@ -259,8 +285,14 @@ def test_limit_order_time_priority(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 10}],
     }
     resp = trader_client.post("/orders", json=limit_payload_2)
-    order_2_id = resp.json()["order"]["id"]
-    assert resp.json()["filled"] is False
+    assert resp.status_code == 201
+    result = resp.json()
+    assert result["filled"] is False
+
+    # Get the second order ID
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order_2_id = orders[0]["id"]  # Most recent order
 
     # Execute trade to improve price enough for both orders
     opposite_payload = {
@@ -316,10 +348,16 @@ def test_limit_order_multi_leg(trader_client, trade_market):
     }
     resp = trader_client.post("/orders", json=limit_payload)
     assert resp.status_code == 201
-    assert resp.json()["filled"] is False
+    result = resp.json()
+    assert result["filled"] is False
 
-    order_id = resp.json()["order"]["id"]
-    collateral_locked = resp.json()["order"]["collateralLockedCents"]
+    # Get the order details from orders list
+
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order = orders[0]  # Most recent order
+    order_id = order["id"]
+    collateral_locked = order["collateralLockedCents"]
     assert collateral_locked > 0
 
     # Verify order was created with correct legs stored
@@ -354,8 +392,15 @@ def test_limit_order_with_short_position(trader_client, trade_market):
     assert resp.status_code == 201
 
     result = resp.json()
-    order_id = result["order"]["id"]
-    collateral_locked = result["order"]["collateralLockedCents"]
+    assert result["filled"] is False
+
+    # Get the order details from orders list
+
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order = orders[0]  # Most recent order
+    order_id = order["id"]
+    collateral_locked = order["collateralLockedCents"]
 
     # Collateral should include short collateral requirement
     # For unfilled short order: collateral = limit_price + (100*quantity for shorts)
@@ -407,7 +452,16 @@ def test_multiple_limit_orders_sequential_fills(trader_client, trade_market):
         }
         resp = trader_client.post("/orders", json=limit_payload)
         assert resp.status_code == 201
-        order_ids.append(resp.json()["order"]["id"])
+        result = resp.json()
+        assert result["filled"] is False
+
+    # Get all order IDs from orders list
+
+    orders_resp = trader_client.get("/orders")
+    all_orders = orders_resp.json()["items"]
+    # Get the 3 most recent limit orders (they are ordered by creation time)
+    for i in range(3):
+        order_ids.append(all_orders[2 - i]["id"])  # Reverse order to get oldest first
 
     # Execute large opposite trade to lower price significantly
     opposite_payload = {
@@ -449,8 +503,15 @@ def test_canceled_limit_order_not_filled(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 20}],
     }
     resp = trader_client.post("/orders", json=limit_payload)
-    order_id = resp.json()["order"]["id"]
-    assert resp.json()["filled"] is False
+    assert resp.status_code == 201
+    result = resp.json()
+    assert result["filled"] is False
+
+    # Get the order ID from orders list
+
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order_id = orders[0]["id"]  # Most recent order
 
     # Cancel the order
     resp = trader_client.post(f"/orders/{order_id}/cancel")
@@ -522,8 +583,17 @@ def test_limit_order_collateral_released_on_fill(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 20}],
     }
     resp = trader_client.post("/orders", json=limit_payload)
-    order_id = resp.json()["order"]["id"]
-    collateral_before = resp.json()["order"]["collateralLockedCents"]
+    assert resp.status_code == 201
+    result = resp.json()
+    assert result["filled"] is False
+
+    # Get the order details from orders list
+
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order = orders[0]  # Most recent order
+    order_id = order["id"]
+    collateral_before = order["collateralLockedCents"]
     assert collateral_before > 0
 
     # Trigger fill by buying other security
@@ -612,8 +682,16 @@ def test_limit_order_on_different_markets_independent(
         "legs": [{"securityId": trade_market.securities[0].id, "quantity": 10}],
     }
     resp = trader_client.post("/orders", json=limit_payload_1)
-    order_1_id = resp.json()["order"]["id"]
-    assert resp.json()["filled"] is False
+    assert resp.status_code == 201
+    result = resp.json()
+    assert result["filled"] is False
+
+    # Get trader user ID
+
+    # Get the first order ID
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order_1_id = orders[0]["id"]  # Most recent order
 
     limit_payload_2 = {
         "marketId": second_market.id,
@@ -622,8 +700,14 @@ def test_limit_order_on_different_markets_independent(
         "legs": [{"securityId": second_market_securities[0].id, "quantity": 10}],
     }
     resp = trader_client.post("/orders", json=limit_payload_2)
-    order_2_id = resp.json()["order"]["id"]
-    assert resp.json()["filled"] is False
+    assert resp.status_code == 201
+    result = resp.json()
+    assert result["filled"] is False
+
+    # Get the second order ID
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order_2_id = orders[0]["id"]  # Most recent order
 
     # Execute large trade on first market to trigger fill
     trade_payload = {
@@ -661,9 +745,13 @@ def test_limit_order_zero_limit_price(trader_client, trade_market):
     # Should not execute (market price is positive)
     result = resp.json()
     assert result["filled"] is False
-    assert (
-        result["order"]["collateralLockedCents"] == 0
-    )  # No collateral needed for zero limit
+
+    # Get the order details to verify no collateral locked
+
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order = orders[0]  # Most recent order
+    assert order["collateralLockedCents"] == 0  # No collateral needed for zero limit
 
 
 def test_limit_order_insufficient_balance_when_triggered(trader_client, trade_market):
@@ -688,8 +776,15 @@ def test_limit_order_insufficient_balance_when_triggered(trader_client, trade_ma
         "legs": [{"securityId": security_id, "quantity": 20}],
     }
     resp = trader_client.post("/orders", json=limit_payload)
-    order_id = resp.json()["order"]["id"]
-    assert resp.json()["filled"] is False
+    assert resp.status_code == 201
+    result = resp.json()
+    assert result["filled"] is False
+
+    # Get the order ID from orders list
+
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order_id = orders[0]["id"]  # Most recent order
 
     # Now spend almost all remaining balance on a different security
     resp = trader_client.get("/users/me/profile")
@@ -762,7 +857,7 @@ def test_limit_order_negative_price_for_sell(trader_client, trade_market):
     result = resp.json()
     # Should execute immediately since market price is within our limit
     assert result["filled"] is True
-    assert result["order"]["priceCents"] < 0  # Received money
+    assert result["priceCents"] < 0  # Received money
 
 
 def test_limit_order_on_closed_market_fails(trader_client, trade_market, db_session):
@@ -809,8 +904,15 @@ def test_limit_order_across_market_movement(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 15}],
     }
     resp = trader_client.post("/orders", json=limit_payload)
-    order_id = resp.json()["order"]["id"]
-    assert resp.json()["filled"] is False
+    assert resp.status_code == 201
+    result = resp.json()
+    assert result["filled"] is False
+
+    # Get the order ID from orders list
+
+    orders_resp = trader_client.get("/orders")
+    orders = orders_resp.json()["items"]
+    order_id = orders[0]["id"]  # Most recent order
 
     # Movement 1: Price goes up (shouldn't fill)
     buy_payload = {

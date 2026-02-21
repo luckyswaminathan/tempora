@@ -7,9 +7,23 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from core import models
-from schemas.portfolio import Holding, PortfolioSnapshot, PortfolioSummary
+from schemas.portfolio import (
+    Holding,
+    PortfolioSnapshot,
+    PortfolioSummary,
+    CollateralBreakdown,
+    MarketShortCollateral,
+    ShortPosition,
+    LimitOrderCollateral,
+    MarketMakerCollateral,
+)
 from services.markets import MarketService
-from utils.collateral import get_user_collateral_locked
+from utils.collateral import (
+    get_user_collateral_locked,
+    get_short_positions_data,
+    get_limit_orders_data,
+    get_market_maker_markets_data,
+)
 
 
 class PortfolioService:
@@ -104,4 +118,83 @@ class PortfolioService:
             collateral_locked=collateral_locked,
             holdings=holdings,
             summary=summary,
+        )
+
+    def get_collateral_breakdown(self, user_id: str) -> CollateralBreakdown:
+        """Get detailed breakdown of all collateral locked by user."""
+        profile = self.session.get(models.Profile, user_id)
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
+            )
+
+        # 1. Get short position details (grouped by market)
+        short_data_by_market = get_short_positions_data(self.session, user_id)
+        short_markets = []
+        total_short_collateral = 0
+
+        for market_id, (market, positions, collateral) in short_data_by_market.items():
+            short_positions_list = [
+                ShortPosition(outcome=security.outcome, quantity=quantity)
+                for security, quantity in positions
+            ]
+            short_markets.append(
+                MarketShortCollateral(
+                    market_id=market_id,
+                    question=market.question,
+                    positions=short_positions_list,
+                    collateral_cents=collateral,
+                )
+            )
+            total_short_collateral += collateral
+
+        # 2. Get limit order details
+        unfilled_orders = get_limit_orders_data(self.session, user_id)
+        limit_orders = []
+        total_limit_order_collateral = 0
+
+        for order in unfilled_orders:
+            market = self.market_service.get_market(order.market_id)
+            limit_orders.append(
+                LimitOrderCollateral(
+                    order_id=order.id,
+                    market_id=order.market_id,
+                    question=market.question,
+                    collateral_cents=order.collateral_locked_cents,
+                    created_at=order.created_at.isoformat(),
+                )
+            )
+            total_limit_order_collateral += order.collateral_locked_cents
+
+        # 3. Get market maker details
+        user_markets = get_market_maker_markets_data(self.session, user_id)
+        market_maker_markets = []
+        total_market_maker_collateral = 0
+
+        for market in user_markets:
+            if market.funding_collateral_cents > 0:
+                market_maker_markets.append(
+                    MarketMakerCollateral(
+                        market_id=market.id,
+                        question=market.question,
+                        funding_collateral_cents=market.funding_collateral_cents,
+                        end_date=market.end_date.isoformat(),
+                    )
+                )
+                total_market_maker_collateral += market.funding_collateral_cents
+
+        total_locked = (
+            total_short_collateral
+            + total_limit_order_collateral
+            + total_market_maker_collateral
+        )
+
+        return CollateralBreakdown(
+            total_locked=total_locked,
+            short_markets=short_markets,
+            total_short_collateral=total_short_collateral,
+            limit_orders=limit_orders,
+            total_limit_order_collateral=total_limit_order_collateral,
+            market_maker_markets=market_maker_markets,
+            total_market_maker_collateral=total_market_maker_collateral,
         )

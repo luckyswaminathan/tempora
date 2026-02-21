@@ -218,6 +218,12 @@ export interface Leg {
   quantity: number;
 }
 
+export interface LegWithOutcome {
+  securityId: string;
+  outcome: string;
+  quantity: number;
+}
+
 export interface OrderCreateRequest {
   marketId: string;
   legs: Leg[];
@@ -229,22 +235,39 @@ export interface OrderCreateRequest {
 export interface TradeRecord {
   id: string;
   securityId: string;
+  outcome: string;
   quantity: number;
   priceCents: number;
   createdAt: string;
 }
 
-export interface OrderRecord {
+interface _BaseOrderFields {
   id: string;
-  type: string;
   userId: string;
   marketId: string;
-  limitPriceCents?: number;
+  question: string;
+  collateralLockedCents?: number;
   createdAt: string;
   filled: boolean;
   canceled: boolean;
+  legs: [LegWithOutcome, ...LegWithOutcome[]];
   trades: TradeRecord[];
   priceCents: number;
+}
+
+export interface MarketOrderRecord extends _BaseOrderFields {
+  type: "market";
+}
+
+export interface LimitOrderRecord extends _BaseOrderFields {
+  type: "limit";
+  limitPriceCents: number;
+}
+
+export type OrderRecord = MarketOrderRecord | LimitOrderRecord;
+
+export function isLimitOrder(order: OrderRecord): order is LimitOrderRecord {
+  return order.type === "limit";
 }
 
 export interface OrderListResponse {
@@ -253,8 +276,9 @@ export interface OrderListResponse {
 }
 
 export interface OrderPlaceResponse {
-  order: OrderRecord;
+  orderId: string;
   filled: boolean;
+  priceCents: number;
 }
 
 export interface OrderPriceResponse {
@@ -353,6 +377,43 @@ export interface PortfolioSnapshot {
   };
 }
 
+export interface ShortPosition {
+  outcome: string;
+  quantity: number; // negative value
+}
+
+export interface MarketShortCollateral {
+  marketId: string;
+  question: string;
+  positions: ShortPosition[];
+  collateralCents: number; // max(abs(quantity)) * 100
+}
+
+export interface LimitOrderCollateral {
+  orderId: string;
+  marketId: string;
+  question: string;
+  collateralCents: number;
+  createdAt: string;
+}
+
+export interface MarketMakerCollateral {
+  marketId: string;
+  question: string;
+  fundingCollateralCents: number;
+  endDate: string;
+}
+
+export interface CollateralBreakdown {
+  totalLocked: number;
+  shortMarkets: MarketShortCollateral[];
+  totalShortCollateral: number;
+  limitOrders: LimitOrderCollateral[];
+  totalLimitOrderCollateral: number;
+  marketMakerMarkets: MarketMakerCollateral[];
+  totalMarketMakerCollateral: number;
+}
+
 export interface LeaderboardResponse {
   leaderboard: Array<{
     id: string;
@@ -373,6 +434,10 @@ export const usersApi = {
 
   async getPortfolio(): Promise<PortfolioSnapshot> {
     return fetchWithAuth("/users/me/portfolio");
+  },
+
+  async getCollateral(): Promise<CollateralBreakdown> {
+    return fetchWithAuth("/users/me/collateral");
   },
 
   async syncProfile(displayName: string): Promise<JSON> {

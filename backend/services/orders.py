@@ -11,10 +11,11 @@ from core import models
 from schemas.market import Market
 from schemas.order import (
     Leg,
+    LimitOrderRecord,
+    MarketOrderRecord,
     OrderCreate,
     OrderCreateRequest,
     OrderPriceResponse,
-    OrderRecord,
     OrderListResponse,
     OrderPlaceResponse,
     TradeRecord,
@@ -97,7 +98,7 @@ class OrderService:
             if raise_on_error:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Insufficient balance for collateral. Required: ${new_collateral/100:.2f}, Would have: ${new_wallet/100:.2f}",
+                    detail=f"Insufficient balance for collateral. Required: ${new_collateral/100:.2f}, Would only have: ${new_wallet/100:.2f}",
                 )
             return False
 
@@ -235,22 +236,7 @@ class OrderService:
             self.session.refresh(order)
 
             return OrderPlaceResponse.model_validate(
-                {
-                    "order": {
-                        "id": order.id,
-                        "type": order.type,
-                        "userId": order.user_id,
-                        "marketId": order.market_id,
-                        "limitPriceCents": order.limit_price_cents,
-                        "collateralLockedCents": order.collateral_locked_cents,
-                        "createdAt": order.created_at,
-                        "filled": False,
-                        "canceled": False,
-                        "trades": [],
-                        "priceCents": 0,
-                    },
-                    "filled": False,
-                }
+                {"orderId": order.id, "filled": False, "priceCents": 0}
             )
 
         # Execute order: validate balance and collateral
@@ -295,37 +281,11 @@ class OrderService:
         # Process any unfilled limit orders that might now be fillable
         self.process_limit_orders(payload.market_id)
 
-        # Build the order response with trades
-        trade_items = [
-            TradeRecord.model_validate(
-                {
-                    "id": t.id,
-                    "securityId": t.security_id,
-                    "quantity": t.quantity,
-                    "priceCents": t.price_cents,
-                    "createdAt": t.created_at,
-                }
-            )
-            for t in order.trades
-        ]
+        # Calculate total price
+        total_price = sum(t.price_cents for t in order.trades)
 
         return OrderPlaceResponse.model_validate(
-            {
-                "order": {
-                    "id": order.id,
-                    "type": order.type,
-                    "userId": order.user_id,
-                    "marketId": order.market_id,
-                    "limitPriceCents": order.limit_price_cents,
-                    "collateralLockedCents": order.collateral_locked_cents,
-                    "createdAt": order.created_at,
-                    "filled": order.filled,
-                    "canceled": order.canceled,
-                    "trades": trade_items,
-                    "priceCents": sum(t.price_cents for t in order.trades),
-                },
-                "filled": True,
-            }
+            {"orderId": order.id, "filled": True, "priceCents": total_price}
         )
 
     def list_orders(
@@ -339,35 +299,69 @@ class OrderService:
             stmt = stmt.where(models.Order.market_id == market_id)
 
         orders = self.session.scalars(stmt).all()
-        items = [
-            OrderRecord.model_validate(
-                {
-                    "id": order.id,
-                    "type": order.type,
-                    "userId": order.user_id,
-                    "marketId": order.market_id,
-                    "limitPriceCents": order.limit_price_cents,
-                    "collateralLockedCents": order.collateral_locked_cents,
-                    "createdAt": order.created_at,
-                    "filled": order.filled,
-                    "canceled": order.canceled,
-                    "trades": [
-                        TradeRecord.model_validate(
+        items = []
+        for order in orders:
+            # Fetch market to get question
+            market = self.market_service.get_market(order.market_id)
+
+            # Parse legs and enrich with outcome names
+            legs_with_outcomes = []
+            if order.legs:
+                for leg_dict in order.legs:
+                    security = self.session.get(
+                        models.Security, leg_dict["security_id"]
+                    )
+                    if security:
+                        legs_with_outcomes.append(
                             {
-                                "id": t.id,
-                                "securityId": t.security_id,
-                                "quantity": t.quantity,
-                                "priceCents": t.price_cents,
-                                "createdAt": t.created_at,
+                                "securityId": leg_dict["security_id"],
+                                "outcome": security.outcome,
+                                "quantity": leg_dict["quantity"],
                             }
                         )
-                        for t in order.trades
-                    ],
-                    "priceCents": sum(t.price_cents for t in order.trades),
-                }
-            )
-            for order in orders
-        ]
+            # Fallback: if stored legs are unavailable (e.g. legacy NULL column),
+            # reconstruct from trades so the `legs` non-empty invariant is satisfied.
+            if not legs_with_outcomes:
+                for trade in order.trades:
+                    legs_with_outcomes.append(
+                        {
+                            "securityId": trade.security_id,
+                            "outcome": trade.security.outcome,
+                            "quantity": trade.quantity,
+                        }
+                    )
+
+            trade_records = [
+                TradeRecord.model_validate(
+                    {
+                        "id": t.id,
+                        "securityId": t.security_id,
+                        "outcome": t.security.outcome,
+                        "quantity": t.quantity,
+                        "priceCents": t.price_cents,
+                        "createdAt": t.created_at,
+                    }
+                )
+                for t in order.trades
+            ]
+            record_data = {
+                "id": order.id,
+                "type": order.type,
+                "userId": order.user_id,
+                "marketId": order.market_id,
+                "question": market.question,
+                "collateralLockedCents": order.collateral_locked_cents,
+                "createdAt": order.created_at,
+                "filled": order.filled,
+                "canceled": order.canceled,
+                "legs": legs_with_outcomes,
+                "trades": trade_records,
+                "priceCents": sum(t.price_cents for t in order.trades),
+            }
+            if order.limit_price_cents is not None:
+                record_data["limitPriceCents"] = order.limit_price_cents
+            model_cls = LimitOrderRecord if order.type == "limit" else MarketOrderRecord
+            items.append(model_cls.model_validate(record_data))
         return OrderListResponse.model_validate({"items": items, "count": len(items)})
 
     def cancel_order(self, order_id: str, user_id: str) -> OrderRecord:
@@ -402,21 +396,41 @@ class OrderService:
         self.session.commit()
         self.session.refresh(order)
 
-        return OrderRecord.model_validate(
-            {
-                "id": order.id,
-                "type": order.type,
-                "userId": order.user_id,
-                "marketId": order.market_id,
-                "limitPriceCents": order.limit_price_cents,
-                "collateralLockedCents": order.collateral_locked_cents,
-                "createdAt": order.created_at,
-                "filled": order.filled,
-                "canceled": order.canceled,
-                "trades": [],
-                "priceCents": 0,
-            }
-        )
+        # Fetch market to get question
+        market = self.market_service.get_market(order.market_id)
+
+        # Parse legs and enrich with outcome names
+        legs_with_outcomes = []
+        if order.legs:
+            for leg_dict in order.legs:
+                security = self.session.get(models.Security, leg_dict["security_id"])
+                if security:
+                    legs_with_outcomes.append(
+                        {
+                            "securityId": leg_dict["security_id"],
+                            "outcome": security.outcome,
+                            "quantity": leg_dict["quantity"],
+                        }
+                    )
+
+        cancel_data = {
+            "id": order.id,
+            "type": order.type,
+            "userId": order.user_id,
+            "marketId": order.market_id,
+            "question": market.question,
+            "collateralLockedCents": order.collateral_locked_cents,
+            "createdAt": order.created_at,
+            "filled": order.filled,
+            "canceled": order.canceled,
+            "legs": legs_with_outcomes,
+            "trades": [],
+            "priceCents": 0,
+        }
+        if order.limit_price_cents is not None:
+            cancel_data["limitPriceCents"] = order.limit_price_cents
+        model_cls = LimitOrderRecord if order.type == "limit" else MarketOrderRecord
+        return model_cls.model_validate(cancel_data)
 
     def process_limit_orders(self, market_id: str) -> List[str]:
         """

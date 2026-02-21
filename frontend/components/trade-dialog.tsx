@@ -138,7 +138,7 @@ export function TradeDialog({
           : null;
         if (limitPriceCents && shares !== 0) {
           // Total cost = limit price per unit * number of units (shares)
-          setCalculatedPrice(limitPriceCents * Math.abs(shares));
+          setCalculatedPrice(limitPriceCents);
         } else {
           setCalculatedPrice(null);
         }
@@ -192,9 +192,7 @@ export function TradeDialog({
   const walletBalance = portfolio?.wallet ?? 0;
 
   // For shorts, calculate collateral required ($1 per share)
-  const collateralRequiredCents = isSell
-    ? Math.abs(shares) * numOutcomes * 100
-    : 0;
+  const collateralRequiredCents = isSell ? Math.abs(shares) * 100 : 0;
   const collateralRequiredDollars = collateralRequiredCents / 100;
 
   // Check if user has enough balance
@@ -276,18 +274,20 @@ export function TradeDialog({
       const orderTypeLabel = orderType === "market" ? "" : " (limit order)";
 
       if (!result.filled) {
-        toast.success(`Limit order placed! Order ID: ${result.order.id}`);
+        toast.success(`Limit order placed successfully!`);
       } else if (isInterval) {
         toast.success(
-          `Interval trade placed${orderTypeLabel}! ${action} ${Math.abs(
+          `Interval trade${orderTypeLabel} filled! ${action} ${Math.abs(
             shares,
-          )} shares across ${numOutcomes} outcomes`,
+          )} shares across ${numOutcomes} outcomes for $${(
+            Math.abs(result.priceCents) / 100
+          ).toFixed(2)}`,
         );
       } else {
         toast.success(
-          `Trade placed${orderTypeLabel}! ${action} ${Math.abs(shares)} shares of ${
+          `Trade${orderTypeLabel} filled! ${action} ${Math.abs(shares)} shares of ${
             selectedSecurity?.outcome
-          }`,
+          } for $${(Math.abs(result.priceCents) / 100).toFixed(2)}`,
         );
       }
 
@@ -455,168 +455,139 @@ export function TradeDialog({
                 </div>
               )}
 
-              {/* Quantity input */}
-              <div className="space-y-2">
-                <Label htmlFor="quantity">
-                  {isInterval
-                    ? "Quantity per outcome (shares)"
-                    : "Quantity (shares)"}
-                </Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  placeholder="10 (or -10 to sell)"
-                  value={quantity}
-                  onChange={(e) => {
-                    setFetchingPrice(true);
-                    setQuantity(e.target.value);
-                  }}
-                  step="1"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {isInterval ? (
-                    <>
-                      You'll trade {shares !== 0 ? Math.abs(shares) : "N"}{" "}
-                      shares of EACH of the {numOutcomes} outcomes. Only one
-                      outcome can win, paying $1 per share.
-                    </>
-                  ) : (
-                    "Positive = buy (long), Negative = sell (short). Each share pays $1 if outcome occurs."
-                  )}
-                </p>
-              </div>
+              {/* Order Type Tabs */}
+              <Tabs
+                defaultValue="market"
+                onValueChange={(value) => setOrderType(value as OrderType)}
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="market">Market Order</TabsTrigger>
+                  <TabsTrigger value="limit">Limit Order</TabsTrigger>
+                </TabsList>
 
-              {/* Advanced Options Toggle */}
-              <div className="border rounded-lg">
-                <button
-                  type="button"
-                  className="flex items-center justify-between w-full p-3 text-sm font-medium text-left hover:bg-muted/50 transition-colors"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                >
-                  <div className="flex items-center gap-2">
-                    <Settings2 className="w-4 h-4 text-muted-foreground" />
-                    <span>Advanced Options</span>
-                    {orderType !== "market" && (
-                      <Badge variant="secondary" className="text-xs">
-                        {orderType.replace("_", "-")}
-                      </Badge>
-                    )}
+                {/* Market Order Content */}
+                <TabsContent value="market" className="space-y-4 mt-4">
+                  {/* Quantity input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity-market">
+                      {isInterval
+                        ? "Quantity per outcome (shares)"
+                        : "Quantity (shares)"}
+                    </Label>
+                    <Input
+                      id="quantity-market"
+                      type="number"
+                      placeholder="10 (or -10 to sell)"
+                      value={quantity}
+                      onChange={(e) => {
+                        setFetchingPrice(true);
+                        setQuantity(e.target.value);
+                      }}
+                      step="1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {isInterval ? (
+                        <>
+                          You'll trade {shares !== 0 ? Math.abs(shares) : "N"}{" "}
+                          shares of EACH of the {numOutcomes} outcomes. Only one
+                          outcome can win, paying $1 per share.
+                        </>
+                      ) : (
+                        "Positive = buy (long), Negative = sell (short). Each share pays $1 if outcome occurs."
+                      )}
+                    </p>
                   </div>
-                  {showAdvanced ? (
-                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </button>
+                </TabsContent>
 
-                {showAdvanced && (
-                  <div className="p-3 pt-4 space-y-4 border-t">
-                    {/* Order Type Selection */}
-                    <div className="space-y-2">
-                      <Label htmlFor="orderType">Order Type</Label>
-                      <select
-                        id="orderType"
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        value={orderType}
-                        onChange={(e) =>
-                          setOrderType(e.target.value as OrderType)
+                {/* Limit Order Content */}
+                <TabsContent value="limit" className="space-y-4 mt-4">
+                  {/* Quantity input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity-limit">
+                      {isInterval
+                        ? "Quantity per outcome (shares)"
+                        : "Quantity (shares)"}
+                    </Label>
+                    <Input
+                      id="quantity-limit"
+                      type="number"
+                      placeholder="10 (or -10 to sell)"
+                      value={quantity}
+                      onChange={(e) => {
+                        setFetchingPrice(true);
+                        setQuantity(e.target.value);
+                      }}
+                      step="1"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {isInterval ? (
+                        <>
+                          You'll trade {shares !== 0 ? Math.abs(shares) : "N"}{" "}
+                          shares of EACH of the {numOutcomes} outcomes.
+                        </>
+                      ) : (
+                        "Positive = buy (long), Negative = sell (short)."
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Total Limit Price input */}
+                  <div className="space-y-2">
+                    <Label htmlFor="limitPrice">Maximum Total Price</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        $
+                      </span>
+                      <Input
+                        id="limitPrice"
+                        type="number"
+                        placeholder={
+                          suggestedMarketPrice && shares !== 0
+                            ? (
+                                (suggestedMarketPrice * Math.abs(shares)) /
+                                100
+                              ).toFixed(2)
+                            : "0.00"
                         }
-                      >
-                        <option value="market">Market Order</option>
-                        <option value="limit">Limit Order</option>
-                      </select>
-                      <p className="text-xs text-muted-foreground">
-                        {orderType === "market" &&
-                          "Execute immediately at current market price."}
-                        {orderType === "limit" &&
-                          "Execute only at your specified price or better."}
-                      </p>
+                        value={limitPrice}
+                        onChange={(e) => setLimitPrice(e.target.value)}
+                        step="0.01"
+                        min="0"
+                        className="pl-7"
+                      />
                     </div>
-
-                    {/* Limit Price Input */}
-                    {orderType === "limit" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="limitPrice">
-                          {isInterval
-                            ? "Max Price (per interval unit)"
-                            : "Max Average Price (per share)"}
-                        </Label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                            $
-                          </span>
-                          <Input
-                            id="limitPrice"
-                            type="number"
-                            placeholder={
-                              suggestedMarketPrice
-                                ? (suggestedMarketPrice / 100).toFixed(2)
-                                : quote?.buyUnitPriceCents
-                                  ? (quote.buyUnitPriceCents / 100).toFixed(2)
-                                  : selectedOutcomes.length > 0
-                                    ? selectedOutcomes
-                                        .reduce(
-                                          (sum, o) => sum + o.probability,
-                                          0,
-                                        )
-                                        .toFixed(2)
-                                    : "0.50"
-                            }
-                            value={limitPrice}
-                            onChange={(e) => setLimitPrice(e.target.value)}
-                            step="0.01"
-                            min="0"
-                            max={
-                              isInterval
-                                ? selectedOutcomes.length.toString()
-                                : "1"
-                            }
-                            className="pl-7"
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {isInterval
-                            ? isBuy
-                              ? `Max price for 1 share of each of the ${numOutcomes} outcomes. Only one can win ($1 payout).`
-                              : `Min price for selling 1 share of each of the ${numOutcomes} outcomes.`
-                            : isBuy
-                              ? "Maximum average price you're willing to pay per share."
-                              : "Minimum average price for your sale per share."}
-                          {suggestedMarketPrice && shares !== 0 && (
-                            <span className="block mt-1 text-blue-600">
-                              Current market: $
-                              {(suggestedMarketPrice / 100).toFixed(2)}
-                              {isInterval ? "/interval" : "/share"} for{" "}
-                              {Math.abs(shares)}{" "}
-                              {isInterval ? "intervals" : "shares"}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Order type indicator info */}
-                    {orderType === "limit" && (
-                      <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                        <div className="flex items-start gap-2">
-                          <Settings2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-xs text-blue-700">
-                            <span className="font-medium">
-                              How limit orders work:
-                            </span>{" "}
-                            The system will complete the order as soon as it is
-                            possible to fill the entire order while keeping your
-                            average price at or below your limit. Limit orders
-                            are good til canceled (GTC), which means the order
-                            remains active until it is filled or cancelled by
-                            the trader.
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Total maximum price you're willing to trade at. Note that
+                      this should be negative if you're selling.
+                      {suggestedMarketPrice && shares !== 0 && (
+                        <span className="block mt-1 text-blue-600 font-medium">
+                          Current market quote: $
+                          {(
+                            (suggestedMarketPrice * Math.abs(shares)) /
+                            100
+                          ).toFixed(2)}
+                        </span>
+                      )}
+                    </p>
                   </div>
-                )}
-              </div>
+
+                  {/* Limit order info card */}
+                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <div className="flex items-start gap-2">
+                      <Settings2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-xs text-blue-700">
+                        <span className="font-medium">
+                          How limit orders work:
+                        </span>{" "}
+                        Your order will execute when the market price reaches
+                        your limit. Orders are good-til-canceled (GTC) and
+                        remain active until filled or manually cancelled.
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
 
               {/* Price display */}
               <div className="space-y-2 p-4 rounded-lg bg-muted/50">

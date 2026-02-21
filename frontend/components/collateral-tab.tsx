@@ -1,0 +1,331 @@
+import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Lock,
+  ShieldAlert,
+  Wallet,
+  AlertCircle,
+  Clock,
+  Calendar,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
+import { usersApi, type CollateralBreakdown } from "@/lib/api";
+
+interface CollateralTabProps {
+  totalCollateralLocked: number;
+}
+
+export function CollateralTab({ totalCollateralLocked }: CollateralTabProps) {
+  const [collateralBreakdown, setCollateralBreakdown] =
+    useState<CollateralBreakdown | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedMarkets, setExpandedMarkets] = useState<Set<number>>(
+    new Set(),
+  );
+
+  const toggleMarket = (idx: number) => {
+    const newExpanded = new Set(expandedMarkets);
+    if (newExpanded.has(idx)) {
+      newExpanded.delete(idx);
+    } else {
+      newExpanded.add(idx);
+    }
+    setExpandedMarkets(newExpanded);
+  };
+
+  useEffect(() => {
+    async function fetchCollateral() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await usersApi.getCollateral();
+        setCollateralBreakdown(data);
+      } catch (err) {
+        console.error("Failed to fetch collateral:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load collateral",
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCollateral();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Loading collateral details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600">Error: {error}</p>
+      </div>
+    );
+  }
+
+  if (totalCollateralLocked === 0 || !collateralBreakdown) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
+          <Lock className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <p className="text-muted-foreground">No collateral locked</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Collateral is locked when you hold short positions, have pending limit
+          orders, or create markets
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Collateral Summary */}
+      <Card className="p-6">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Lock className="w-5 h-5" />
+          Collateral Summary
+        </h3>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center py-2 border-b">
+            <span className="text-muted-foreground">Total Locked</span>
+            <span className="text-xl font-bold">
+              ${(collateralBreakdown.totalLocked / 100).toFixed(2)}
+            </span>
+          </div>
+          {collateralBreakdown.totalShortCollateral > 0 && (
+            <div className="flex justify-between items-center py-2">
+              <span className="text-muted-foreground flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-500" />
+                Short Positions
+              </span>
+              <span className="font-semibold text-red-600">
+                ${(collateralBreakdown.totalShortCollateral / 100).toFixed(2)}
+              </span>
+            </div>
+          )}
+          {collateralBreakdown.totalLimitOrderCollateral > 0 && (
+            <div className="flex justify-between items-center py-2">
+              <span className="text-muted-foreground flex items-center gap-2">
+                <Clock className="w-4 h-4 text-purple-500" />
+                Limit Orders
+              </span>
+              <span className="font-semibold text-purple-600">
+                $
+                {(collateralBreakdown.totalLimitOrderCollateral / 100).toFixed(
+                  2,
+                )}
+              </span>
+            </div>
+          )}
+          {collateralBreakdown.totalMarketMakerCollateral > 0 && (
+            <div className="flex justify-between items-center py-2">
+              <span className="text-muted-foreground flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-blue-500" />
+                Market Making
+              </span>
+              <span className="font-semibold text-blue-600">
+                $
+                {(collateralBreakdown.totalMarketMakerCollateral / 100).toFixed(
+                  2,
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Short Positions Detail */}
+      {collateralBreakdown.shortMarkets.length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-red-500" />
+            Short Position Collateral
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Collateral = max short position per market (only one outcome can
+            win)
+          </p>
+          <div className="space-y-3">
+            {collateralBreakdown.shortMarkets.map((market, idx) => {
+              const isExpanded = expandedMarkets.has(idx);
+              return (
+                <Card key={idx} className="p-4">
+                  {/* Market header - always visible, clickable */}
+                  <button
+                    onClick={() => toggleMarket(idx)}
+                    className="w-full flex items-start justify-between gap-4 text-left hover:opacity-80 transition-opacity"
+                  >
+                    <div className="flex-1 min-w-0 flex items-start gap-2">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm line-clamp-2">
+                          {market.question}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {market.positions.length} short position
+                          {market.positions.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-xs text-muted-foreground">
+                        Max Liability
+                      </div>
+                      <div className="font-semibold text-red-600">
+                        ${(market.collateralCents / 100).toFixed(2)}
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Expanded positions detail */}
+                  {isExpanded && (
+                    <div className="space-y-1 mt-3 pt-3 border-t">
+                      {market.positions.map((pos, posIdx) => (
+                        <div
+                          key={posIdx}
+                          className="flex items-center gap-2 text-xs pl-6"
+                        >
+                          <Badge
+                            variant="outline"
+                            className="text-red-600 border-red-300"
+                          >
+                            {pos.outcome}
+                          </Badge>
+                          <span className="text-muted-foreground">
+                            {pos.quantity} shares (short)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Limit Orders Detail */}
+      {collateralBreakdown.limitOrders.length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-purple-500" />
+            Limit Order Collateral
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Collateral locked for pending limit orders (covers purchase price
+            and potential short position)
+          </p>
+          <div className="space-y-2">
+            {collateralBreakdown.limitOrders.map((order) => (
+              <Card key={order.orderId} className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm line-clamp-1 mb-1">
+                      {order.question}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="text-purple-600 border-purple-300"
+                      >
+                        LIMIT ORDER
+                      </Badge>
+                      <span>
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">Locked</div>
+                    <div className="font-semibold">
+                      ${(order.collateralCents / 100).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Market Making Detail */}
+      {collateralBreakdown.marketMakerMarkets.length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-blue-500" />
+            Market Making Collateral
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Funding locked for markets you created to provide initial liquidity
+          </p>
+          <div className="space-y-2">
+            {collateralBreakdown.marketMakerMarkets.map((market) => (
+              <Card key={market.marketId} className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm line-clamp-1 mb-1">
+                      {market.question}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="text-blue-600 border-blue-300"
+                      >
+                        MARKET MAKER
+                      </Badge>
+                      <Calendar className="w-3 h-3" />
+                      <span>
+                        {new Date(market.endDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">Locked</div>
+                    <div className="font-semibold">
+                      ${(market.fundingCollateralCents / 100).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Info Card */}
+      <Card className="p-4 bg-slate-50 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-slate-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-slate-800 dark:text-slate-200">
+              How Collateral Works
+            </p>
+            <p className="text-slate-700 dark:text-slate-300 mt-1">
+              Collateral ensures you can cover potential losses. For short
+              positions, $1.00 per share is locked (max payout if that outcome
+              wins). Limit orders lock funds to cover the order and any
+              resulting short position. Market makers lock funding to provide
+              initial liquidity. Collateral is automatically released when
+              positions close or markets resolve.
+            </p>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}

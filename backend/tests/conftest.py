@@ -485,4 +485,4 @@ def create_position(client, market_id, security_id, quantity):
     }
     resp = client.post("/orders", json=payload)
     assert resp.status_code == 201, f"Position setup failed: {resp.json()}"
-    return resp.json()["order"]
+    return resp.json()

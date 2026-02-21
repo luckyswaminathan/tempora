@@ -73,7 +73,7 @@ class TestBuyBalanceValidation:
         }
         resp = client.post("/orders", json=payload)
         assert resp.status_code == 201
-        cost = resp.json()["order"]["priceCents"]
+        cost = resp.json()["priceCents"]
 
         # Verify balance decreased by exact cost
         resp = client.get("/users/me/profile")
@@ -131,7 +131,7 @@ class TestShortCollateral:
         }
         resp = client.post("/orders", json=sell_payload)
         assert resp.status_code == 201
-        sell_proceeds = -resp.json()["order"]["priceCents"]  # Negative cost = proceeds
+        sell_proceeds = -resp.json()["priceCents"]  # Negative cost = proceeds
 
         # Verify we received proceeds and no collateral was locked
         resp = client.get("/users/me/profile")
@@ -209,7 +209,7 @@ class TestSpendableBalance:
         }
         resp = client.post("/orders", json=sell_payload)
         assert resp.status_code == 201
-        sell_proceeds = -resp.json()["order"]["priceCents"]  # Negative cost = proceeds
+        sell_proceeds = -resp.json()["priceCents"]  # Negative cost = proceeds
 
         # Check wallet increased by proceeds
         resp = client.get("/users/me/profile")
@@ -269,7 +269,7 @@ class TestCollateralRelease:
         }
         resp = client.post("/orders", json=buy_payload)
         assert resp.status_code == 201
-        buy_cost = resp.json()["order"]["priceCents"]
+        buy_cost = resp.json()["priceCents"]
 
         # After closing, verify collateral was released
         resp = client.get("/users/me/profile")

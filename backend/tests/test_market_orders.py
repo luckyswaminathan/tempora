@@ -57,9 +57,9 @@ def test_place_trade(trader_client, trade_market):
         resp = trader_client.post("/orders", json=payload)
         assert resp.status_code == 201
 
-        data = resp.json()["order"]
-        assert abs(data["priceCents"] - 100 / outcomes) <= 0.5
-        wallet -= data["priceCents"]
+        price_cents = resp.json()["priceCents"]
+        assert abs(price_cents - 100 / outcomes) <= 0.5
+        wallet -= price_cents
 
         resp = trader_client.get("/users/me/profile")
         assert resp.status_code == 200
@@ -78,7 +78,7 @@ def test_sell_trade(trader_client, trade_market):
     }
     resp = trader_client.post("/orders", json=buy_payload)
     assert resp.status_code == 201
-    buy_cost = resp.json()["order"]["priceCents"]
+    buy_cost = resp.json()["priceCents"]
 
     # Get wallet after buy
     resp = trader_client.get("/users/me/profile")
@@ -91,7 +91,7 @@ def test_sell_trade(trader_client, trade_market):
     }
     resp = trader_client.post("/orders", json=sell_payload)
     assert resp.status_code == 201
-    sell_price = resp.json()["order"]["priceCents"]
+    sell_price = resp.json()["priceCents"]
 
     # Selling should credit the wallet (negative price)
     assert sell_price < 0
@@ -119,7 +119,7 @@ def test_multi_leg_trade(trader_client, trade_market):
 
     resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 201
-    cost = resp.json()["order"]["priceCents"]
+    cost = resp.json()["priceCents"]
 
     # Cost of complete set should be close to $1 (100 cents)
     assert abs(cost - 100) < 5  # Allow small deviation for liquidity parameter
@@ -167,7 +167,7 @@ def test_round_trip_trade(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": 10}],
     }
     resp = trader_client.post("/orders", json=buy_payload)
-    buy_cost = resp.json()["order"]["priceCents"]
+    buy_cost = resp.json()["priceCents"]
 
     # Immediately sell same 10 shares
     sell_payload = {
@@ -175,7 +175,7 @@ def test_round_trip_trade(trader_client, trade_market):
         "legs": [{"securityId": security_id, "quantity": -10}],
     }
     resp = trader_client.post("/orders", json=sell_payload)
-    sell_proceeds = -resp.json()["order"]["priceCents"]  # Negative cost = proceeds
+    sell_proceeds = -resp.json()["priceCents"]  # Negative cost = proceeds
 
     # Final wallet
     resp = trader_client.get("/users/me/profile")
@@ -216,7 +216,7 @@ def test_zero_quantity_trade(trader_client, trade_market):
     resp = trader_client.post("/orders", json=payload)
     assert resp.status_code == 201
     # Zero quantity trade should cost nothing
-    assert resp.json()["order"]["priceCents"] == 0
+    assert resp.json()["priceCents"] == 0
 
 
 def test_mixed_buy_sell_trade(trader_client, trade_market):
@@ -243,7 +243,7 @@ def test_mixed_buy_sell_trade(trader_client, trade_market):
     }
     resp = trader_client.post("/orders", json=mixed_payload)
     assert resp.status_code == 201
-    net_cost = resp.json()["order"]["priceCents"]
+    net_cost = resp.json()["priceCents"]
 
     # Verify wallet changed by net cost
     resp = trader_client.get("/users/me/profile")
