@@ -87,11 +87,17 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
+    // Don't navigate when clicking interactive elements within the card
     if (
       target.closest("button") ||
       target.closest("a") ||
+      target.closest("input") ||
       target.closest('[role="dialog"]') ||
-      target.closest(".security-picker")
+      target.closest(".security-picker") ||
+      target.closest(".recharts-wrapper") ||
+      target.closest('[role="slider"]') ||
+      target.closest('[data-radix-collection-item]') ||
+      target.closest("svg")
     ) {
       return;
     }
@@ -195,7 +201,7 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
           </div>
         </div>
 
-        <h3 className="text-lg font-semibold mb-2 leading-snug text-balance line-clamp-2 h-14">
+        <h3 className="text-lg font-semibold mb-2 leading-snug text-balance line-clamp-3 min-h-14">
           <Link
             href={`/market/${market.id}`}
             className="group/link hover:underline inline-flex items-start gap-1"
@@ -260,7 +266,12 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
         )}
 
         {market.status === "open" && (
-          <div className="mb-4">
+          <div
+            className="mb-4"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
             <SecurityPicker
               outcomes={outcomes}
               uiType={market.uiType}
