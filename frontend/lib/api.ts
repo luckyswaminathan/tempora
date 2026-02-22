@@ -208,6 +208,17 @@ export const marketsApi = {
       }),
     });
   },
+
+  async settleMarketAsMaker(
+    winningSecurityId: string,
+  ): Promise<MarketSettlementResponse> {
+    return fetchWithAuth(`/markets/maker/settle`, {
+      method: "PUT",
+      body: JSON.stringify({
+        winningSecurityId: winningSecurityId,
+      }),
+    });
+  },
 };
 
 // Orders API
@@ -635,5 +646,71 @@ export interface MarketMakerDashboard {
 export const marketMakerApi = {
   async getDashboard(): Promise<MarketMakerDashboard> {
     return fetchWithAuth("/markets/maker/dashboard");
+  },
+};
+
+// Platform Time Types
+export interface PlatformTimeResponse {
+  current_time: string;
+  settlement_deadline_hours: number;
+}
+
+export interface AdvanceTimeResponse {
+  previous_time: string;
+  current_time: string;
+  markets_closed: number;
+}
+
+export interface SettlementTodoItem {
+  id: string;
+  market_id: string;
+  market_question: string;
+  market_maker_id: string;
+  created_at: string;
+  deadline: string;
+  settled_at: string | null;
+  is_overdue: boolean;
+  hours_remaining: number | null;
+}
+
+export interface SettlementTodoListResponse {
+  todos: SettlementTodoItem[];
+  count: number;
+  platform_time: string;
+}
+
+// Platform Time API (Admin)
+export const platformTimeApi = {
+  async getTime(): Promise<PlatformTimeResponse> {
+    return fetchWithAuth("/admin/time");
+  },
+
+  async setTime(currentTime: string): Promise<PlatformTimeResponse> {
+    return fetchWithAuth("/admin/time", {
+      method: "POST",
+      body: JSON.stringify({ current_time: currentTime }),
+    });
+  },
+
+  async advanceTime(params: {
+    hours?: number;
+    days?: number;
+    minutes?: number;
+  }): Promise<AdvanceTimeResponse> {
+    return fetchWithAuth("/admin/time/advance", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+  },
+};
+
+// Settlement Todos API (Market Maker)
+export const settlementTodosApi = {
+  async getTodos(
+    includingSettled: boolean = false,
+  ): Promise<SettlementTodoListResponse> {
+    return fetchWithAuth(
+      `/markets/maker/todos?include_settled=${includingSettled}`,
+    );
   },
 };

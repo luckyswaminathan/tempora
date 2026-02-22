@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import {
   Pen,
   Gavel,
   ExternalLink,
+  Clock,
 } from "lucide-react";
 import { TradeDialog } from "@/components/trade-dialog";
 import { AuthDialog } from "@/components/auth-dialog";
@@ -31,6 +33,7 @@ type ViewMode = "individual" | "interval";
 
 export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const [market, setMarket] = useState(initialMarket);
 
   // Get UI type configuration
@@ -78,6 +81,23 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
     ? format(new Date(market.createdAt), "MMM d, yyyy")
     : "—";
 
+  const resolutionDate = market?.resolutionDate
+    ? format(new Date(market.resolutionDate), "MMM d, yyyy")
+    : "—";
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest("button") ||
+      target.closest("a") ||
+      target.closest('[role="dialog"]') ||
+      target.closest(".security-picker")
+    ) {
+      return;
+    }
+    router.push(`/market/${market.id}`);
+  };
+
   const handleOpenIntervalDialog = () => {
     if (intervalRange[0] >= 0) {
       setDialogOpen(true);
@@ -122,9 +142,10 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
   return (
     <>
       <Card
-        className={`p-6 hover:shadow-lg transition-shadow relative ${
+        className={`p-6 hover:shadow-lg transition-shadow relative cursor-pointer ${
           isRefreshing ? "opacity-70" : ""
         }`}
+        onClick={handleCardClick}
       >
         {/* Floating interval selection overlay - stick to top of this card */}
         {viewMode === "interval" && rangeStart >= 0 && (
@@ -166,9 +187,11 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
           <Badge variant="secondary" className="text-xs">
             {market.category || "Uncategorized"}
           </Badge>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Calendar className="w-3 h-3" />
-            <span>{creationDate}</span>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="w-3 h-3" />
+              <span>Resolves {resolutionDate}</span>
+            </div>
           </div>
         </div>
 

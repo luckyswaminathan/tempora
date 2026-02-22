@@ -16,6 +16,8 @@ import {
   History,
   X,
   TrendingDown,
+  Gavel,
+  Settings,
 } from "lucide-react";
 import {
   marketsApi,
@@ -34,6 +36,7 @@ import { OpenOrdersTab } from "@/components/open-orders-tab";
 import { HistoryTab } from "@/components/history-tab";
 import { HoldingsTab } from "@/components/holdings-tab";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
+import { SettleDialog } from "@/components/settle-dialog";
 import { format } from "date-fns";
 
 export default function MarketPage({
@@ -42,7 +45,7 @@ export default function MarketPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -51,6 +54,9 @@ export default function MarketPage({
   const [market, setMarket] = useState<Market | null>(null);
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [marketError, setMarketError] = useState<string | null>(null);
+
+  // Market maker settlement state
+  const [showSettleDialog, setShowSettleDialog] = useState(false);
 
   // User data
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
@@ -341,6 +347,37 @@ export default function MarketPage({
           </Card>
         )}
 
+        {/* Market Owner Actions - Show for market makers who own this market */}
+        {user &&
+          profile?.role === "market_maker" &&
+          market.creatorId === user.id &&
+          market.status !== "resolved" && (
+            <Card className="p-4 mb-6 border-emerald-200 bg-emerald-50 dark:bg-emerald-950">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-emerald-600" />
+                  <div>
+                    <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                      You own this market
+                    </span>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                      As the market maker, you can settle this market when the
+                      outcome is known.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setShowSettleDialog(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <Gavel className="w-4 h-4 mr-1" />
+                  Settle Market
+                </Button>
+              </div>
+            </Card>
+          )}
+
         {/* Trade panel */}
         {market.status === "open" && (
           <Card className="p-4 mb-6">
@@ -541,6 +578,19 @@ export default function MarketPage({
         loadingHistory={loadingHistory}
         fetchTradeHistory={fetchTradeHistory}
       />
+
+      {market && (
+        <SettleDialog
+          market={market}
+          open={showSettleDialog}
+          onOpenChange={setShowSettleDialog}
+          asMarketMaker={true}
+          onSettleSuccess={() => {
+            setShowSettleDialog(false);
+            refreshMarket();
+          }}
+        />
+      )}
     </>
   );
 }

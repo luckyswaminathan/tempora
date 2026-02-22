@@ -18,13 +18,17 @@ import {
   TrendingDown,
   DollarSign,
   BarChart3,
+  AlertTriangle,
+  Timer,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import {
   proposalsApi,
   marketMakerApi,
+  settlementTodosApi,
   type Proposal,
   type MarketMakerDashboard,
+  type SettlementTodoListResponse,
 } from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MarketCreateForm } from "@/components/market-create-form";
@@ -41,6 +45,8 @@ export default function MarketMakingPage() {
   );
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [dashboard, setDashboard] = useState<MarketMakerDashboard | null>(null);
+  const [settlementTodos, setSettlementTodos] =
+    useState<SettlementTodoListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
@@ -75,10 +81,20 @@ export default function MarketMakingPage() {
     }
   };
 
+  const fetchSettlementTodos = async () => {
+    try {
+      const data = await settlementTodosApi.getTodos(false);
+      setSettlementTodos(data);
+    } catch (err) {
+      console.error("Failed to load settlement todos:", err);
+    }
+  };
+
   useEffect(() => {
     if (profile?.role === "market_maker") {
       fetchProposals();
       fetchDashboard();
+      fetchSettlementTodos();
     }
   }, [profile]);
 
@@ -257,6 +273,77 @@ export default function MarketMakingPage() {
           {/* Content */}
           <TabsContent value="dashboard">
             <div className="space-y-6">
+              {/* Settlement TODOs - Show prominently at the top if there are pending ones */}
+              {settlementTodos && settlementTodos.todos.length > 0 && (
+                <Card className="p-5 border-amber-500/30 bg-amber-500/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-amber-700">
+                        Settlement Required
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {settlementTodos.count} market
+                        {settlementTodos.count !== 1 ? "s" : ""} need
+                        {settlementTodos.count === 1 ? "s" : ""} to be settled
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {settlementTodos.todos.map((todo) => (
+                      <div
+                        key={todo.id}
+                        className={`flex items-center justify-between p-3 rounded-lg ${
+                          todo.is_overdue
+                            ? "bg-red-500/10 border border-red-500/30"
+                            : "bg-background border border-border/50"
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {todo.market_question}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                            <Timer className="w-3 h-3" />
+                            {todo.is_overdue ? (
+                              <span className="text-red-600 font-medium">
+                                Overdue by{" "}
+                                {Math.abs(
+                                  Math.round(todo.hours_remaining ?? 0),
+                                )}{" "}
+                                hours
+                              </span>
+                            ) : (
+                              <span>
+                                {Math.round(todo.hours_remaining ?? 0)} hours
+                                remaining
+                              </span>
+                            )}
+                            <span>•</span>
+                            <span>
+                              Deadline:{" "}
+                              {new Date(todo.deadline).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                        <Button
+                          variant={todo.is_overdue ? "destructive" : "default"}
+                          size="sm"
+                          onClick={() => router.push(`/market/${todo.market_id}`)}
+                          className={
+                            todo.is_overdue ? "" : "bg-amber-600 hover:bg-amber-700"
+                          }
+                        >
+                          Settle Now
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
               {/* P&L Summary Cards */}
               {dashboard && (
                 <>

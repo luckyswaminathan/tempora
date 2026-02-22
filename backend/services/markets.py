@@ -21,6 +21,7 @@ from schemas.market import (
     MarketMakerDashboard,
 )
 from utils.pricing import calculate_market_quotes
+from services import platform_time
 
 
 class MarketService:
@@ -207,6 +208,8 @@ class MarketService:
 
         market.status = models.MarketStatus.RESOLVED
         market.winning_security_id = payload.winning_security_id
+
+        platform_time.mark_todo_settled(self.session, market.id)
 
         self.session.commit()
         self.session.refresh(market)

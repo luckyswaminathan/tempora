@@ -252,3 +252,37 @@ class Trade(Base):
     order: Mapped[Order] = relationship(back_populates="trades")
     user: Mapped[User] = relationship()
     security: Mapped[Security] = relationship(back_populates="trades")
+
+
+class PlatformState(Base):
+    __tablename__ = "platform_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    current_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class SettlementTodo(Base):
+    __tablename__ = "settlement_todos"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    market_id: Mapped[str] = mapped_column(
+        String, ForeignKey("markets.id"), nullable=False, unique=True
+    )
+    market_maker_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    settled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    market: Mapped[Market] = relationship()
+    market_maker: Mapped[User] = relationship()

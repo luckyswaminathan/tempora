@@ -28,11 +28,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   adminApi,
   proposalsApi,
+  platformTimeApi,
   type AdminUserListItem,
   type Proposal,
+  type PlatformTimeResponse,
+  type AdvanceTimeResponse,
 } from "@/lib/api";
 
-type MainTab = "users" | "proposals";
+type MainTab = "users" | "proposals" | "time";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -67,6 +70,12 @@ export default function AdminDashboard() {
     Proposal[]
   >([]);
   const [loadingUserProposals, setLoadingUserProposals] = useState(false);
+  const [platformTime, setPlatformTime] = useState<PlatformTimeResponse | null>(
+    null,
+  );
+  const [timeLoading, setTimeLoading] = useState(false);
+  const [advanceResult, setAdvanceResult] =
+    useState<AdvanceTimeResponse | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
@@ -136,6 +145,48 @@ export default function AdminDashboard() {
     setSelectedUser(null);
     setSelectedUserProposals([]);
   };
+
+  const fetchPlatformTime = async () => {
+    try {
+      setTimeLoading(true);
+      const response = await platformTimeApi.getTime();
+      setPlatformTime(response);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load platform time",
+      );
+    } finally {
+      setTimeLoading(false);
+    }
+  };
+
+  const handleAdvanceTime = async (params: {
+    hours?: number;
+    days?: number;
+    minutes?: number;
+  }) => {
+    try {
+      setTimeLoading(true);
+      const result = await platformTimeApi.advanceTime(params);
+      setAdvanceResult(result);
+      setPlatformTime({
+        current_time: result.current_time,
+        settlement_deadline_hours: platformTime?.settlement_deadline_hours ?? 24,
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to advance time",
+      );
+    } finally {
+      setTimeLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === "admin" && mainTab === "time") {
+      fetchPlatformTime();
+    }
+  }, [user, mainTab]);
 
   const handleToggleMarketMaker = async (
     userId: string,
@@ -278,6 +329,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="users" className="gap-2">
               <Users className="w-4 h-4" />
               User Management
+            </TabsTrigger>
+            <TabsTrigger value="time" className="gap-2">
+              <Clock className="w-4 h-4" />
+              Platform Time
             </TabsTrigger>
           </TabsList>
 
@@ -886,6 +941,191 @@ export default function AdminDashboard() {
                 </div>
               )}
             </>
+          </TabsContent>
+
+          {/* Platform Time Section */}
+          <TabsContent value="time">
+            <div className="space-y-6">
+              {/* Current Time Card */}
+              <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border/50">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold">Platform Time</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Simulated time for the prediction market platform
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchPlatformTime}
+                    disabled={timeLoading}
+                  >
+                    {timeLoading ? (
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      "Refresh"
+                    )}
+                  </Button>
+                </div>
+
+                {timeLoading && !platformTime && (
+                  <div className="text-center py-8">
+                    <div className="inline-flex items-center gap-2 text-muted-foreground">
+                      <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      Loading platform time...
+                    </div>
+                  </div>
+                )}
+
+                {platformTime && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Current Platform Time
+                      </p>
+                      <p className="text-2xl font-bold font-mono">
+                        {new Date(platformTime.current_time).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Settlement Deadline
+                      </p>
+                      <p className="text-2xl font-bold">
+                        {platformTime.settlement_deadline_hours} hours
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Time market makers have to settle after resolution
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Time Advance Controls */}
+                <div className="border-t border-border/50 pt-6">
+                  <h3 className="text-sm font-semibold mb-4">Advance Time</h3>
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAdvanceTime({ minutes: 30 })}
+                      disabled={timeLoading}
+                    >
+                      +30 Minutes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAdvanceTime({ hours: 1 })}
+                      disabled={timeLoading}
+                    >
+                      +1 Hour
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAdvanceTime({ hours: 6 })}
+                      disabled={timeLoading}
+                    >
+                      +6 Hours
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAdvanceTime({ hours: 12 })}
+                      disabled={timeLoading}
+                    >
+                      +12 Hours
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleAdvanceTime({ days: 1 })}
+                      disabled={timeLoading}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      +1 Day
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleAdvanceTime({ days: 7 })}
+                      disabled={timeLoading}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      +1 Week
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Advance Result Feedback */}
+                {advanceResult && (
+                  <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <span className="font-semibold text-emerald-600">
+                        Time Advanced
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Previous Time</p>
+                        <p className="font-mono">
+                          {new Date(advanceResult.previous_time).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">New Time</p>
+                        <p className="font-mono">
+                          {new Date(advanceResult.current_time).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Markets Closed</p>
+                        <p className="font-bold text-lg">
+                          {advanceResult.markets_closed}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </Card>
+
+              {/* Info Card */}
+              <Card className="p-6 border-border/50 bg-amber-500/5 border-amber-500/20">
+                <div className="flex gap-3">
+                  <div className="shrink-0">
+                    <Clock className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-amber-600 mb-1">
+                      How Platform Time Works
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>
+                        • When platform time passes a market&apos;s resolution date,
+                        the market is automatically closed for trading.
+                      </li>
+                      <li>
+                        • Market makers receive a settlement TODO with a{" "}
+                        {platformTime?.settlement_deadline_hours ?? 24}-hour
+                        deadline.
+                      </li>
+                      <li>
+                        • Use the time controls above to simulate time passing
+                        for testing and demos.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

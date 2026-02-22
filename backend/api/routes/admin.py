@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,6 +11,7 @@ from core.models import UserRole
 from schemas.user import UserBase, UserProfile
 from schemas.proposal import ProposalListResponse
 from services.proposals import ProposalService
+from services import platform_time
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -138,3 +140,84 @@ def get_user_proposals(
 ) -> ProposalListResponse:
     """Get all proposals for a specific user (admin only)."""
     return service.get_my_proposals(user_id)
+
+
+class PlatformTimeResponse(BaseModel):
+    current_time: datetime
+    settlement_deadline_hours: int
+
+
+class SetTimeRequest(BaseModel):
+    current_time: datetime
+
+
+class AdvanceTimeRequest(BaseModel):
+    hours: int = 0
+    days: int = 0
+    minutes: int = 0
+
+
+class AdvanceTimeResponse(BaseModel):
+    previous_time: datetime
+    current_time: datetime
+    markets_closed: int
+
+
+@router.get("/time", response_model=PlatformTimeResponse)
+def get_platform_time(
+    current_user: UserBase = Depends(deps.get_current_admin),
+    session: Session = Depends(deps.get_session),
+) -> PlatformTimeResponse:
+    """Get the current platform time (admin only)."""
+    from core.config import settings
+
+    current_time = platform_time.get_current_time(session)
+    return PlatformTimeResponse(
+        current_time=current_time,
+        settlement_deadline_hours=settings.settlement_deadline_hours,
+    )
+
+
+@router.post("/time", response_model=PlatformTimeResponse)
+def set_platform_time(
+    payload: SetTimeRequest,
+    current_user: UserBase = Depends(deps.get_current_admin),
+    session: Session = Depends(deps.get_session),
+) -> PlatformTimeResponse:
+    """Set the platform time to an absolute value (admin only)."""
+    from core.config import settings
+
+    new_time = platform_time.set_current_time(session, payload.current_time)
+    return PlatformTimeResponse(
+        current_time=new_time,
+        settlement_deadline_hours=settings.settlement_deadline_hours,
+    )
+
+
+@router.post("/time/advance", response_model=AdvanceTimeResponse)
+def advance_platform_time(
+    payload: AdvanceTimeRequest,
+    current_user: UserBase = Depends(deps.get_current_admin),
+    session: Session = Depends(deps.get_session),
+) -> AdvanceTimeResponse:
+    """Advance the platform time by a specified duration (admin only)."""
+    previous_time = platform_time.get_current_time(session)
+    new_time = platform_time.advance_time(
+        session, hours=payload.hours, days=payload.days, minutes=payload.minutes
+    )
+
+    closed_markets = (
+        session.query(models.Market)
+        .filter(
+            models.Market.status == models.MarketStatus.CLOSED,
+            models.Market.resolution_date <= new_time,
+            models.Market.resolution_date > previous_time,
+        )
+        .count()
+    )
+
+    return AdvanceTimeResponse(
+        previous_time=previous_time,
+        current_time=new_time,
+        markets_closed=closed_markets,
+    )
