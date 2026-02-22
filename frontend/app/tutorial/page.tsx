@@ -269,7 +269,7 @@ export default function TutorialPage() {
                   return (
                     <div
                       key={idx}
-                      className={`p-4 rounded-lg border transition-all cursor-pointer ${
+                      className={`p-4 rounded-lg border transition-all ${
                         isCompleted
                           ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
                           : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700"
@@ -294,7 +294,7 @@ export default function TutorialPage() {
                           </div>
                         </div>
                         <button
-                          className="px-4 py-1.5 text-sm font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                          className="px-4 py-1.5 text-sm font-medium rounded-md bg-blue-500 text-white cursor-pointer hover:bg-blue-600 transition-colors"
                           onClick={() => {
                             if (lesson.isInteractive) {
                               if (lesson.lessonKey == "user-profile") {

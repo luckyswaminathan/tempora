@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,6 +44,8 @@ export default function MarketPage({
   const { id } = use(params);
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   // Market data
   const [market, setMarket] = useState<Market | null>(null);
@@ -82,6 +84,19 @@ export default function MarketPage({
     Record<string, OrderRecord[]>
   >({});
   const [loadingHistory, setLoadingHistory] = useState<Set<string>>(new Set());
+  const [marketTab, setMarketTab] = useState(
+    () => searchParams.get("tab") ?? "position",
+  );
+
+  const handleMarketTabChange = useCallback(
+    (tab: string) => {
+      setMarketTab(tab);
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("tab", tab);
+      router.replace(`${pathname}?${params.toString()}`);
+    },
+    [pathname, router, searchParams],
+  );
 
   const fetchTradeHistory = useCallback(async (marketId: string) => {
     setLoadingHistory((prev) => new Set(prev).add(marketId));
@@ -367,7 +382,11 @@ export default function MarketPage({
 
         {/* User sections */}
         {user ? (
-          <Tabs defaultValue="position" className="w-full">
+          <Tabs
+            value={marketTab}
+            onValueChange={handleMarketTabChange}
+            className="w-full"
+          >
             <TabsList className="mb-4">
               <TabsTrigger value="position" className="gap-2">
                 <Wallet className="w-4 h-4" />

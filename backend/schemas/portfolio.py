@@ -76,7 +76,22 @@ class LimitOrderCollateral(BaseModel):
 class MarketMakerCollateral(BaseModel):
     market_id: str = Field(alias="marketId")
     question: str
-    funding_collateral_cents: int = Field(alias="fundingCollateralCents")
+    initial_funding_cents: int = Field(
+        alias="initialFundingCents",
+        description="b·ln(N) worst-case net loss set at market creation",
+    )
+    revenue_cents: int = Field(
+        alias="revenueCents",
+        description="Trade revenue already collected into wallet",
+    )
+    effective_collateral_cents: int = Field(
+        alias="effectiveCollateralCents",
+        description=(
+            "initialFunding + revenue: total worst-case payout obligation. "
+            "Increases when traders buy (revenue > 0), decreases when traders sell "
+            "back to the AMM (revenue < 0, reducing payout exposure)."
+        ),
+    )
     end_date: str = Field(alias="endDate")
 
     model_config = ConfigDict(populate_by_name=True)

@@ -115,7 +115,7 @@ def test_market(request, db_session, test_user) -> models.Market:
         liquidity_parameter=1000,
         ui_type="bars-ordered",
         creator_id=test_user.id,
-        funding_collateral_cents=0,
+        initial_funding_cents=0,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
@@ -216,7 +216,7 @@ def trade_market(request, db_session, market_maker_user) -> models.Market:
         liquidity_parameter=1000,
         ui_type="bars-ordered",
         creator_id=market_maker_user.id,  # Market maker creates it
-        funding_collateral_cents=0,
+        initial_funding_cents=0,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )

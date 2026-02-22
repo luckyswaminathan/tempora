@@ -240,7 +240,7 @@ class TestSettlementPayouts:
 
         max_loss = int(50 * math.log(2) * 100)
 
-        # Get market from DB to check funding_collateral_cents
+        # Get market from DB to check initial_funding_cents
         from core import models
 
         db_market = (
@@ -249,8 +249,8 @@ class TestSettlementPayouts:
             .first()
         )
 
-        # Verify funding collateral was set correctly
-        assert db_market.funding_collateral_cents == max_loss
+        # Verify initial funding was set correctly
+        assert db_market.initial_funding_cents == max_loss
 
         # Normal trades shouldn't violate this
         yes_security_id = market.securities[0].id

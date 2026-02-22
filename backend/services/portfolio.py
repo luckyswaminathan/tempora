@@ -166,22 +166,37 @@ class PortfolioService:
             )
             total_limit_order_collateral += order.collateral_locked_cents
 
-        # 3. Get market maker details
+        # 3. Get market maker details — compute revenue per market for adaptive collateral
+        from sqlalchemy import select as _select
+        from core import models as _models
+
         user_markets = get_market_maker_markets_data(self.session, user_id)
         market_maker_markets = []
         total_market_maker_collateral = 0
 
         for market in user_markets:
-            if market.funding_collateral_cents > 0:
-                market_maker_markets.append(
-                    MarketMakerCollateral(
-                        market_id=market.id,
-                        question=market.question,
-                        funding_collateral_cents=market.funding_collateral_cents,
-                        end_date=market.resolution_date.strftime("%b %d, %Y"),
-                    )
+            if market.initial_funding_cents <= 0:
+                continue
+            # Compute revenue already collected from trades for this market
+            trades_stmt = (
+                _select(_models.Trade)
+                .join(_models.Security)
+                .where(_models.Security.market_id == market.id)
+            )
+            market_trades = self.session.scalars(trades_stmt).all()
+            revenue = sum(t.price_cents for t in market_trades)
+            effective = max(0, market.initial_funding_cents + revenue)
+            market_maker_markets.append(
+                MarketMakerCollateral(
+                    market_id=market.id,
+                    question=market.question,
+                    initial_funding_cents=market.initial_funding_cents,
+                    revenue_cents=revenue,
+                    effective_collateral_cents=effective,
+                    end_date=market.resolution_date.strftime("%b %d, %Y"),
                 )
-                total_market_maker_collateral += market.funding_collateral_cents
+            )
+            total_market_maker_collateral += effective
 
         total_locked = (
             total_short_collateral

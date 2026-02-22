@@ -57,7 +57,7 @@ class MarketService:
         self,
         proposal: models.MarketProposal,
         creator_id: str,
-        funding_collateral_cents: int,
+        initial_funding_cents: int,
     ) -> models.Market:
         """
         Create a market from an approved proposal.
@@ -73,7 +73,7 @@ class MarketService:
             liquidity_parameter=proposal.liquidity_parameter,
             ui_type=proposal.ui_type,
             creator_id=creator_id,
-            funding_collateral_cents=funding_collateral_cents,
+            initial_funding_cents=initial_funding_cents,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -153,31 +153,42 @@ class MarketService:
 
         total_payout = sum(user_pnl.values())
 
-        # Validate and deduct payouts from market maker's wallet (if market has a creator)
-        if market.creator_id and total_payout > 0:
-            creator_profile = self.session.get(models.Profile, market.creator_id)
-            if not creator_profile:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Market creator profile not found",
-                )
+        # Calculate total revenue already collected by market maker for this market
+        all_market_trades_stmt = (
+            select(models.Trade)
+            .join(models.Security)
+            .where(models.Security.market_id == market.id)
+        )
+        all_market_trades = self.session.scalars(all_market_trades_stmt).all()
+        revenue = sum(t.price_cents for t in all_market_trades)
 
-            # Check if payout exceeds funding collateral (should be theoretically impossible with LMSR)
-            if total_payout > market.funding_collateral_cents:
-                # This indicates a serious error in the LMSR implementation
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"CRITICAL ERROR: Settlement payout (${total_payout/100:.2f}) exceeds funding collateral (${market.funding_collateral_cents/100:.2f}). This should be impossible with LMSR.",
-                )
+        # Market always has a creator (creator_id is NOT NULL)
+        creator_profile = self.session.get(models.Profile, market.creator_id)
+        if not creator_profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Market creator profile not found",
+            )
 
-            # Check if market maker has sufficient funds to cover payout
+        # Verify net loss is within initial funding (should be impossible with correct LMSR)
+        # initial_funding = b*ln(N) = max possible net loss = max(payout - revenue)
+        net_loss = max(0, int(total_payout) - revenue)
+        if net_loss > market.initial_funding_cents:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"CRITICAL ERROR: Settlement net loss (${net_loss/100:.2f}) exceeds initial funding (${market.initial_funding_cents/100:.2f}). This should be impossible with LMSR.",
+            )
+
+        if total_payout > 0:
+            # Check if market maker has sufficient funds to cover the gross payout.
+            # The wallet already includes all revenue collected from trades.
             if creator_profile.wallet < int(total_payout):
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"CRITICAL ERROR: Market maker has insufficient funds. Required: ${total_payout/100:.2f}, Available: ${creator_profile.wallet/100:.2f}",
                 )
 
-            # Deduct the payout from market maker's wallet
+            # Deduct the gross payout from market maker's wallet
             creator_profile.wallet -= int(total_payout)
 
         # Pay out winners
@@ -349,7 +360,7 @@ class MarketService:
         markets = self.session.scalars(stmt).all()
 
         market_data = []
-        total_funding_collateral = 0
+        total_initial_funding = 0
         total_revenue = 0
         total_liability = 0
 
@@ -395,7 +406,7 @@ class MarketService:
                     status=market.status,
                     resolutionDate=market.resolution_date,
                     createdAt=market.created_at,
-                    fundingCollateralCents=market.funding_collateral_cents or 0,
+                    initialFundingCents=market.initial_funding_cents or 0,
                     revenueCents=revenue,
                     liabilityCents=liability,
                     netPnlCents=net_pnl,
@@ -404,7 +415,7 @@ class MarketService:
                 )
             )
 
-            total_funding_collateral += market.funding_collateral_cents or 0
+            total_initial_funding += market.initial_funding_cents or 0
             total_revenue += revenue
             total_liability += liability
 
@@ -412,7 +423,7 @@ class MarketService:
 
         return MarketMakerDashboard(
             markets=market_data,
-            totalFundingCollateralCents=total_funding_collateral,
+            totalInitialFundingCents=total_initial_funding,
             totalRevenueCents=total_revenue,
             totalLiabilityCents=total_liability,
             totalNetPnlCents=total_net_pnl,

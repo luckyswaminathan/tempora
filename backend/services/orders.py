@@ -141,9 +141,9 @@ class OrderService:
             simulated_quantities[leg.security_id] += leg.quantity
 
     def _route_payment_to_market_maker(self, market_id: str, total_cost: int) -> None:
-        """Route payment to market maker (if market has a creator)."""
+        """Route payment to market maker (market always has a creator)."""
         market_model = self.session.get(models.Market, market_id)
-        if market_model and market_model.creator_id:
+        if market_model:
             creator_profile = self.session.get(models.Profile, market_model.creator_id)
             if creator_profile:
                 creator_profile.wallet += total_cost

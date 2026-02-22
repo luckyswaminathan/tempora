@@ -7,8 +7,8 @@ Proposal flow:
 3. If approved, market maker publishes it to create a live market
 
 Collateral rules for publishing:
-- Market maker must have wallet >= (existing_collateral_locked + funding_collateral_cents)
-- funding_collateral_cents = b * ln(N) = maximum LMSR loss
+- Market maker must have wallet >= (existing_collateral_locked + initial_funding_cents)
+- initial_funding_cents = b * ln(N) = maximum LMSR loss
 - Collateral is locked but not deducted upfront
 - Collateral is paid out at settlement
 """

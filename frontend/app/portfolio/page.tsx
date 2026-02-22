@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Wallet, Clock, Lock, History } from "lucide-react";
@@ -11,7 +11,7 @@ import {
   type OrderRecord,
 } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
 import { useTutorial } from "@/hooks/useTutorial";
 import { UNDERSTANDING_PNL_STEPS } from "@/lib/tutorial-steps";
@@ -37,6 +37,8 @@ interface MarketGroup {
 export default function PortfolioPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,13 +53,27 @@ export default function PortfolioPage() {
     securityId: string;
     holding: PortfolioSnapshot["holdings"][0];
   } | null>(null);
-  const [activeTab, setActiveTab] = useState("holdings");
+  const [activeTab, setActiveTab] = useState(
+    () => searchParams.get("tab") ?? "holdings",
+  );
   const [pendingOrders, setPendingOrders] = useState<OrderRecord[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [allOrders, setAllOrders] = useState<OrderRecord[]>([]);
   const [loadingAllOrders, setLoadingAllOrders] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+  const [collateralRefreshKey, setCollateralRefreshKey] = useState(0);
+  const tutorialStartedRef = useRef(false);
+
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      setActiveTab(tab);
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("tab", tab);
+      router.replace(`${pathname}?${params.toString()}`);
+    },
+    [pathname, router, searchParams],
+  );
 
   const pnlTutorial = useTutorial({
     steps: UNDERSTANDING_PNL_STEPS,
@@ -79,8 +95,14 @@ export default function PortfolioPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await usersApi.getPortfolio();
-        setPortfolio(data);
+        const [portfolioData, ordersData] = await Promise.all([
+          usersApi.getPortfolio(),
+          ordersApi.listOrders(),
+        ]);
+        setPortfolio(portfolioData);
+        setPendingOrders(
+          ordersData.items.filter((o) => !o.filled && !o.canceled),
+        );
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to load portfolio",
@@ -92,29 +114,6 @@ export default function PortfolioPage() {
 
     fetchPortfolio();
   }, [user]);
-
-  // Fetch pending orders when Orders tab is active
-  useEffect(() => {
-    async function fetchPendingOrders() {
-      if (!user || activeTab !== "orders") return;
-
-      try {
-        setLoadingOrders(true);
-        const response = await ordersApi.listOrders();
-        // Filter to only show unfilled AND not canceled orders (open limit orders)
-        const pending = response.items.filter(
-          (order) => !order.filled && !order.canceled,
-        );
-        setPendingOrders(pending);
-      } catch (err) {
-        console.error("Failed to fetch orders:", err);
-      } finally {
-        setLoadingOrders(false);
-      }
-    }
-
-    fetchPendingOrders();
-  }, [user, activeTab]);
 
   // Fetch all filled orders when History tab is active
   useEffect(() => {
@@ -142,25 +141,27 @@ export default function PortfolioPage() {
 
   // Callback to refresh orders after cancellation
   const handleOrderCancelled = useCallback(() => {
-    if (activeTab === "orders" && user) {
+    if (user) {
       setLoadingOrders(true);
-      ordersApi
-        .listOrders()
-        .then((response) => {
-          const pending = response.items.filter(
+      Promise.all([ordersApi.listOrders(), usersApi.getPortfolio()])
+        .then(([ordersResponse, portfolioData]) => {
+          const pending = ordersResponse.items.filter(
             (order) => !order.filled && !order.canceled,
           );
           setPendingOrders(pending);
+          setPortfolio(portfolioData);
+          setCollateralRefreshKey((k) => k + 1);
         })
-        .catch((err) => console.error("Failed to refresh orders:", err))
+        .catch((err) => console.error("Failed to refresh after cancel:", err))
         .finally(() => setLoadingOrders(false));
     }
-  }, [activeTab, user]);
+  }, [user]);
 
   useEffect(() => {
-    if (mounted && !loading) {
+    if (mounted && !loading && !tutorialStartedRef.current) {
       const tutorialMode = searchParams?.get("tutorial");
       if (tutorialMode === "understanding-pnl") {
+        tutorialStartedRef.current = true;
         pnlTutorial.start();
       }
     }
@@ -329,8 +330,8 @@ export default function PortfolioPage() {
 
       {/* Tabs for Holdings vs Open Orders vs Collateral */}
       <Tabs
-        defaultValue="holdings"
-        onValueChange={setActiveTab}
+        value={activeTab}
+        onValueChange={handleTabChange}
         className="w-full"
       >
         <TabsList className="mb-6">
@@ -387,6 +388,9 @@ export default function PortfolioPage() {
             totalCollateralLocked={portfolio.collateralLocked}
             holdings={portfolio.holdings}
             openOutcomeDetail={openOutcomeDetail}
+            refreshKey={collateralRefreshKey}
+            pendingOrders={pendingOrders}
+            openOrderDetail={(order) => setSelectedOrder(order)}
           />
         </TabsContent>
 

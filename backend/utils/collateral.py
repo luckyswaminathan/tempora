@@ -136,7 +136,13 @@ def get_user_collateral_locked(session: Session, user_id: str) -> int:
     Calculate total collateral locked for:
     1. Short positions: max short per market * 100 cents (only one outcome can win)
     2. Limit orders: sum of collateral_locked_cents for all unfilled orders
-    3. Market maker funding: sum of funding_collateral_cents for markets created by user
+    3. Market maker funding: initial_funding + revenue per market.
+
+    Why initial_funding + revenue:
+      worst-case payout at resolution = initial_funding + total_revenue_received
+      (LMSR bound: max payout = b·ln(N) + all trade revenue).
+      The revenue sits in the wallet but must cover that payout, so it cannot be
+      treated as spendable.  Locking F + R ensures wallet ≥ payout at all times.
     """
     # Sum up collateral for short positions (per market, using max)
     short_data_by_market = get_short_positions_data(session, user_id)
@@ -150,9 +156,24 @@ def get_user_collateral_locked(session: Session, user_id: str) -> int:
         order.collateral_locked_cents for order in limit_orders
     )
 
-    # Sum up market maker funding collateral
+    # Market maker collateral = initial_funding + revenue (total payout obligation).
+    # revenue is positive when traders are net buyers (AMM receives money, payout
+    # obligation grows) and negative when traders are net sellers (AMM pays out,
+    # payout obligation shrinks).  max(0, ...) guards against floating-point drift;
+    # LMSR bounds guarantee revenue >= -initial_funding so this can never go negative
+    # in practice.
     markets = get_market_maker_markets_data(session, user_id)
-    market_maker_collateral = sum(market.funding_collateral_cents for market in markets)
+    market_maker_collateral = 0
+    for market in markets:
+        trades_stmt = (
+            select(models.Trade)
+            .join(models.Security)
+            .where(models.Security.market_id == market.id)
+        )
+        market_trades = session.scalars(trades_stmt).all()
+        revenue = sum(t.price_cents for t in market_trades)
+        effective_collateral = max(0, market.initial_funding_cents + revenue)
+        market_maker_collateral += effective_collateral
 
     return short_collateral + limit_order_collateral + market_maker_collateral
 

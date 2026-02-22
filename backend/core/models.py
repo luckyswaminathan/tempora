@@ -127,7 +127,7 @@ class Market(MarketBase, Base):
     status: Mapped[str] = mapped_column(
         Enum(MarketStatus), nullable=False, default=MarketStatus.OPEN
     )
-    funding_collateral_cents: Mapped[int] = mapped_column(
+    initial_funding_cents: Mapped[int] = mapped_column(
         Integer, default=0, nullable=False
     )
     winning_security_id: Mapped[str | None] = mapped_column(String, nullable=True)

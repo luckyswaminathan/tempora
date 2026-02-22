@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   adminApi,
   proposalsApi,
@@ -35,6 +36,8 @@ type MainTab = "users" | "proposals";
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [marketMakers, setMarketMakers] = useState<AdminUserListItem[]>([]);
@@ -50,7 +53,9 @@ export default function AdminDashboard() {
     null,
   );
   const [reviewNote, setReviewNote] = useState("");
-  const [mainTab, setMainTab] = useState<MainTab>("proposals");
+  const [mainTab, setMainTab] = useState<MainTab>(
+    () => (searchParams.get("tab") as MainTab) ?? "proposals",
+  );
   const [activeTab, setActiveTab] = useState<"all" | "market-makers">("all");
   const [proposalFilter, setProposalFilter] = useState<"pending" | "all">(
     "pending",
@@ -249,39 +254,35 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         {/* Main Tabs */}
-        <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit mb-8">
-          <button
-            onClick={() => setMainTab("proposals")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
-              mainTab === "proposals"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Market Proposals
-            {pendingProposalsCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs bg-amber-500 text-white rounded-full">
-                {pendingProposalsCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setMainTab("users")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
-              mainTab === "users"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            User Management
-          </button>
-        </div>
+        <Tabs
+          value={mainTab}
+          onValueChange={(v) => {
+            const tab = v as MainTab;
+            setMainTab(tab);
+            const params = new URLSearchParams(searchParams?.toString() ?? "");
+            params.set("tab", tab);
+            router.replace(`${pathname}?${params.toString()}`);
+          }}
+          className="w-full"
+        >
+          <TabsList className="mb-8">
+            <TabsTrigger value="proposals" className="gap-2">
+              <FileText className="w-4 h-4" />
+              Market Proposals
+              {pendingProposalsCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-xs bg-amber-500 text-white rounded-full">
+                  {pendingProposalsCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="w-4 h-4" />
+              User Management
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Proposals Section */}
-        {mainTab === "proposals" && (
-          <>
+          {/* Proposals Section */}
+          <TabsContent value="proposals">
             {/* Proposal Filter */}
             <div className="flex gap-2 mb-6">
               <button
@@ -462,438 +463,431 @@ export default function AdminDashboard() {
                   </Card>
                 ))}
             </div>
-          </>
-        )}
+          </TabsContent>
 
-        {/* Users Section */}
-        {mainTab === "users" && (
-          <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border/50 hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total Users
-                    </p>
-                    <p className="text-3xl font-bold mt-1">{users.length}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-blue-500" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border/50 hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Market Makers
-                    </p>
-                    <p className="text-3xl font-bold mt-1">
-                      {marketMakerCount}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6 text-emerald-500" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border/50 hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Regular Users
-                    </p>
-                    <p className="text-3xl font-bold mt-1">
-                      {regularUsers.length}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
-                    <Crown className="w-6 h-6 text-amber-500" />
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* User Tabs & Search */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-              <div className="flex gap-2 p-1 bg-muted rounded-lg">
-                <button
-                  onClick={() => setActiveTab("all")}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    activeTab === "all"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  All Users
-                </button>
-                <button
-                  onClick={() => setActiveTab("market-makers")}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
-                    activeTab === "market-makers"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Market Makers
-                </button>
-              </div>
-
-              <div className="relative w-full sm:w-80">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-background"
-                />
-              </div>
-            </div>
-
-            {/* Error State */}
-            {error && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive mb-6">
-                {error}
-                <button
-                  onClick={() => setError(null)}
-                  className="ml-2 underline hover:no-underline"
-                >
-                  Dismiss
-                </button>
-              </div>
-            )}
-
-            {/* Loading State */}
-            {loading && (
-              <div className="text-center py-16">
-                <div className="inline-flex items-center gap-2 text-muted-foreground">
-                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  Loading users...
-                </div>
-              </div>
-            )}
-
-            {/* Users List or User Detail */}
-            {!loading && !selectedUser && (
-              <div className="space-y-3">
-                {filteredUsers.length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground">
-                    {searchTerm
-                      ? "No users found matching your search."
-                      : activeTab === "market-makers"
-                        ? "No market makers yet."
-                        : "No users found."}
-                  </div>
-                ) : (
-                  filteredUsers.map((u) => (
-                    <Card
-                      key={u.id}
-                      className="p-4 hover:bg-muted/30 transition-colors border-border/50 cursor-pointer group"
-                      onClick={() => handleSelectUser(u)}
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-4 min-w-0 flex-1">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center shrink-0">
-                            <span className="text-sm font-semibold text-violet-600">
-                              {(u.display_name || u.email)[0].toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium truncate">
-                                {u.display_name || u.email}
-                              </span>
-                              {u.role === "admin" && (
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-violet-500/10 text-violet-600 border-violet-500/20"
-                                >
-                                  Admin
-                                </Badge>
-                              )}
-                              {u.role === "market_maker" && (
-                                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                                  <Sparkles className="w-3 h-3 mr-1" />
-                                  Market Maker
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {u.email}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-6 shrink-0">
-                          <div className="text-right hidden sm:block">
-                            <p className="text-xs text-muted-foreground">
-                              Wallet
-                            </p>
-                            <p className="font-semibold text-emerald-600">
-                              ${(u.wallet / 100).toFixed(2)}
-                            </p>
-                          </div>
-
-                          {u.role === "user" && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              disabled={updatingUserId === u.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleMarketMaker(u.id, u.role);
-                              }}
-                              className="bg-emerald-600 hover:bg-emerald-700"
-                            >
-                              {updatingUserId === u.id ? (
-                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <>
-                                  <Check className="w-4 h-4 mr-1" />
-                                  Make MM
-                                </>
-                              )}
-                            </Button>
-                          )}
-
-                          {u.role === "market_maker" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={updatingUserId === u.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleMarketMaker(u.id, u.role);
-                              }}
-                              className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                            >
-                              {updatingUserId === u.id ? (
-                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <>
-                                  <X className="w-4 h-4 mr-1" />
-                                  Remove
-                                </>
-                              )}
-                            </Button>
-                          )}
-
-                          {u.role === "admin" && (
-                            <div className="text-xs text-muted-foreground italic px-3">
-                              N/A
-                            </div>
-                          )}
-
-                          <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                        </div>
-                      </div>
-                    </Card>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Selected User Detail */}
-            {!loading && selectedUser && (
-              <div className="space-y-6">
-                {/* Back button and user header */}
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCloseUserDetail}
-                    className="gap-2"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to Users
-                  </Button>
-                </div>
-
-                {/* User Info Card */}
-                <Card className="p-6 border-border/50">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-                      <span className="text-2xl font-semibold text-violet-600">
-                        {(selectedUser.display_name ||
-                          selectedUser.email)[0].toUpperCase()}
-                      </span>
-                    </div>
+          {/* Users Section */}
+          <TabsContent value="users">
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border/50 hover:shadow-lg transition-shadow">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h2 className="text-xl font-bold">
-                          {selectedUser.display_name || selectedUser.email}
-                        </h2>
-                        {selectedUser.role === "admin" && (
-                          <Badge className="bg-violet-500/10 text-violet-600 border-violet-500/20">
-                            Admin
-                          </Badge>
-                        )}
-                        {selectedUser.role === "market_maker" && (
-                          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                            <Sparkles className="w-3 h-3 mr-1" />
-                            Market Maker
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-muted-foreground">
-                        {selectedUser.email}
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Total Users
                       </p>
+                      <p className="text-3xl font-bold mt-1">{users.length}</p>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Wallet
-                      </p>
-                      <p className="text-lg font-semibold text-emerald-600">
-                        ${(selectedUser.wallet / 100).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Role</p>
-                      <p className="text-lg font-semibold capitalize">
-                        {selectedUser.role}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Proposals
-                      </p>
-                      <p className="text-lg font-semibold">
-                        {selectedUserProposals.length}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Joined
-                      </p>
-                      <p className="text-lg font-semibold">
-                        {selectedUser.created_at
-                          ? new Date(
-                              selectedUser.created_at,
-                            ).toLocaleDateString()
-                          : "N/A"}
-                      </p>
+                    <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                      <Users className="w-6 h-6 text-blue-500" />
                     </div>
                   </div>
                 </Card>
 
-                {/* User's Proposals */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Market Proposals
-                  </h3>
-
-                  {loadingUserProposals && (
-                    <div className="text-center py-8">
-                      <div className="inline-flex items-center gap-2 text-muted-foreground">
-                        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        Loading proposals...
-                      </div>
+                <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border/50 hover:shadow-lg transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Market Makers
+                      </p>
+                      <p className="text-3xl font-bold mt-1">
+                        {marketMakerCount}
+                      </p>
                     </div>
-                  )}
+                    <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-emerald-500" />
+                    </div>
+                  </div>
+                </Card>
 
-                  {!loadingUserProposals &&
-                    selectedUserProposals.length === 0 && (
-                      <Card className="p-8 text-center border-border/50">
-                        <FileText className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-                        <p className="text-muted-foreground">
-                          This user hasn&apos;t submitted any market proposals
-                          yet.
-                        </p>
-                      </Card>
-                    )}
+                <Card className="p-6 bg-gradient-to-br from-card to-card/80 border-border/50 hover:shadow-lg transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Regular Users
+                      </p>
+                      <p className="text-3xl font-bold mt-1">
+                        {regularUsers.length}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <Crown className="w-6 h-6 text-amber-500" />
+                    </div>
+                  </div>
+                </Card>
+              </div>
 
-                  {!loadingUserProposals &&
-                    selectedUserProposals.length > 0 && (
-                      <div className="space-y-3">
-                        {selectedUserProposals.map((proposal) => (
-                          <Card
-                            key={proposal.id}
-                            className="p-4 border-border/50"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  {proposal.status === "pending" && (
-                                    <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                                      <Clock className="w-3 h-3 mr-1" />
-                                      Pending
-                                    </Badge>
-                                  )}
-                                  {proposal.status === "approved" && (
-                                    <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                                      Ready to Publish
-                                    </Badge>
-                                  )}
-                                  {proposal.status === "live" && (
-                                    <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                                      <Zap className="w-3 h-3 mr-1" />
-                                      Live
-                                    </Badge>
-                                  )}
-                                  {proposal.status === "rejected" && (
-                                    <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
-                                      <XCircle className="w-3 h-3 mr-1" />
-                                      Rejected
-                                    </Badge>
-                                  )}
-                                  <Badge variant="outline">
-                                    {proposal.category}
-                                  </Badge>
-                                </div>
-                                <h4 className="font-medium mb-1">
-                                  {proposal.question}
-                                </h4>
-                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                  <span>
-                                    Outcomes:{" "}
-                                    {proposal.outcomes
-                                      .map((o) => o.outcome)
-                                      .join(", ")}
-                                  </span>
-                                  <span>
-                                    Resolves:{" "}
-                                    {new Date(
-                                      proposal.resolutionDate,
-                                    ).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                {proposal.reviewNote && (
-                                  <div
-                                    className={`mt-2 p-2 rounded text-xs ${
-                                      proposal.status === "rejected"
-                                        ? "bg-red-500/10 text-red-700"
-                                        : "bg-emerald-500/10 text-emerald-700"
-                                    }`}
-                                  >
-                                    <span className="font-medium">Note:</span>{" "}
-                                    {proposal.reviewNote}
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-xs text-muted-foreground shrink-0">
-                                {new Date(
-                                  proposal.createdAt,
-                                ).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
+              {/* User Tabs & Search */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(v) =>
+                    setActiveTab(v as "all" | "market-makers")
+                  }
+                >
+                  <TabsList>
+                    <TabsTrigger value="all">All Users</TabsTrigger>
+                    <TabsTrigger value="market-makers" className="gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      Market Makers
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                <div className="relative w-full sm:w-80">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-background"
+                  />
                 </div>
               </div>
-            )}
-          </>
-        )}
+
+              {/* Error State */}
+              {error && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-destructive mb-6">
+                  {error}
+                  <button
+                    onClick={() => setError(null)}
+                    className="ml-2 underline hover:no-underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {/* Loading State */}
+              {loading && (
+                <div className="text-center py-16">
+                  <div className="inline-flex items-center gap-2 text-muted-foreground">
+                    <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Loading users...
+                  </div>
+                </div>
+              )}
+
+              {/* Users List or User Detail */}
+              {!loading && !selectedUser && (
+                <div className="space-y-3">
+                  {filteredUsers.length === 0 ? (
+                    <div className="text-center py-16 text-muted-foreground">
+                      {searchTerm
+                        ? "No users found matching your search."
+                        : activeTab === "market-makers"
+                          ? "No market makers yet."
+                          : "No users found."}
+                    </div>
+                  ) : (
+                    filteredUsers.map((u) => (
+                      <Card
+                        key={u.id}
+                        className="p-4 hover:bg-muted/30 transition-colors border-border/50 cursor-pointer group"
+                        onClick={() => handleSelectUser(u)}
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center shrink-0">
+                              <span className="text-sm font-semibold text-violet-600">
+                                {(u.display_name || u.email)[0].toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium truncate">
+                                  {u.display_name || u.email}
+                                </span>
+                                {u.role === "admin" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-violet-500/10 text-violet-600 border-violet-500/20"
+                                  >
+                                    Admin
+                                  </Badge>
+                                )}
+                                {u.role === "market_maker" && (
+                                  <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                                    <Sparkles className="w-3 h-3 mr-1" />
+                                    Market Maker
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {u.email}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-6 shrink-0">
+                            <div className="text-right hidden sm:block">
+                              <p className="text-xs text-muted-foreground">
+                                Wallet
+                              </p>
+                              <p className="font-semibold text-emerald-600">
+                                ${(u.wallet / 100).toFixed(2)}
+                              </p>
+                            </div>
+
+                            {u.role === "user" && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                disabled={updatingUserId === u.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleMarketMaker(u.id, u.role);
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                              >
+                                {updatingUserId === u.id ? (
+                                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <>
+                                    <Check className="w-4 h-4 mr-1" />
+                                    Make MM
+                                  </>
+                                )}
+                              </Button>
+                            )}
+
+                            {u.role === "market_maker" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={updatingUserId === u.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleMarketMaker(u.id, u.role);
+                                }}
+                                className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                              >
+                                {updatingUserId === u.id ? (
+                                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <>
+                                    <X className="w-4 h-4 mr-1" />
+                                    Remove MM
+                                  </>
+                                )}
+                              </Button>
+                            )}
+
+                            {u.role === "admin" && (
+                              <div className="text-xs text-muted-foreground italic px-3">
+                                N/A
+                              </div>
+                            )}
+
+                            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                          </div>
+                        </div>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Selected User Detail */}
+              {!loading && selectedUser && (
+                <div className="space-y-6">
+                  {/* Back button and user header */}
+                  <div className="flex items-center gap-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCloseUserDetail}
+                      className="gap-2"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Back to Users
+                    </Button>
+                  </div>
+
+                  {/* User Info Card */}
+                  <Card className="p-6 border-border/50">
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
+                        <span className="text-2xl font-semibold text-violet-600">
+                          {(selectedUser.display_name ||
+                            selectedUser.email)[0].toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h2 className="text-xl font-bold">
+                            {selectedUser.display_name || selectedUser.email}
+                          </h2>
+                          {selectedUser.role === "admin" && (
+                            <Badge className="bg-violet-500/10 text-violet-600 border-violet-500/20">
+                              Admin
+                            </Badge>
+                          )}
+                          {selectedUser.role === "market_maker" && (
+                            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              Market Maker
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground">
+                          {selectedUser.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Wallet
+                        </p>
+                        <p className="text-lg font-semibold text-emerald-600">
+                          ${(selectedUser.wallet / 100).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Role
+                        </p>
+                        <p className="text-lg font-semibold capitalize">
+                          {selectedUser.role}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Proposals
+                        </p>
+                        <p className="text-lg font-semibold">
+                          {selectedUserProposals.length}
+                        </p>
+                      </div>
+                      <div className="p-4 bg-muted/50 rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Joined
+                        </p>
+                        <p className="text-lg font-semibold">
+                          {selectedUser.created_at
+                            ? new Date(
+                                selectedUser.created_at,
+                              ).toLocaleDateString()
+                            : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* User's Proposals */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Market Proposals
+                    </h3>
+
+                    {loadingUserProposals && (
+                      <div className="text-center py-8">
+                        <div className="inline-flex items-center gap-2 text-muted-foreground">
+                          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          Loading proposals...
+                        </div>
+                      </div>
+                    )}
+
+                    {!loadingUserProposals &&
+                      selectedUserProposals.length === 0 && (
+                        <Card className="p-8 text-center border-border/50">
+                          <FileText className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
+                          <p className="text-muted-foreground">
+                            This user hasn&apos;t submitted any market proposals
+                            yet.
+                          </p>
+                        </Card>
+                      )}
+
+                    {!loadingUserProposals &&
+                      selectedUserProposals.length > 0 && (
+                        <div className="space-y-3">
+                          {selectedUserProposals.map((proposal) => (
+                            <Card
+                              key={proposal.id}
+                              className="p-4 border-border/50"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    {proposal.status === "pending" && (
+                                      <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                                        <Clock className="w-3 h-3 mr-1" />
+                                        Pending
+                                      </Badge>
+                                    )}
+                                    {proposal.status === "approved" && (
+                                      <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                                        Ready to Publish
+                                      </Badge>
+                                    )}
+                                    {proposal.status === "live" && (
+                                      <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                                        <Zap className="w-3 h-3 mr-1" />
+                                        Live
+                                      </Badge>
+                                    )}
+                                    {proposal.status === "rejected" && (
+                                      <Badge className="bg-red-500/10 text-red-600 border-red-500/20">
+                                        <XCircle className="w-3 h-3 mr-1" />
+                                        Rejected
+                                      </Badge>
+                                    )}
+                                    <Badge variant="outline">
+                                      {proposal.category}
+                                    </Badge>
+                                  </div>
+                                  <h4 className="font-medium mb-1">
+                                    {proposal.question}
+                                  </h4>
+                                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                    <span>
+                                      Outcomes:{" "}
+                                      {proposal.outcomes
+                                        .map((o) => o.outcome)
+                                        .join(", ")}
+                                    </span>
+                                    <span>
+                                      Resolves:{" "}
+                                      {new Date(
+                                        proposal.resolutionDate,
+                                      ).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  {proposal.reviewNote && (
+                                    <div
+                                      className={`mt-2 p-2 rounded text-xs ${
+                                        proposal.status === "rejected"
+                                          ? "bg-red-500/10 text-red-700"
+                                          : "bg-emerald-500/10 text-emerald-700"
+                                      }`}
+                                    >
+                                      <span className="font-medium">Note:</span>{" "}
+                                      {proposal.reviewNote}
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-xs text-muted-foreground shrink-0">
+                                  {new Date(
+                                    proposal.createdAt,
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                </div>
+              )}
+            </>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

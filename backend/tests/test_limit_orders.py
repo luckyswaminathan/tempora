@@ -636,7 +636,7 @@ def test_limit_order_on_different_markets_independent(
         liquidity_parameter=1000,
         ui_type="bars-ordered",
         creator_id=market_maker_id,
-        funding_collateral_cents=0,
+        initial_funding_cents=0,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )

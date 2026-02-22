@@ -18,12 +18,10 @@ from core.database import SessionLocal, init_db  # noqa: E402
 from utils.pricing import _lmsr_price_cents  # noqa: E402
 
 
-def _compute_funding_collateral_cents(
-    liquidity_parameter: float, n_outcomes: int
-) -> int:
+def _compute_initial_funding_cents(liquidity_parameter: float, n_outcomes: int) -> int:
     """
     LMSR worst-case market-maker loss = b * ln(n).
-    Returns that amount in cents.
+    Returns that amount in cents (stored as initial_funding_cents on Market).
     """
     return round(100 * liquidity_parameter * math_log(n_outcomes))
 
@@ -267,8 +265,8 @@ def seed_markets() -> None:
         def _count_outcomes(mkt: dict) -> int:
             return len(mkt["securities"])
 
-        total_funding_collateral = sum(
-            _compute_funding_collateral_cents(
+        total_initial_funding = sum(
+            _compute_initial_funding_cents(
                 mkt["liquidity_parameter"], _count_outcomes(mkt)
             )
             for mkt in markets
@@ -292,10 +290,7 @@ def seed_markets() -> None:
                 models.Profile(
                     id=mm_user.id,
                     display_name="Market Maker",
-                    # Wallet equals the total funding collateral so that spendable
-                    # balance starts at zero (fully locked), which is correct for a
-                    # market maker who has funded all markets.
-                    wallet=total_funding_collateral,
+                    wallet=10_000_00 + total_initial_funding,
                     joined_at=datetime.now(timezone.utc),
                 )
             )
@@ -330,7 +325,7 @@ def seed_markets() -> None:
 
             n_outcomes = len(parsed_outcomes)
             b = market["liquidity_parameter"]
-            funding_collateral_cents = _compute_funding_collateral_cents(b, n_outcomes)
+            initial_funding_cents = _compute_initial_funding_cents(b, n_outcomes)
 
             m = models.Market(
                 question=market["question"],
@@ -341,10 +336,10 @@ def seed_markets() -> None:
                 tags=market["tags"],
                 liquidity_parameter=b,
                 ui_type=market["ui_type"],
-                # Market is owned by the market-maker; their funding_collateral_cents
-                # is locked against their wallet via get_user_collateral_locked().
+                # Market is owned by the market-maker; their initial_funding_cents
+                # is locked adaptively against their wallet via get_user_collateral_locked().
                 creator_id=mm_user.id,
-                funding_collateral_cents=funding_collateral_cents,
+                initial_funding_cents=initial_funding_cents,
             )
             session.add(m)
             session.flush()
@@ -429,7 +424,7 @@ def seed_markets() -> None:
         session.commit()
         print(
             f"Seeded {len(markets)} markets.\n"
-            f"  Market-maker funding collateral: ${total_funding_collateral / 100:,.2f}\n"
+            f"  Market-maker funding collateral: ${total_initial_funding / 100:,.2f}\n"
             f"  Admin wallet after seeding:      ${admin_profile.wallet / 100:,.2f}\n"
             f"  Market-maker wallet after seeding: ${mm_profile.wallet / 100:,.2f}"
         )

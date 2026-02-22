@@ -17,6 +17,7 @@ import {
   usersApi,
   type CollateralBreakdown,
   type PortfolioSnapshot,
+  type OrderRecord,
 } from "@/lib/api";
 
 interface CollateralTabProps {
@@ -25,12 +26,21 @@ interface CollateralTabProps {
   holdings?: PortfolioSnapshot["holdings"];
   /** Open an outcome detail sheet for a holding */
   openOutcomeDetail?: (holding: PortfolioSnapshot["holdings"][0]) => void;
+  /** Increment to trigger a re-fetch */
+  refreshKey?: number;
+  /** Pending orders, used to open OrderDetailSheet for limit order rows */
+  pendingOrders?: OrderRecord[];
+  /** Open an order detail sheet for a pending order */
+  openOrderDetail?: (order: OrderRecord) => void;
 }
 
 export function CollateralTab({
   totalCollateralLocked,
   holdings = [],
   openOutcomeDetail,
+  refreshKey = 0,
+  pendingOrders = [],
+  openOrderDetail,
 }: CollateralTabProps) {
   const [collateralBreakdown, setCollateralBreakdown] =
     useState<CollateralBreakdown | null>(null);
@@ -68,7 +78,7 @@ export function CollateralTab({
     }
 
     fetchCollateral();
-  }, []);
+  }, [refreshKey]);
 
   if (loading) {
     return (
@@ -276,38 +286,64 @@ export function CollateralTab({
             and potential short position)
           </p>
           <div className="space-y-2">
-            {collateralBreakdown.limitOrders.map((order) => (
-              <Card key={order.orderId} className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <Link
-                      href={`/market/${order.marketId}`}
-                      className="group/link font-medium text-sm line-clamp-1 mb-1 inline-flex items-center gap-1 hover:underline"
-                    >
-                      {order.question}
-                      <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover/link:opacity-60 transition-opacity" />
-                    </Link>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge
-                        variant="outline"
-                        className="text-purple-600 border-purple-300"
+            {collateralBreakdown.limitOrders.map((order) => {
+              const matchingOrder = pendingOrders.find(
+                (o) => o.id === order.orderId,
+              );
+              const isClickable = !!(matchingOrder && openOrderDetail);
+              return (
+                <Card
+                  key={order.orderId}
+                  className={`p-4 ${
+                    isClickable
+                      ? "cursor-pointer hover:bg-muted/30 transition-colors group"
+                      : ""
+                  }`}
+                  onClick={
+                    isClickable
+                      ? () => openOrderDetail!(matchingOrder!)
+                      : undefined
+                  }
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <Link
+                        href={`/market/${order.marketId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="group/link font-medium text-sm line-clamp-1 mb-1 inline-flex items-center gap-1 hover:underline"
                       >
-                        LIMIT ORDER
-                      </Badge>
-                      <span>
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </span>
+                        {order.question}
+                        <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover/link:opacity-60 transition-opacity" />
+                      </Link>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge
+                          variant="outline"
+                          className="text-purple-600 border-purple-300"
+                        >
+                          LIMIT ORDER
+                        </Badge>
+                        <span>
+                          {new Date(order.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className="text-xs text-muted-foreground">
+                          Locked
+                        </div>
+                        <div className="font-semibold">
+                          ${(order.collateralCents / 100).toFixed(2)}
+                        </div>
+                      </div>
+                      {isClickable && (
+                        <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">Locked</div>
-                    <div className="font-semibold">
-                      ${(order.collateralCents / 100).toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
@@ -320,12 +356,13 @@ export function CollateralTab({
             Market Making Collateral
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Funding locked for markets you created to provide initial liquidity
+            Collateral locked for markets pending resolution (covers worst-case
+            payout).
           </p>
           <div className="space-y-2">
             {collateralBreakdown.marketMakerMarkets.map((market) => (
               <Card key={market.marketId} className="p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1 min-w-0">
                     <Link
                       href={`/market/${market.marketId}`}
@@ -347,11 +384,34 @@ export function CollateralTab({
                       </span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">Locked</div>
-                    <div className="font-semibold">
-                      ${(market.fundingCollateralCents / 100).toFixed(2)}
+                  <div className="text-right shrink-0">
+                    <div className="text-xs text-muted-foreground">
+                      Currently locked
                     </div>
+                    <div className="font-semibold">
+                      ${(market.effectiveCollateralCents / 100).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                {/* Breakdown row */}
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Initial funding</p>
+                    <p className="font-medium text-blue-600">
+                      ${(market.initialFundingCents / 100).toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Revenue received</p>
+                    <p className="font-medium text-emerald-600">
+                      ${(market.revenueCents / 100).toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total locked</p>
+                    <p className="font-medium font-semibold">
+                      ${(market.effectiveCollateralCents / 100).toFixed(2)}
+                    </p>
                   </div>
                 </div>
               </Card>
@@ -366,14 +426,17 @@ export function CollateralTab({
           <AlertCircle className="w-5 h-5 text-slate-600 shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-slate-800 dark:text-slate-200">
-              How Collateral Works
+              How collateral works
             </p>
             <p className="text-slate-700 dark:text-slate-300 mt-1">
               Collateral ensures you can cover potential losses. For short
               positions, $1.00 per share is locked (max payout if that outcome
               wins). Limit orders lock funds to cover the order and any
-              resulting short position. Market makers lock funding to provide
-              initial liquidity. Collateral is automatically released when
+              resulting short position. For market makers, initial funding is
+              locked at creation in order to guarantee liquidity on all future
+              trades. Market collateral shifts as trade revenue accumulates in
+              your wallet so that you can always cover the worst-case payout
+              when the market resolves. Collateral is fully released when
               positions close or markets resolve.
             </p>
           </div>

@@ -400,7 +400,16 @@ export interface LimitOrderCollateral {
 export interface MarketMakerCollateral {
   marketId: string;
   question: string;
-  fundingCollateralCents: number;
+  /** b·ln(N) worst-case net loss set at market creation */
+  initialFundingCents: number;
+  /** Trade revenue already collected into wallet */
+  revenueCents: number;
+  /**
+   * initialFunding + revenue: total worst-case payout obligation.
+   * Grows when traders buy (revenue > 0); shrinks when traders sell back to the AMM
+   * (revenue < 0, reducing the AMM's payout exposure at resolution).
+   */
+  effectiveCollateralCents: number;
   endDate: string;
 }
 
@@ -606,7 +615,8 @@ export interface MarketMakerMarket {
   status: string;
   resolutionDate: string;
   createdAt: string;
-  fundingCollateralCents: number;
+  /** b·ln(N) worst-case net loss set at market creation */
+  initialFundingCents: number;
   revenueCents: number;
   liabilityCents: number;
   netPnlCents: number;
@@ -616,7 +626,7 @@ export interface MarketMakerMarket {
 
 export interface MarketMakerDashboard {
   markets: MarketMakerMarket[];
-  totalFundingCollateralCents: number;
+  totalInitialFundingCents: number;
   totalRevenueCents: number;
   totalLiabilityCents: number;
   totalNetPnlCents: number;

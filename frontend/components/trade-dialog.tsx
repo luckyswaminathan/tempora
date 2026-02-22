@@ -405,12 +405,6 @@ export function TradeDialog({
                     <div className="font-mono font-bold text-green-700">
                       ${spendableBalanceDollars.toFixed(2)}
                     </div>
-                    {collateralLocked > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        (${(collateralLocked / 100).toFixed(2)} locked as
-                        collateral)
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
