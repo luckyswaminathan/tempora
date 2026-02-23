@@ -144,28 +144,32 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
           {/* B — Portfolio by Category */}
           <Card className="p-4 gap-0">
             <h3 className="text-sm font-semibold mb-3">Portfolio by Category</h3>
-            <div className="flex flex-row items-center gap-4">
-              <PieChart width={120} height={120}>
-                <Pie
-                  data={categoryData}
-                  cx={55}
-                  cy={55}
-                  innerRadius={35}
-                  outerRadius={55}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {categoryData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) =>
-                    `$${(value / 100).toFixed(2)}`
-                  }
-                />
-              </PieChart>
-              <div className="flex flex-col gap-1.5 flex-1">
+            <div className="grid grid-cols-3 items-center gap-4">
+              {/* Col 1 — pie chart (1/3) */}
+              <div className="flex justify-center items-center">
+                <PieChart width={120} height={120}>
+                  <Pie
+                    data={categoryData}
+                    cx={55}
+                    cy={55}
+                    innerRadius={35}
+                    outerRadius={55}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) =>
+                      `$${(value / 100).toFixed(2)}`
+                    }
+                  />
+                </PieChart>
+              </div>
+              {/* Col 2–3 — legend (2/3) */}
+              <div className="col-span-2 flex flex-col gap-1.5">
                 {categoryData.map((d, i) => {
                   const pct =
                     totalCategoryValue > 0
@@ -191,14 +195,16 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
           {/* C — Probability Profile */}
           <Card className="p-4 gap-0">
             <h3 className="text-sm font-semibold mb-3">Probability Profile</h3>
-            <div className="flex flex-row gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              {/* Col 1 — % + label (1/3) */}
               <div className="flex flex-col justify-center gap-1">
                 <p className="text-5xl font-bold">{Math.round(avgProb)}%</p>
                 <p className="text-sm text-muted-foreground">
                   {probabilityLabel(avgProb)}
                 </p>
               </div>
-              <div className="flex flex-col gap-1 flex-1 min-w-0">
+              {/* Col 2–3 — defining positions (2/3) */}
+              <div className="col-span-2 flex flex-col gap-1 min-w-0">
                 <p className="text-xs font-medium text-muted-foreground mb-1">Defining Positions</p>
                 {extremePositions.map((h) => (
                   <div key={h.securityId} className="flex justify-between text-sm gap-2">
