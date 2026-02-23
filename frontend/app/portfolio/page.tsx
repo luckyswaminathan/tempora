@@ -10,6 +10,8 @@ import {
   type PortfolioSnapshot,
   type OrderRecord,
 } from "@/lib/api";
+
+type WalletPoint = { t: string; v: number };
 import { useAuth } from "@/contexts/auth-context";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
@@ -20,6 +22,7 @@ import { HoldingsTab } from "@/components/holdings-tab";
 import { OpenOrdersTab } from "@/components/open-orders-tab";
 import { CollateralTab } from "@/components/collateral-tab";
 import { HistoryTab } from "@/components/history-tab";
+import { PortfolioAnalyticsSection } from "@/components/portfolio-analytics-section";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
 import { OrderDetailSheet } from "@/components/order-detail-sheet";
 
@@ -63,6 +66,7 @@ export default function PortfolioPage() {
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [collateralRefreshKey, setCollateralRefreshKey] = useState(0);
+  const [walletHistory, setWalletHistory] = useState<WalletPoint[]>([]);
   const tutorialStartedRef = useRef(false);
 
   const handleTabChange = useCallback(
@@ -95,13 +99,21 @@ export default function PortfolioPage() {
       try {
         setLoading(true);
         setError(null);
-        const [portfolioData, ordersData] = await Promise.all([
+        const [portfolioData, ordersData, historyData] = await Promise.all([
           usersApi.getPortfolio(),
           ordersApi.listOrders(),
+          usersApi.getWalletHistory(30),
         ]);
         setPortfolio(portfolioData);
+        setWalletHistory(historyData.data);
         setPendingOrders(
           ordersData.items.filter((o) => !o.filled && !o.canceled),
+        );
+        setAllOrders(
+          ordersData.items.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          ),
         );
       } catch (err) {
         setError(
@@ -115,29 +127,7 @@ export default function PortfolioPage() {
     fetchPortfolio();
   }, [user]);
 
-  // Fetch all filled orders when History tab is active
-  useEffect(() => {
-    async function fetchAllOrders() {
-      if (!user || activeTab !== "history") return;
-
-      try {
-        setLoadingAllOrders(true);
-        const response = await ordersApi.listOrders();
-        // Show all orders (filled, unfilled, canceled), sorted by creation date (most recent first)
-        const allOrders = response.items.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        setAllOrders(allOrders);
-      } catch (err) {
-        console.error("Failed to fetch order history:", err);
-      } finally {
-        setLoadingAllOrders(false);
-      }
-    }
-
-    fetchAllOrders();
-  }, [user, activeTab]);
+  // allOrders is populated eagerly in the initial fetch above.
 
   // Callback to refresh orders after cancellation
   const handleOrderCancelled = useCallback(() => {
@@ -326,7 +316,10 @@ export default function PortfolioPage() {
       </div>
 
       {/* Summary Cards */}
-      <PortfolioSummaryCards portfolio={portfolio} />
+      <PortfolioSummaryCards portfolio={portfolio} walletHistory={walletHistory} />
+
+      {/* Analytics Section */}
+      <PortfolioAnalyticsSection portfolio={portfolio} allOrders={allOrders} />
 
       {/* Tabs for Holdings vs Open Orders vs Collateral */}
       <Tabs
