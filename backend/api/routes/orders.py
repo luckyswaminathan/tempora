@@ -68,6 +68,17 @@ def price_order(
     return order_service.price_order(payload)
 
 
+@router.post(
+    "/price/me", response_model=OrderPriceResponse, status_code=status.HTTP_200_OK
+)
+def price_order_authenticated(
+    payload: OrderCreateRequest = Depends(validate_same_market),
+    order_service: OrderService = Depends(deps.get_order_service),
+    user: UserBase = Depends(deps.get_current_user),
+) -> OrderPriceResponse:
+    return order_service.price_order_authenticated(payload, user.id)
+
+
 @router.post("/{order_id}/cancel", response_model=OrderRecord)
 def cancel_order(
     order_id: str,

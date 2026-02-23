@@ -148,8 +148,7 @@ export function OutcomeDetailSheet({
                 <div className="space-y-3">
                   {selectedOutcomeTrades.map((order) => {
                     const isLimit = order.type === "limit";
-                    const isBuy =
-                      order.legs.length > 0 ? order.legs[0].quantity > 0 : true;
+                    const isBuy = order.legs[0].quantity > 0;
                     return (
                       <Card key={order.id} className="p-4">
                         <div className="flex items-center justify-between mb-3">

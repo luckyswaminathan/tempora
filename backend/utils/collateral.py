@@ -13,7 +13,7 @@ from schemas.order import Leg
 
 
 def calculate_collateral_required(
-    session: Session, user_id: str, market_id: str, legs: List[Leg]
+    session: Session, user_id: str, legs: List[Leg]
 ) -> int:
     """
     Calculate collateral required for short positions.

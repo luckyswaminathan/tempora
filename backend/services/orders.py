@@ -48,7 +48,6 @@ class OrderService:
     def _validate_balance_and_collateral(
         self,
         user_id: str,
-        market_id: str,
         legs: List[Leg],
         total_cost: int,
         excluded_locked_collateral: int = 0,
@@ -73,9 +72,7 @@ class OrderService:
                 )
             return False
 
-        collateral_required = calculate_collateral_required(
-            self.session, user_id, market_id, legs
-        )
+        collateral_required = calculate_collateral_required(self.session, user_id, legs)
 
         current_collateral_locked = (
             get_user_collateral_locked(self.session, user_id)
@@ -88,7 +85,7 @@ class OrderService:
             if raise_on_error:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Insufficient balance. Cost: ${total_cost/100:.2f}, Spendable: ${spendable_balance/100:.2f}",
+                    detail=f"Insufficient balance. Cost: ${total_cost/100:.2f}, Available: ${spendable_balance/100:.2f}",
                 )
             return False
 
@@ -98,7 +95,7 @@ class OrderService:
             if raise_on_error:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Insufficient balance for collateral. Required: ${new_collateral/100:.2f}, Would only have: ${new_wallet/100:.2f}",
+                    detail=f"Insufficient balance for collateral. Required: ${new_collateral/100:.2f}, Would only have (after trade): ${new_wallet/100:.2f}",
                 )
             return False
 
@@ -157,6 +154,23 @@ class OrderService:
             }
         )
 
+    def price_order_authenticated(
+        self, payload: OrderCreateRequest, user_id: str
+    ) -> OrderPriceResponse:
+        """Price an order and include collateral required for the authenticated user."""
+        market = self.market_service.get_market(payload.market_id)
+        price_cents = self._price_trade(market, payload.legs)
+        collateral_required = calculate_collateral_required(
+            self.session, user_id, payload.legs
+        )
+        return OrderPriceResponse.model_validate(
+            {
+                "priceCents": price_cents,
+                "pricedAt": datetime.now(timezone.utc).isoformat(),
+                "collateralRequiredCents": collateral_required,
+            }
+        )
+
     def place_order(self, payload: OrderCreate) -> OrderPlaceResponse:
         profile = self.session.get(models.Profile, payload.user_id)
         if not profile:
@@ -203,7 +217,7 @@ class OrderService:
             # Create unfilled limit order - need to lock collateral
             # Collateral = limit_price_cents (max we'll pay) + short collateral
             collateral_for_shorts = calculate_collateral_required(
-                self.session, payload.user_id, payload.market_id, payload.legs
+                self.session, payload.user_id, payload.legs
             )
             collateral_to_lock = payload.limit_price_cents + collateral_for_shorts
 
@@ -240,7 +254,6 @@ class OrderService:
         # Execute order: validate balance and collateral
         self._validate_balance_and_collateral(
             payload.user_id,
-            payload.market_id,
             payload.legs,
             total_cost,
             raise_on_error=True,
@@ -256,6 +269,7 @@ class OrderService:
             type=order_type,
             user_id=payload.user_id,
             market_id=payload.market_id,
+            legs=[leg.model_dump() for leg in payload.legs],
             limit_price_cents=payload.limit_price_cents,
             created_at=datetime.now(timezone.utc),
             filled=True,
@@ -296,36 +310,23 @@ class OrderService:
             # Filter orders by market_id directly
             stmt = stmt.where(models.Order.market_id == market_id)
 
-        orders = self.session.scalars(stmt).all()
         items = []
+        orders = self.session.scalars(stmt).all()
+
         for order in orders:
             # Fetch market to get question
             market = self.market_service.get_market(order.market_id)
 
             # Parse legs and enrich with outcome names
             legs_with_outcomes = []
-            if order.legs:
-                for leg_dict in order.legs:
-                    security = self.session.get(
-                        models.Security, leg_dict["security_id"]
-                    )
-                    if security:
-                        legs_with_outcomes.append(
-                            {
-                                "securityId": leg_dict["security_id"],
-                                "outcome": security.outcome,
-                                "quantity": leg_dict["quantity"],
-                            }
-                        )
-            # Fallback: if stored legs are unavailable (e.g. legacy NULL column),
-            # reconstruct from trades so the `legs` non-empty invariant is satisfied.
-            if not legs_with_outcomes:
-                for trade in order.trades:
+            for leg_dict in order.legs:
+                security = self.session.get(models.Security, leg_dict["security_id"])
+                if security:
                     legs_with_outcomes.append(
                         {
-                            "securityId": trade.security_id,
-                            "outcome": trade.security.outcome,
-                            "quantity": trade.quantity,
+                            "securityId": leg_dict["security_id"],
+                            "outcome": security.outcome,
+                            "quantity": leg_dict["quantity"],
                         }
                     )
 
@@ -342,6 +343,7 @@ class OrderService:
                 )
                 for t in order.trades
             ]
+
             record_data = {
                 "id": order.id,
                 "type": order.type,
@@ -356,10 +358,13 @@ class OrderService:
                 "trades": trade_records,
                 "priceCents": sum(t.price_cents for t in order.trades),
             }
+
             if order.limit_price_cents is not None:
                 record_data["limitPriceCents"] = order.limit_price_cents
+
             model_cls = LimitOrderRecord if order.type == "limit" else MarketOrderRecord
             items.append(model_cls.model_validate(record_data))
+
         return OrderListResponse.model_validate({"items": items, "count": len(items)})
 
     def cancel_order(self, order_id: str, user_id: str) -> OrderRecord:
@@ -425,9 +430,12 @@ class OrderService:
             "trades": [],
             "priceCents": 0,
         }
+
         if order.limit_price_cents is not None:
             cancel_data["limitPriceCents"] = order.limit_price_cents
+
         model_cls = LimitOrderRecord if order.type == "limit" else MarketOrderRecord
+
         return model_cls.model_validate(cancel_data)
 
     def process_limit_orders(self, market_id: str) -> List[str]:
@@ -478,7 +486,6 @@ class OrderService:
             # Validate user still has sufficient balance
             if not self._validate_balance_and_collateral(
                 order.user_id,
-                market_id,
                 legs,
                 total_cost,
                 excluded_locked_collateral=order.collateral_locked_cents,

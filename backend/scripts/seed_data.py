@@ -392,6 +392,7 @@ def seed_markets() -> None:
                 user_id=admin_user.id,
                 market_id=m.id,
                 type=models.OrderType.MARKET,
+                legs=[{"security_id": sec.id, "quantity": qty} for sec, qty in legs],
                 filled=True,
                 created_at=datetime.now(timezone.utc),
             )

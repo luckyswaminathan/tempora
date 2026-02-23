@@ -229,7 +229,8 @@ export interface OrderCreateRequest {
   legs: Leg[];
   // Advanced order options (optional - defaults to market order)
   orderType?: OrderType;
-  limitPriceCents?: number; // Max avg price for limit orders (LMSR will partial fill if needed)
+  // Max avg price for limit orders
+  limitPriceCents?: number;
 }
 
 export interface TradeRecord {
@@ -284,8 +285,8 @@ export interface OrderPlaceResponse {
 export interface OrderPriceResponse {
   priceCents: number;
   pricedAt: string;
-  orderType?: OrderType;
-  estimatedFillProbability?: number; // For limit orders, likelihood of fill
+  /** Only present when called via the authenticated /price/me endpoint */
+  collateralRequiredCents?: number;
 }
 
 export interface ProbabilityHistData {
@@ -308,6 +309,16 @@ export const ordersApi = {
 
   async priceOrder(data: OrderCreateRequest): Promise<OrderPriceResponse> {
     return fetchWithAuth("/orders/price", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  /** Authenticated variant — also returns collateralRequiredCents for the current user. */
+  async priceOrderAuthenticated(
+    data: OrderCreateRequest,
+  ): Promise<OrderPriceResponse> {
+    return fetchWithAuth("/orders/price/me", {
       method: "POST",
       body: JSON.stringify(data),
     });

@@ -162,7 +162,6 @@ class MarketService:
         all_market_trades = self.session.scalars(all_market_trades_stmt).all()
         revenue = sum(t.price_cents for t in all_market_trades)
 
-        # Market always has a creator (creator_id is NOT NULL)
         creator_profile = self.session.get(models.Profile, market.creator_id)
         if not creator_profile:
             raise HTTPException(
