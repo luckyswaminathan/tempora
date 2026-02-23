@@ -10,6 +10,8 @@ import {
   type PortfolioSnapshot,
   type OrderRecord,
 } from "@/lib/api";
+
+type WalletPoint = { t: string; v: number };
 import { useAuth } from "@/contexts/auth-context";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
@@ -20,6 +22,7 @@ import { HoldingsTab } from "@/components/holdings-tab";
 import { OpenOrdersTab } from "@/components/open-orders-tab";
 import { CollateralTab } from "@/components/collateral-tab";
 import { HistoryTab } from "@/components/history-tab";
+import { PortfolioAnalyticsSection } from "@/components/portfolio-analytics-section";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
 import { OrderDetailSheet } from "@/components/order-detail-sheet";
 
@@ -59,18 +62,22 @@ export default function PortfolioPage() {
   const [pendingOrders, setPendingOrders] = useState<OrderRecord[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [allOrders, setAllOrders] = useState<OrderRecord[]>([]);
-  const [loadingAllOrders, setLoadingAllOrders] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [collateralRefreshKey, setCollateralRefreshKey] = useState(0);
+  const [walletHistory, setWalletHistory] = useState<WalletPoint[]>([]);
   const tutorialStartedRef = useRef(false);
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   const handleTabChange = useCallback(
     (tab: string) => {
       setActiveTab(tab);
       const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.set("tab", tab);
-      router.replace(`${pathname}?${params.toString()}`);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      requestAnimationFrame(() => {
+        tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     },
     [pathname, router, searchParams],
   );
@@ -95,13 +102,21 @@ export default function PortfolioPage() {
       try {
         setLoading(true);
         setError(null);
-        const [portfolioData, ordersData] = await Promise.all([
+        const [portfolioData, ordersData, historyData] = await Promise.all([
           usersApi.getPortfolio(),
           ordersApi.listOrders(),
+          usersApi.getWalletHistory(30),
         ]);
         setPortfolio(portfolioData);
+        setWalletHistory(historyData.data);
         setPendingOrders(
           ordersData.items.filter((o) => !o.filled && !o.canceled),
+        );
+        setAllOrders(
+          ordersData.items.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          ),
         );
       } catch (err) {
         setError(
@@ -115,29 +130,7 @@ export default function PortfolioPage() {
     fetchPortfolio();
   }, [user]);
 
-  // Fetch all filled orders when History tab is active
-  useEffect(() => {
-    async function fetchAllOrders() {
-      if (!user || activeTab !== "history") return;
-
-      try {
-        setLoadingAllOrders(true);
-        const response = await ordersApi.listOrders();
-        // Show all orders (filled, unfilled, canceled), sorted by creation date (most recent first)
-        const allOrders = response.items.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        setAllOrders(allOrders);
-      } catch (err) {
-        console.error("Failed to fetch order history:", err);
-      } finally {
-        setLoadingAllOrders(false);
-      }
-    }
-
-    fetchAllOrders();
-  }, [user, activeTab]);
+  // allOrders is populated eagerly in the initial fetch above.
 
   // Callback to refresh orders after cancellation
   const handleOrderCancelled = useCallback(() => {
@@ -156,6 +149,13 @@ export default function PortfolioPage() {
         .finally(() => setLoadingOrders(false));
     }
   }, [user]);
+
+  // Scroll to tabs on initial load if ?tab= is in the URL
+  useEffect(() => {
+    if (mounted && !loading && searchParams?.get("tab")) {
+      tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [mounted, loading]);
 
   useEffect(() => {
     if (mounted && !loading && !tutorialStartedRef.current) {
@@ -326,87 +326,98 @@ export default function PortfolioPage() {
       </div>
 
       {/* Summary Cards */}
-      <PortfolioSummaryCards portfolio={portfolio} />
+      <PortfolioSummaryCards
+        portfolio={portfolio}
+        walletHistory={walletHistory}
+      />
+
+      {/* Analytics Section */}
+      <PortfolioAnalyticsSection
+        portfolio={portfolio}
+        allOrders={allOrders}
+        onSelectOutcome={openOutcomeDetail}
+      />
 
       {/* Tabs for Holdings vs Open Orders vs Collateral */}
-      <Tabs
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="w-full"
-      >
-        <TabsList className="mb-6">
-          <TabsTrigger value="holdings" className="gap-2">
-            <Wallet className="w-4 h-4" />
-            Holdings
-          </TabsTrigger>
-          <TabsTrigger value="orders" className="gap-2">
-            <Clock className="w-4 h-4" />
-            Open Orders
-            {pendingOrders.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                {pendingOrders.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="collateral" className="gap-2">
-            <Lock className="w-4 h-4" />
-            Collateral
-            {portfolio.collateralLocked > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                ${(portfolio.collateralLocked / 100).toFixed(0)}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <History className="w-4 h-4" />
-            History
-          </TabsTrigger>
-        </TabsList>
+      <div ref={tabsRef}>
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="w-full"
+        >
+          <TabsList className="mb-6">
+            <TabsTrigger value="holdings" className="gap-2">
+              <Wallet className="w-4 h-4" />
+              Holdings
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="gap-2">
+              <Clock className="w-4 h-4" />
+              Open Orders
+              {pendingOrders.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                  {pendingOrders.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="collateral" className="gap-2">
+              <Lock className="w-4 h-4" />
+              Collateral
+              {portfolio.collateralLocked > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                  ${(portfolio.collateralLocked / 100).toFixed(0)}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2">
+              <History className="w-4 h-4" />
+              Order History
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Holdings Tab */}
-        <TabsContent value="holdings">
-          <HoldingsTab
-            filteredMarkets={filteredMarkets}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            openOutcomeDetail={openOutcomeDetail}
-          />
-        </TabsContent>
+          {/* Holdings Tab */}
+          <TabsContent value="holdings">
+            <HoldingsTab
+              filteredMarkets={filteredMarkets}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              openOutcomeDetail={openOutcomeDetail}
+            />
+          </TabsContent>
 
-        {/* Open Orders Tab */}
-        <TabsContent value="orders">
-          <OpenOrdersTab
-            pendingOrders={pendingOrders}
-            loadingOrders={loadingOrders}
-            onOrderCancelled={handleOrderCancelled}
-          />
-        </TabsContent>
+          {/* Open Orders Tab */}
+          <TabsContent value="orders">
+            <OpenOrdersTab
+              pendingOrders={pendingOrders}
+              loadingOrders={loadingOrders}
+              onOrderCancelled={handleOrderCancelled}
+            />
+          </TabsContent>
 
-        {/* Collateral Tab */}
-        <TabsContent value="collateral">
-          <CollateralTab
-            totalCollateralLocked={portfolio.collateralLocked}
-            holdings={portfolio.holdings}
-            openOutcomeDetail={openOutcomeDetail}
-            refreshKey={collateralRefreshKey}
-            pendingOrders={pendingOrders}
-            openOrderDetail={(order) => setSelectedOrder(order)}
-          />
-        </TabsContent>
+          {/* Collateral Tab */}
+          <TabsContent value="collateral">
+            <CollateralTab
+              totalCollateralLocked={portfolio.collateralLocked}
+              holdings={portfolio.holdings}
+              openOutcomeDetail={openOutcomeDetail}
+              refreshKey={collateralRefreshKey}
+              pendingOrders={pendingOrders}
+              openOrderDetail={(order) => setSelectedOrder(order)}
+            />
+          </TabsContent>
 
-        {/* History Tab */}
-        <TabsContent value="history">
-          <HistoryTab
-            orders={allOrders}
-            loading={loadingAllOrders}
-            searchQuery={historySearchQuery}
-            setSearchQuery={setHistorySearchQuery}
-            onOrderClick={(order) => setSelectedOrder(order)}
-          />
-        </TabsContent>
-      </Tabs>
+          {/* History Tab */}
+          <TabsContent value="history">
+            <HistoryTab
+              orders={allOrders}
+              loading={false}
+              searchQuery={historySearchQuery}
+              setSearchQuery={setHistorySearchQuery}
+              onOrderClick={(order) => setSelectedOrder(order)}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
 
-      {/* Outcome Detail Sheet */}
       <OutcomeDetailSheet
         selectedOutcome={selectedOutcome}
         onClose={() => setSelectedOutcome(null)}
@@ -415,7 +426,6 @@ export default function PortfolioPage() {
         fetchTradeHistory={fetchTradeHistory}
       />
 
-      {/* Order Detail Sheet (history tab) */}
       <OrderDetailSheet
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}

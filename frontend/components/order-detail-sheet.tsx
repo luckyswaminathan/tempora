@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Clock, X, TrendingUp, ExternalLink } from "lucide-react";
+import { X, TrendingUp, ExternalLink } from "lucide-react";
 import { ordersApi, type OrderRecord } from "@/lib/api";
 
 interface OrderDetailSheetProps {
@@ -38,6 +39,7 @@ export function OrderDetailSheet({
   cancellingOrder,
   onOrderCancelled,
 }: OrderDetailSheetProps) {
+  const pathname = usePathname();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [cancellingLocal, setCancellingLocal] = useState(false);
 
@@ -120,9 +122,18 @@ export function OrderDetailSheet({
                   </Badge>
                 )}
               </div>
-              <p className="text-sm font-normal text-muted-foreground mt-2 line-clamp-3">
+              <p className="text-md font-bold text-muted-foreground mt-2 line-clamp-2">
                 {order.question}
               </p>
+              {pathname !== `/market/${order.marketId}` && (
+                <Link
+                  href={`/market/${order.marketId}`}
+                  className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  View Market
+                </Link>
+              )}
             </SheetTitle>
           </SheetHeader>
 

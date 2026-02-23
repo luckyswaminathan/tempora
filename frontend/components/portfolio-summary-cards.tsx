@@ -1,22 +1,24 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { Wallet } from "lucide-react";
 import type { PortfolioSnapshot } from "@/lib/api";
 
 interface PortfolioSummaryCardsProps {
   portfolio: PortfolioSnapshot;
+  walletHistory?: Array<{ t: string; v: number }>;
 }
 
 export function PortfolioSummaryCards({
   portfolio,
 }: PortfolioSummaryCardsProps) {
-  const summary = portfolio.summary;
-
   return (
     <>
       {/* Main Spendable Balance Card */}
       <Card className="p-6 mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
-        <div className="flex items-center justify-between">
-          <div>
+        {/* Header row: text block + wallet icon */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
             <div className="text-sm text-muted-foreground mb-1">
               Spendable Balance
             </div>
@@ -40,47 +42,11 @@ export function PortfolioSummaryCards({
               )}
             </div>
           </div>
-          <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full">
+          <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full flex-shrink-0">
             <Wallet className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
         </div>
       </Card>
-
-      {/* 4 Summary Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card id="pnl-cost-basis" className="p-4">
-          <div className="text-xs text-muted-foreground">Cost Basis</div>
-          <div className="text-2xl font-semibold">
-            ${(summary.costBasis / 100.0).toFixed(2)}
-          </div>
-        </Card>
-        <Card id="pnl-market-value" className="p-4">
-          <div className="text-xs text-muted-foreground">Market Value</div>
-          <div className="text-2xl font-semibold">
-            ${(summary.marketValue / 100.0).toFixed(2)}
-          </div>
-        </Card>
-        <Card id="pnl-unrealized" className="p-4">
-          <div className="text-xs text-muted-foreground">P&L</div>
-          <div
-            className={`text-2xl font-semibold ${
-              summary.unrealisedPnL >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            ${(summary.unrealisedPnL / 100.0).toFixed(2)}
-          </div>
-        </Card>
-        <Card id="pnl-roi" className="p-4">
-          <div className="text-xs text-muted-foreground">ROI</div>
-          <div
-            className={`text-2xl font-semibold ${
-              summary.roi >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            {summary.roi.toFixed(1)}%
-          </div>
-        </Card>
-      </div>
     </>
   );
 }

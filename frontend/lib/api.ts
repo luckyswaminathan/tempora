@@ -392,6 +392,7 @@ export interface PortfolioSnapshot {
     markPriceCents: number;
     endDate: string;
     pnl: number;
+    category: string;
   }>;
   summary: {
     costBasis: number;
@@ -505,6 +506,12 @@ export const usersApi = {
       method: "POST",
       body: JSON.stringify({ amount }),
     });
+  },
+
+  async getWalletHistory(
+    days: number = 30,
+  ): Promise<{ data: Array<{ t: string; v: number }> }> {
+    return fetchWithAuth(`/users/me/wallet-history?days=${days}`);
   },
 };
 

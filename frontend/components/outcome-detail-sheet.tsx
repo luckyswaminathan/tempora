@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
+import { usePathname } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -16,7 +16,7 @@ import {
   ArrowDownRight,
   ExternalLink,
 } from "lucide-react";
-import { ordersApi, type PortfolioSnapshot, type OrderRecord } from "@/lib/api";
+import { type PortfolioSnapshot, type OrderRecord } from "@/lib/api";
 
 interface OutcomeDetailSheetProps {
   selectedOutcome: {
@@ -37,6 +37,7 @@ export function OutcomeDetailSheet({
   loadingHistory,
   fetchTradeHistory,
 }: OutcomeDetailSheetProps) {
+  const pathname = usePathname();
   // Fetch trade history when outcome is selected
   useEffect(() => {
     if (selectedOutcome && !tradeHistory[selectedOutcome.marketId]) {
@@ -70,9 +71,18 @@ export function OutcomeDetailSheet({
                 <Badge variant="secondary" className="font-mono text-lg mb-2">
                   {selectedOutcome.holding.outcome}
                 </Badge>
-                <p className="text-sm font-normal text-muted-foreground mt-2 line-clamp-2">
+                <p className="text-md font-bold text-muted-foreground mt-2 line-clamp-2">
                   {selectedOutcome.holding.question}
                 </p>
+                {pathname !== `/market/${selectedOutcome.marketId}` && (
+                  <Link
+                    href={`/market/${selectedOutcome.marketId}`}
+                    className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    View Market
+                  </Link>
+                )}
               </SheetTitle>
             </SheetHeader>
 
