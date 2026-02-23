@@ -11,14 +11,10 @@ class Leg(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class LegWithOutcome(BaseModel):
+class LegWithOutcome(Leg):
     """Leg with outcome name for display purposes."""
 
-    security_id: str = Field(alias="securityId")
     outcome: str = Field(description="outcome name for this security")
-    quantity: int = Field(description="amount the trader is buying/selling")
-
-    model_config = ConfigDict(populate_by_name=True)
 
 
 class OrderCreateRequest(BaseModel):
@@ -32,21 +28,20 @@ class OrderCreateRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class OrderCreate(BaseModel):
+class OrderCreate(OrderCreateRequest):
     """Internal order creation model (with userId)."""
 
     user_id: str = Field(alias="userId")
-    market_id: str = Field(alias="marketId")
-    order_type: str = Field(default="market", alias="orderType")
-    limit_price_cents: Optional[int] = Field(default=None, alias="limitPriceCents")
-    legs: list[Leg] = Field(default_factory=list)
-
-    model_config = ConfigDict(populate_by_name=True)
 
 
 class OrderPriceResponse(BaseModel):
     price_cents: int = Field(alias="priceCents")
     priced_at: UTCDateTime = Field(alias="pricedAt")
+    collateral_required_cents: Optional[int] = Field(
+        default=None,
+        alias="collateralRequiredCents",
+        description="New collateral required for this trade (only present for authenticated requests)",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

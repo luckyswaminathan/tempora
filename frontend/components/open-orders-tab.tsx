@@ -159,8 +159,7 @@ export function OpenOrdersTab({
         <div className="space-y-1.5">
           {filteredGroups.flatMap((group) =>
             group.orders.map((order) => {
-              const isBuy =
-                order.legs.length > 0 ? order.legs[0].quantity > 0 : true;
+              const isBuy = order.legs[0].quantity > 0;
               return (
                 <div
                   key={order.id}

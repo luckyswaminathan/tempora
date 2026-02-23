@@ -216,7 +216,7 @@ class Order(Base):
     market_id: Mapped[str] = mapped_column(
         String, ForeignKey("markets.id"), nullable=False, index=True
     )
-    legs: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    legs: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
     limit_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     collateral_locked_cents: Mapped[int] = mapped_column(
         Integer, default=0, nullable=False

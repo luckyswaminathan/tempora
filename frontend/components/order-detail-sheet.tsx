@@ -56,7 +56,7 @@ export function OrderDetailSheet({
 
   if (!order) return null;
 
-  const isBuy = order.legs.length > 0 ? order.legs[0].quantity > 0 : true;
+  const isBuy = order.legs[0].quantity > 0;
   const isLimit = order.type === "limit";
   const totalShares = order.legs.reduce(
     (sum, leg) => sum + Math.abs(leg.quantity),

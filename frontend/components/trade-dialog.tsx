@@ -13,14 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Loader2,
-  AlertTriangle,
-  Wallet,
-  ChevronDown,
-  ChevronUp,
-  Settings2,
-} from "lucide-react";
+import { Loader2, AlertTriangle, Wallet, Settings2 } from "lucide-react";
 import type { Market, PortfolioSnapshot, OrderType } from "@/lib/api";
 import { ordersApi, usersApi } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
@@ -55,17 +48,24 @@ export function TradeDialog({
   const [quantity, setQuantity] = useState("");
   const [loading, setLoading] = useState(false);
   const [fetchingPrice, setFetchingPrice] = useState(false);
-  const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [suggestedMarketPrice, setSuggestedMarketPrice] = useState<
     number | null
-  >(null); // Avg price from backend for limit placeholder
+  >(null);
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(0);
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
-
-  // Advanced order options
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");
+
+  // The last successfully resolved price snapshot — used for both display and
+  // button/balance logic so there is a single source of truth.
+  const [committedPrice, setCommittedPrice] = useState<number | null>(null);
+  const [committedShares, setCommittedShares] = useState(0);
+  const [committedOrderType, setCommittedOrderType] =
+    useState<OrderType>("market");
+  // Collateral from server (null = unknown/not applicable)
+  const [committedCollateralCents, setCommittedCollateralCents] = useState<
+    number | null
+  >(null);
 
   // Fetch portfolio when dialog opens
   useEffect(() => {
@@ -96,8 +96,6 @@ export function TradeDialog({
   }, [market.quotes, securityId]);
 
   const shares = quantity ? Number.parseInt(quantity) : 0;
-  const isBuy = shares > 0;
-  const isSell = shares < 0;
 
   // Fetch market price to use as suggested limit price
   useEffect(() => {
@@ -118,96 +116,143 @@ export function TradeDialog({
           legs,
         });
 
-        // For intervals: calculate price per interval unit (cost to buy 1 share of each outcome)
-        // For single: calculate price per share
-        const numOutcomes = selectedOutcomes.length;
-        const avgPricePerUnit = priceData.priceCents / Math.abs(shares);
-        setSuggestedMarketPrice(avgPricePerUnit);
+        setSuggestedMarketPrice(priceData.priceCents);
       } catch {
         setSuggestedMarketPrice(null);
       }
     };
 
-    const timer = setTimeout(fetchMarketPrice, 500);
+    const timer = setTimeout(fetchMarketPrice, 150);
     return () => clearTimeout(timer);
   }, [shares, selectedOutcomes, market.id]);
 
   useEffect(() => {
     const fetchPrice = async () => {
-      // For limit orders, use the user-specified limit price
-      // Limit price is per interval unit (cost for 1 share of each outcome)
-      if (orderType === "limit") {
-        setFetchingPrice(false);
-        const limitPriceCents = limitPrice
-          ? Math.round(parseFloat(limitPrice) * 100)
-          : null;
-        if (limitPriceCents && shares !== 0) {
-          // Total cost = limit price per unit * number of units (shares)
-          setCalculatedPrice(limitPriceCents);
-        } else {
-          setCalculatedPrice(null);
-        }
-        return;
-      }
-
       if (shares === 0 || selectedOutcomes.length === 0) {
+        setCommittedPrice(null);
+        setCommittedShares(0);
+        setCommittedCollateralCents(null);
         setFetchingPrice(false);
-        setCalculatedPrice(null);
         return;
       }
 
       setFetchingPrice(true);
       try {
-        // Build legs from selectedOutcomes
         const legs = selectedOutcomes.map((outcome) => ({
           securityId: outcome.id,
           quantity: shares,
         }));
-
-        const priceData = await ordersApi.priceOrder({
-          marketId: market.id,
-          legs,
-        });
-
-        setCalculatedPrice(priceData.priceCents);
+        const priceData = user
+          ? await ordersApi.priceOrderAuthenticated({
+              marketId: market.id,
+              legs,
+            })
+          : await ordersApi.priceOrder({ marketId: market.id, legs });
+        setCommittedPrice(priceData.priceCents);
+        setCommittedShares(shares);
+        setCommittedOrderType("market");
+        setCommittedCollateralCents(priceData.collateralRequiredCents ?? null);
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Failed to fetch price",
         );
-        setCalculatedPrice(null);
+        // Keep committedPrice as-is so height doesn't jump
       } finally {
         setFetchingPrice(false);
       }
     };
 
-    const timer = setTimeout(fetchPrice, 500);
-    return () => clearTimeout(timer);
-  }, [shares, selectedOutcomes, market.id, orderType, limitPrice]);
+    if (orderType === "limit") {
+      // Display price comes from the user's entered limit price (local math).
+      // Collateral still needs the server (authenticated endpoint).
+      const timer = setTimeout(async () => {
+        const limitPriceCents = limitPrice
+          ? Math.round(parseFloat(limitPrice) * 100)
+          : null;
+        const signsMatch =
+          limitPriceCents === null ||
+          shares === 0 ||
+          Math.sign(limitPriceCents) === Math.sign(shares);
+        // Only commit when signs are valid — prevents wrong breakdown from showing
+        if (limitPriceCents && shares !== 0 && signsMatch) {
+          setCommittedPrice(limitPriceCents);
+          setCommittedShares(shares);
+          setCommittedOrderType("limit");
+          // Fetch collateral from server for logged-in users
+          if (user) {
+            try {
+              const legs = selectedOutcomes.map((outcome) => ({
+                securityId: outcome.id,
+                quantity: shares,
+              }));
+              const priceData = await ordersApi.priceOrderAuthenticated({
+                marketId: market.id,
+                legs,
+              });
+              setCommittedCollateralCents(
+                priceData.collateralRequiredCents ?? null,
+              );
+            } catch {
+              setCommittedCollateralCents(null);
+            }
+          } else {
+            setCommittedCollateralCents(null);
+          }
+        } else if (!signsMatch) {
+          // Clear stale committed price so breakdown disappears
+          setCommittedPrice(null);
+          setCommittedShares(0);
+          setCommittedCollateralCents(null);
+        }
+        setFetchingPrice(false);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
 
-  const totalCostCents = Math.abs(calculatedPrice || 0);
-  const totalCostDollars = totalCostCents / 100;
-  const pricePerShareCents =
-    shares !== 0 ? totalCostCents / Math.abs(shares) : 0;
+    const timer = setTimeout(fetchPrice, 150);
+    return () => clearTimeout(timer);
+  }, [shares, selectedOutcomes, market.id, orderType, user, limitPrice]);
+
   const numOutcomes = selectedOutcomes.length;
 
-  // Balance calculations
+  // All display and logic is driven by the committed snapshot
+  const committedCostCents = Math.abs(committedPrice ?? 0);
+  const committedCostDollars = committedCostCents / 100;
+  const committedIsBuy = committedShares > 0;
+  const committedIsSell = committedShares < 0;
+  const committedPricePerShare =
+    committedShares !== 0
+      ? committedCostCents / Math.abs(committedShares * numOutcomes)
+      : 0;
+  const committedReturn = committedIsBuy ? Math.abs(committedShares) : 0;
+  const committedProfit = committedIsBuy
+    ? committedReturn - committedCostDollars
+    : committedCostDollars;
+
+  // Limit order sign validation: quantity and limit price must have the same sign
+  const limitPriceParsed = limitPrice ? parseFloat(limitPrice) : null;
+  const limitPriceSignMismatch =
+    orderType === "limit" &&
+    shares !== 0 &&
+    limitPriceParsed !== null &&
+    !isNaN(limitPriceParsed) &&
+    Math.sign(limitPriceParsed) !== Math.sign(shares);
+
+  // Balance
   const spendableBalance = portfolio?.spendableBalance ?? 0;
   const spendableBalanceDollars = spendableBalance / 100;
-  const collateralLocked = portfolio?.collateralLocked ?? 0;
-  const walletBalance = portfolio?.wallet ?? 0;
 
-  // For shorts, calculate collateral required ($1 per share)
-  const collateralRequiredCents = isSell ? Math.abs(shares) * 100 : 0;
-  const collateralRequiredDollars = collateralRequiredCents / 100;
-
-  // Check if user has enough balance
   const hasInsufficientBalance =
-    isBuy && calculatedPrice !== null && totalCostCents > spendableBalance;
+    committedIsBuy &&
+    committedPrice !== null &&
+    !fetchingPrice &&
+    committedCostCents > spendableBalance;
   const hasInsufficientCollateral =
-    isSell &&
-    calculatedPrice !== null &&
-    walletBalance + Math.abs(calculatedPrice) <
-      collateralLocked + collateralRequiredCents;
+    committedIsSell &&
+    user !== null &&
+    committedCollateralCents !== null &&
+    !fetchingPrice &&
+    committedCollateralCents > spendableBalance + committedCostCents;
 
   // Compute interval text from selected outcomes
   const intervalText =
@@ -221,11 +266,6 @@ export function TradeDialog({
     (sum, o) => sum + o.probability,
     0,
   );
-
-  const potentialReturnDollars = isBuy ? Math.abs(shares) : 0;
-  const potentialProfitDollars = isBuy
-    ? potentialReturnDollars - totalCostDollars
-    : totalCostDollars;
 
   const handlePlaceTrade = async () => {
     if (!user) {
@@ -249,7 +289,7 @@ export function TradeDialog({
       return;
     }
 
-    if (orderType === "market" && calculatedPrice === null) {
+    if (orderType === "market" && committedPrice === null) {
       toast.error("Please wait for price to load");
       return;
     }
@@ -275,7 +315,7 @@ export function TradeDialog({
 
       const result = await ordersApi.placeOrder(tradeRequest);
 
-      const action = isBuy ? "Bought" : "Sold";
+      const action = shares > 0 ? "Bought" : "Sold";
       const orderTypeLabel = orderType === "market" ? "" : " (limit order)";
 
       if (!result.filled) {
@@ -298,11 +338,13 @@ export function TradeDialog({
 
       onOpenChange(false);
       setQuantity("");
-      setCalculatedPrice(null);
+      setCommittedPrice(null);
+      setCommittedShares(0);
+      setCommittedOrderType("market");
+      setCommittedCollateralCents(null);
       setSuggestedMarketPrice(null);
       setLimitPrice("");
       setOrderType("market");
-      setShowAdvanced(false);
       onSuccess?.();
     } catch (error) {
       toast.error(
@@ -457,7 +499,14 @@ export function TradeDialog({
               {/* Order Type Tabs */}
               <Tabs
                 defaultValue="market"
-                onValueChange={(value) => setOrderType(value as OrderType)}
+                onValueChange={(value) => {
+                  const newType = value as OrderType;
+                  setOrderType(newType);
+                  // Only market orders need a re-fetch; limit price is local math
+                  if (newType === "market" && shares !== 0) {
+                    setFetchingPrice(true);
+                  }
+                }}
                 className="w-full"
               >
                 <TabsList className="grid w-full grid-cols-2">
@@ -467,7 +516,6 @@ export function TradeDialog({
 
                 {/* Market Order Content */}
                 <TabsContent value="market" className="space-y-4 mt-4">
-                  {/* Quantity input */}
                   <div className="space-y-2">
                     <Label htmlFor="quantity-market">
                       {isInterval
@@ -501,7 +549,6 @@ export function TradeDialog({
 
                 {/* Limit Order Content */}
                 <TabsContent value="limit" className="space-y-4 mt-4">
-                  {/* Quantity input */}
                   <div className="space-y-2">
                     <Label htmlFor="quantity-limit">
                       {isInterval
@@ -530,7 +577,6 @@ export function TradeDialog({
                       )}
                     </p>
                   </div>
-
                   {/* Total Limit Price input */}
                   <div className="space-y-2">
                     <Label htmlFor="limitPrice">Maximum Total Price</Label>
@@ -543,32 +589,37 @@ export function TradeDialog({
                         type="number"
                         placeholder={
                           suggestedMarketPrice && shares !== 0
-                            ? (
-                                (suggestedMarketPrice * Math.abs(shares)) /
-                                100
-                              ).toFixed(2)
+                            ? (suggestedMarketPrice / 100).toFixed(2)
                             : "0.00"
                         }
                         value={limitPrice}
                         onChange={(e) => setLimitPrice(e.target.value)}
                         step="0.01"
-                        min="0"
-                        className="pl-7"
+                        className={`pl-7 ${
+                          limitPriceSignMismatch
+                            ? "border-red-500 focus-visible:ring-red-500"
+                            : ""
+                        }`}
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Total maximum price you're willing to trade at. Note that
-                      this should be negative if you're selling.
-                      {suggestedMarketPrice && shares !== 0 && (
-                        <span className="block mt-1 text-blue-600 font-medium">
-                          Current market quote: $
-                          {(
-                            (suggestedMarketPrice * Math.abs(shares)) /
-                            100
-                          ).toFixed(2)}
-                        </span>
-                      )}
-                    </p>
+                    {limitPriceSignMismatch ? (
+                      <p className="text-xs text-red-600 font-medium">
+                        {shares > 0
+                          ? "Buying requires a positive limit price."
+                          : "Selling requires a negative limit price."}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Total maximum price you're willing to trade at. Use a
+                        negative value when selling.
+                        {suggestedMarketPrice && shares !== 0 && (
+                          <span className="block mt-1 text-blue-600 font-medium">
+                            Current market quote: $
+                            {(suggestedMarketPrice / 100).toFixed(2)}
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   {/* Limit order info card */}
@@ -589,8 +640,16 @@ export function TradeDialog({
               </Tabs>
 
               {/* Price display */}
-              <div className="space-y-2 p-4 rounded-lg bg-muted/50">
-                {fetchingPrice ? (
+              <div className="relative space-y-2 p-4 rounded-lg bg-muted/50">
+                {/* Spinner overlay — shown during re-fetches so height never changes */}
+                {fetchingPrice && committedPrice !== null && (
+                  <div className="absolute top-3 right-3">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+
+                {fetchingPrice && committedPrice === null ? (
+                  // First-ever load: no previous content to preserve, show full spinner
                   <div className="flex items-center justify-center py-4">
                     <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                     <span className="ml-2 text-sm text-muted-foreground">
@@ -599,27 +658,33 @@ export function TradeDialog({
                         : "Calculating price..."}
                     </span>
                   </div>
-                ) : calculatedPrice !== null ? (
-                  <>
+                ) : committedPrice !== null &&
+                  !(orderType === "limit" && !limitPrice) &&
+                  !limitPriceSignMismatch ? (
+                  // Render frozen committed values; dim while a re-fetch is in flight
+                  <div
+                    className={`space-y-2 transition-opacity duration-150 ${
+                      fetchingPrice ? "opacity-50" : "opacity-100"
+                    }`}
+                  >
                     {/* Order type badge */}
-                    {orderType !== "market" && (
+                    {committedOrderType !== "market" && (
                       <div className="flex justify-between text-sm mb-2 pb-2 border-b">
                         <span className="text-muted-foreground">
                           Order Type
                         </span>
                         <Badge variant="outline" className="font-mono">
-                          {orderType.replace("_", "-").toUpperCase()}
+                          {committedOrderType.replace("_", "-").toUpperCase()}
                         </Badge>
                       </div>
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Action</span>
                       <span
-                        className={`font-mono font-medium ${
-                          isBuy ? "text-green-600" : "text-red-600"
-                        }`}
+                        className={`font-mono font-medium ${committedIsBuy ? "text-green-600" : "text-red-600"}`}
                       >
-                        {isBuy ? "BUY" : "SELL"} {Math.abs(shares)}
+                        {committedIsBuy ? "BUY" : "SELL"}{" "}
+                        {Math.abs(committedShares)}
                         {isInterval && ` × ${numOutcomes}`}
                       </span>
                     </div>
@@ -629,37 +694,35 @@ export function TradeDialog({
                           Total shares
                         </span>
                         <span className="font-mono font-medium">
-                          {Math.abs(shares) * numOutcomes} shares
+                          {Math.abs(committedShares) * numOutcomes} shares
                         </span>
                       </div>
                     )}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        {orderType === "market"
+                        {committedOrderType === "market"
                           ? "Avg price per share"
                           : "Limit price per share"}
                       </span>
                       <span className="font-mono font-medium">
-                        {pricePerShareCents < 100
-                          ? `${pricePerShareCents.toFixed(2)}¢`
-                          : `$${(pricePerShareCents / 100).toFixed(2)}`}
+                        {committedPricePerShare.toFixed(2)}¢
                       </span>
                     </div>
                     <div className="flex justify-between text-sm border-t pt-2">
                       <span className="text-muted-foreground font-medium">
-                        {orderType === "market"
-                          ? isBuy
+                        {committedOrderType === "market"
+                          ? committedIsBuy
                             ? "Total cost"
                             : "You receive"
-                          : isBuy
+                          : committedIsBuy
                             ? "Max cost (if filled)"
                             : "Min receive (if filled)"}
                       </span>
                       <span className="font-mono font-bold text-lg">
-                        ${totalCostDollars.toFixed(2)}
+                        ${committedCostDollars.toFixed(2)}
                       </span>
                     </div>
-                    {isBuy && (
+                    {committedIsBuy && (
                       <>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">
@@ -668,7 +731,7 @@ export function TradeDialog({
                               : "If outcome wins"}
                           </span>
                           <span className="font-mono font-medium text-green-600">
-                            ${potentialReturnDollars.toFixed(2)}
+                            ${committedReturn.toFixed(2)}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
@@ -676,49 +739,47 @@ export function TradeDialog({
                             Potential profit
                           </span>
                           <span
-                            className={`font-mono font-medium ${
-                              potentialProfitDollars > 0
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
+                            className={`font-mono font-medium ${committedProfit > 0 ? "text-green-600" : "text-red-600"}`}
                           >
-                            {potentialProfitDollars > 0 ? "+" : ""}$
-                            {potentialProfitDollars.toFixed(2)}
+                            {committedProfit > 0 ? "+" : ""}$
+                            {committedProfit.toFixed(2)}
                           </span>
                         </div>
                       </>
                     )}
-                    {isSell && (
+                    {committedIsSell && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
                           Profit if sold
                         </span>
                         <span className="font-mono font-medium text-green-600">
-                          +${potentialProfitDollars.toFixed(2)}
+                          +${committedProfit.toFixed(2)}
                         </span>
                       </div>
                     )}
-                    {isSell && collateralRequiredCents > 0 && (
-                      <div className="flex justify-between text-sm border-t pt-2">
-                        <span className="text-muted-foreground">
-                          Collateral required
-                        </span>
-                        <span className="font-mono font-medium text-amber-600">
-                          ${collateralRequiredDollars.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
+                    {committedIsSell &&
+                      committedCollateralCents !== null &&
+                      committedCollateralCents > 0 && (
+                        <div className="flex justify-between text-sm border-t pt-2">
+                          <span className="text-muted-foreground">
+                            Collateral required
+                          </span>
+                          <span className="font-mono font-medium text-amber-600">
+                            ${(committedCollateralCents / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     <div className="pt-2 border-t text-xs text-muted-foreground">
-                      {orderType === "market" ? (
+                      {committedOrderType === "market" ? (
                         <>
                           ✓ Real-time {isInterval ? "basket " : ""}price from
                           LMSR market maker
                         </>
                       ) : (
-                        <>✓ {orderType.replace("_", "-")} order</>
+                        <>✓ {committedOrderType.replace("_", "-")} order</>
                       )}
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <div className="text-center py-4 text-sm text-muted-foreground">
                     {orderType === "market"
@@ -734,7 +795,7 @@ export function TradeDialog({
                   <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
                   <div className="text-sm text-red-700">
                     <span className="font-medium">Insufficient balance.</span>{" "}
-                    You need ${totalCostDollars.toFixed(2)} but only have $
+                    You need ${committedCostDollars.toFixed(2)} but only have $
                     {spendableBalanceDollars.toFixed(2)} available to spend.
                   </div>
                 </div>
@@ -749,7 +810,7 @@ export function TradeDialog({
                       Insufficient collateral.
                     </span>{" "}
                     Short positions require $
-                    {collateralRequiredDollars.toFixed(2)} collateral.
+                    {(committedCollateralCents / 100).toFixed(2)} collateral.
                   </div>
                 </div>
               )}
@@ -793,34 +854,37 @@ export function TradeDialog({
                   disabled={
                     shares === 0 ||
                     loading ||
+                    limitPriceSignMismatch ||
                     (orderType === "market" &&
-                      (calculatedPrice === null || fetchingPrice)) ||
+                      (committedPrice === null || fetchingPrice)) ||
                     (orderType === "limit" && !limitPrice) ||
                     (user !== null &&
                       (hasInsufficientBalance || hasInsufficientCollateral))
                   }
                   className="flex-1"
-                  variant={isSell ? "destructive" : "default"}
+                  variant={shares < 0 ? "destructive" : "default"}
                 >
                   {loading
                     ? "Placing..."
                     : !user
                       ? "Sign In Required"
-                      : fetchingPrice && orderType === "market"
-                        ? "Loading..."
-                        : hasInsufficientBalance
-                          ? "Insufficient Balance"
-                          : hasInsufficientCollateral
-                            ? "Insufficient Collateral"
-                            : calculatedPrice !== null
-                              ? orderType === "market"
-                                ? isBuy
-                                  ? `Buy for $${totalCostDollars.toFixed(2)}`
-                                  : `Sell for $${totalCostDollars.toFixed(2)}`
-                                : "Place limit order"
-                              : orderType === "limit"
-                                ? "Place limit order"
-                                : "Enter quantity"}
+                      : limitPriceSignMismatch
+                        ? "Fix limit price sign"
+                        : fetchingPrice && orderType === "market"
+                          ? "Loading..."
+                          : hasInsufficientBalance
+                            ? "Insufficient Balance"
+                            : hasInsufficientCollateral
+                              ? "Insufficient Collateral"
+                              : committedPrice !== null
+                                ? orderType === "market"
+                                  ? committedIsBuy
+                                    ? `Buy for $${committedCostDollars.toFixed(2)}`
+                                    : `Sell for $${committedCostDollars.toFixed(2)}`
+                                  : "Place limit order"
+                                : orderType === "limit"
+                                  ? "Place limit order"
+                                  : "Enter quantity"}
                 </Button>
               </div>
             </TabsContent>

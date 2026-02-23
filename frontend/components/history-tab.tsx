@@ -79,8 +79,7 @@ export function HistoryTab({
         <div className="space-y-3">
           {filteredOrders.map((order) => {
             // Determine buy/sell from leg quantities (positive = buy, negative = sell)
-            const isBuy =
-              order.legs.length > 0 ? order.legs[0].quantity > 0 : true;
+            const isBuy = order.legs[0].quantity > 0;
             const isLimit = order.type === "limit";
             const totalShares = order.legs.reduce(
               (sum, e) => sum + Math.abs(e.quantity),
@@ -95,17 +94,11 @@ export function HistoryTab({
             const avgPricePerShare =
               totalShares > 0 ? priceToUse / totalShares : 0;
 
-            // Get outcomes from legs if available, otherwise from trades
-            const outcomes =
-              order.legs.length > 0
-                ? order.legs.map((leg) => ({
-                    outcome: leg.outcome,
-                    quantity: leg.quantity,
-                  }))
-                : order.trades.map((trade) => ({
-                    outcome: trade.outcome,
-                    quantity: trade.quantity,
-                  }));
+            // Get outcomes from legs
+            const outcomes = order.legs.map((leg) => ({
+              outcome: leg.outcome,
+              quantity: leg.quantity,
+            }));
 
             return (
               <Card
