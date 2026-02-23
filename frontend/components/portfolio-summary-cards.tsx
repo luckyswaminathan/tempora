@@ -9,8 +9,6 @@ interface PortfolioSummaryCardsProps {
 export function PortfolioSummaryCards({
   portfolio,
 }: PortfolioSummaryCardsProps) {
-  const summary = portfolio.summary;
-
   return (
     <>
       {/* Main Spendable Balance Card */}
@@ -45,42 +43,6 @@ export function PortfolioSummaryCards({
           </div>
         </div>
       </Card>
-
-      {/* 4 Summary Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card id="pnl-cost-basis" className="p-4">
-          <div className="text-xs text-muted-foreground">Cost Basis</div>
-          <div className="text-2xl font-semibold">
-            ${(summary.costBasis / 100.0).toFixed(2)}
-          </div>
-        </Card>
-        <Card id="pnl-market-value" className="p-4">
-          <div className="text-xs text-muted-foreground">Market Value</div>
-          <div className="text-2xl font-semibold">
-            ${(summary.marketValue / 100.0).toFixed(2)}
-          </div>
-        </Card>
-        <Card id="pnl-unrealized" className="p-4">
-          <div className="text-xs text-muted-foreground">P&L</div>
-          <div
-            className={`text-2xl font-semibold ${
-              summary.unrealisedPnL >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            ${(summary.unrealisedPnL / 100.0).toFixed(2)}
-          </div>
-        </Card>
-        <Card id="pnl-roi" className="p-4">
-          <div className="text-xs text-muted-foreground">ROI</div>
-          <div
-            className={`text-2xl font-semibold ${
-              summary.roi >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            {summary.roi.toFixed(1)}%
-          </div>
-        </Card>
-      </div>
     </>
   );
 }

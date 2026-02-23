@@ -1,6 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
+import { Card } from "@/components/ui/card";
 import type { PortfolioSnapshot, OrderRecord } from "@/lib/api";
 
 interface Props {
@@ -68,29 +69,73 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
 
   return (
     <div className="mb-6 space-y-4">
-      {/* A — Activity stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Total Trades", value: totalTrades },
-          { label: "Markets", value: uniqueMarkets },
-          { label: "Volume", value: `$${(totalVolume / 100).toFixed(0)}` },
-          { label: "Positions", value: positionCount },
-        ].map(({ label, value }) => (
-          <div
-            key={label}
-            className="rounded-lg border bg-card p-3 text-center"
-          >
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+      {/* A — Merged top row: portfolio metrics + activity stats */}
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        {/* Left: portfolio metrics */}
+        <Card className="p-5 gap-0">
+          <div className="grid grid-cols-2 gap-4">
+            <div id="pnl-cost-basis">
+              <div className="text-xs text-muted-foreground">Cost Basis</div>
+              <div className="text-2xl font-semibold">
+                ${(portfolio.summary.costBasis / 100.0).toFixed(2)}
+              </div>
+            </div>
+            <div id="pnl-market-value">
+              <div className="text-xs text-muted-foreground">Market Value</div>
+              <div className="text-2xl font-semibold">
+                ${(portfolio.summary.marketValue / 100.0).toFixed(2)}
+              </div>
+            </div>
+            <div id="pnl-unrealized">
+              <div className="text-xs text-muted-foreground">P&L</div>
+              <div
+                className={`text-2xl font-semibold ${
+                  portfolio.summary.unrealisedPnL >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                ${(portfolio.summary.unrealisedPnL / 100.0).toFixed(2)}
+              </div>
+            </div>
+            <div id="pnl-roi">
+              <div className="text-xs text-muted-foreground">ROI</div>
+              <div
+                className={`text-2xl font-semibold ${
+                  portfolio.summary.roi >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {portfolio.summary.roi.toFixed(1)}%
+              </div>
+            </div>
           </div>
-        ))}
+        </Card>
+        {/* Right: activity stats */}
+        <Card className="p-5 gap-0">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-muted-foreground">Total Trades</div>
+              <div className="text-2xl font-semibold">{totalTrades}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Markets</div>
+              <div className="text-2xl font-semibold">{uniqueMarkets}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Volume</div>
+              <div className="text-2xl font-semibold">${(totalVolume / 100).toFixed(0)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Positions</div>
+              <div className="text-2xl font-semibold">{positionCount}</div>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* B + C — Category chart & Probability profile */}
       {longPositions.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* B — Portfolio by Category */}
-          <div className="rounded-lg border bg-card p-4">
+          <Card className="p-4 gap-0">
             <h3 className="text-sm font-semibold mb-3">Portfolio by Category</h3>
             <div className="flex flex-col items-center">
               <PieChart width={160} height={160}>
@@ -120,12 +165,12 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
                       ? ((d.value / totalCategoryValue) * 100).toFixed(0)
                       : "0";
                   return (
-                    <div key={d.name} className="flex items-center gap-2 text-xs">
+                    <div key={d.name} className="flex items-center justify-between gap-2 text-sm">
                       <span
                         className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: COLORS[i % COLORS.length] }}
                       />
-                      <span className="truncate flex-1 text-muted-foreground">
+                      <span className="truncate text-muted-foreground">
                         {d.name}
                       </span>
                       <span className="font-medium">{pct}%</span>
@@ -134,10 +179,10 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
                 })}
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* C — Probability Profile */}
-          <div className="rounded-lg border bg-card p-4">
+          <Card className="p-4 gap-0">
             <h3 className="text-sm font-semibold mb-3">Probability Profile</h3>
             <div className="flex flex-col items-center justify-center h-full gap-3">
               <p className="text-5xl font-bold">{Math.round(avgProb)}%</p>
@@ -156,13 +201,13 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
                 {uniqueMarketsInPortfolio !== 1 ? "s" : ""}
               </p>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* E — Top performers */}
       {hasHoldings && (top2.length > 0 || bottom2.length > 0) && (
-        <div className="rounded-lg border bg-card p-4">
+        <Card className="p-4 gap-0">
           <h3 className="text-sm font-semibold mb-3">Top Performers</h3>
           <div className="space-y-1">
             {top2.map((h) => (
@@ -175,7 +220,7 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
               <PerformerRow key={h.securityId} holding={h} positive={false} />
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );
