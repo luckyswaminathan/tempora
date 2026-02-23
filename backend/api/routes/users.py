@@ -1,8 +1,12 @@
+from datetime import datetime, timezone, timedelta
+
 from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api import deps
+from core.config import settings
 from schemas.portfolio import PortfolioSnapshot, CollateralBreakdown
 from schemas.user import (
     UserBase,
@@ -69,6 +73,15 @@ def update_tutorial_completion(
     )
 
 
+class WalletPoint(BaseModel):
+    t: str  # ISO datetime
+    v: int  # balance in cents
+
+
+class WalletHistoryResponse(BaseModel):
+    data: list[WalletPoint]
+
+
 class AddFundsRequest(BaseModel):
     amount: float = Body(gt=0, description="Amount in dollars to add to the wallet")
 
@@ -93,3 +106,59 @@ def add_funds(
     session.refresh(profile)
 
     return auth_service.get_profile(current_user.id)
+
+
+@router.get("/me/wallet-history", response_model=WalletHistoryResponse)
+def get_wallet_history(
+    days: int = Query(default=30, ge=0),
+    current_user: UserBase = Depends(deps.get_current_user),
+    session: Session = Depends(deps.get_session),
+) -> WalletHistoryResponse:
+    """Return approximate wallet balance history reconstructed from trade records."""
+    profile = session.get(models.Profile, current_user.id)
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
+        )
+
+    # Fetch all trades for the user ordered chronologically
+    stmt = (
+        select(models.Trade)
+        .where(models.Trade.user_id == current_user.id)
+        .order_by(models.Trade.created_at.asc())
+    )
+    trades = session.scalars(stmt).all()
+
+    # Build full history starting from the platform starting balance
+    balance = settings.starting_amount
+    points: list[WalletPoint] = []
+
+    for trade in trades:
+        # buy: quantity > 0, wallet decreases; sell: quantity < 0, wallet increases
+        if trade.quantity > 0:
+            balance -= trade.price_cents
+        else:
+            balance += trade.price_cents
+        points.append(WalletPoint(t=trade.created_at.isoformat(), v=balance))
+
+    # Filter to requested window
+    if days > 0 and points:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        # fromisoformat may return naive or aware depending on stored value; normalize
+        def _parse(ts: str) -> datetime:
+            dt = datetime.fromisoformat(ts)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+
+        points = [p for p in points if _parse(p.t) >= cutoff]
+
+    # Always append current wallet value as final point (captures resolution payouts)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if points:
+        points.append(WalletPoint(t=now_iso, v=profile.wallet))
+    else:
+        # No trades in window — return a flat line at current balance
+        points = [WalletPoint(t=now_iso, v=profile.wallet)]
+
+    return WalletHistoryResponse(data=points)

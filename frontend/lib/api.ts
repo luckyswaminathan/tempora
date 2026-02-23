@@ -494,6 +494,12 @@ export const usersApi = {
       body: JSON.stringify({ amount }),
     });
   },
+
+  async getWalletHistory(
+    days: number = 30,
+  ): Promise<{ data: Array<{ t: string; v: number }> }> {
+    return fetchWithAuth(`/users/me/wallet-history?days=${days}`);
+  },
 };
 
 // History API

@@ -60,7 +60,14 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
     totalWeight += weight;
   }
   const avgProb = totalWeight > 0 ? (weightedProb / totalWeight) * 100 : 0;
-  const uniqueMarketsInPortfolio = new Set(longPositions.map((h) => h.marketId)).size;
+
+  const extremePositions = [...longPositions]
+    .sort((a, b) =>
+      avgProb < 50
+        ? a.avgPriceCents - b.avgPriceCents
+        : b.avgPriceCents - a.avgPriceCents,
+    )
+    .slice(0, 5);
 
   // E — Top / bottom performers
   const sortedByPnl = [...portfolio.holdings].sort((a, b) => b.pnl - a.pnl);
@@ -137,14 +144,14 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
           {/* B — Portfolio by Category */}
           <Card className="p-4 gap-0">
             <h3 className="text-sm font-semibold mb-3">Portfolio by Category</h3>
-            <div className="flex flex-col items-center">
-              <PieChart width={160} height={160}>
+            <div className="flex flex-row items-center gap-4">
+              <PieChart width={120} height={120}>
                 <Pie
                   data={categoryData}
-                  cx={75}
-                  cy={75}
-                  innerRadius={45}
-                  outerRadius={75}
+                  cx={55}
+                  cy={55}
+                  innerRadius={35}
+                  outerRadius={55}
                   paddingAngle={2}
                   dataKey="value"
                 >
@@ -158,7 +165,7 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
                   }
                 />
               </PieChart>
-              <div className="mt-2 w-full space-y-1">
+              <div className="flex flex-col gap-1.5 flex-1">
                 {categoryData.map((d, i) => {
                   const pct =
                     totalCategoryValue > 0
@@ -170,7 +177,7 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
                         className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: COLORS[i % COLORS.length] }}
                       />
-                      <span className="truncate text-muted-foreground">
+                      <span className="truncate text-muted-foreground flex-1">
                         {d.name}
                       </span>
                       <span className="font-medium">{pct}%</span>
@@ -184,22 +191,24 @@ export function PortfolioAnalyticsSection({ portfolio, allOrders }: Props) {
           {/* C — Probability Profile */}
           <Card className="p-4 gap-0">
             <h3 className="text-sm font-semibold mb-3">Probability Profile</h3>
-            <div className="flex flex-col items-center justify-center h-full gap-3">
-              <p className="text-5xl font-bold">{Math.round(avgProb)}%</p>
-              <p className="text-sm font-medium text-muted-foreground">
-                {probabilityLabel(avgProb)}
-              </p>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div
-                  className="h-2 rounded-full bg-primary transition-all"
-                  style={{ width: `${Math.round(avgProb)}%` }}
-                />
+            <div className="flex flex-row gap-4">
+              <div className="flex flex-col justify-center gap-1">
+                <p className="text-5xl font-bold">{Math.round(avgProb)}%</p>
+                <p className="text-sm text-muted-foreground">
+                  {probabilityLabel(avgProb)}
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground text-center">
-                {positionCount} long position{positionCount !== 1 ? "s" : ""}{" "}
-                across {uniqueMarketsInPortfolio} market
-                {uniqueMarketsInPortfolio !== 1 ? "s" : ""}
-              </p>
+              <div className="flex flex-col gap-1 flex-1 min-w-0">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Defining Positions</p>
+                {extremePositions.map((h) => (
+                  <div key={h.securityId} className="flex justify-between text-sm gap-2">
+                    <span className="truncate">{h.outcome}</span>
+                    <span className="text-muted-foreground flex-shrink-0">
+                      @ {Math.round(h.avgPriceCents / 100)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </Card>
         </div>

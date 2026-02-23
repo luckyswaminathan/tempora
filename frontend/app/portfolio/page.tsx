@@ -10,6 +10,8 @@ import {
   type PortfolioSnapshot,
   type OrderRecord,
 } from "@/lib/api";
+
+type WalletPoint = { t: string; v: number };
 import { useAuth } from "@/contexts/auth-context";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
@@ -64,6 +66,7 @@ export default function PortfolioPage() {
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const [collateralRefreshKey, setCollateralRefreshKey] = useState(0);
+  const [walletHistory, setWalletHistory] = useState<WalletPoint[]>([]);
   const tutorialStartedRef = useRef(false);
 
   const handleTabChange = useCallback(
@@ -96,11 +99,13 @@ export default function PortfolioPage() {
       try {
         setLoading(true);
         setError(null);
-        const [portfolioData, ordersData] = await Promise.all([
+        const [portfolioData, ordersData, historyData] = await Promise.all([
           usersApi.getPortfolio(),
           ordersApi.listOrders(),
+          usersApi.getWalletHistory(30),
         ]);
         setPortfolio(portfolioData);
+        setWalletHistory(historyData.data);
         setPendingOrders(
           ordersData.items.filter((o) => !o.filled && !o.canceled),
         );
@@ -311,7 +316,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* Summary Cards */}
-      <PortfolioSummaryCards portfolio={portfolio} />
+      <PortfolioSummaryCards portfolio={portfolio} walletHistory={walletHistory} />
 
       {/* Analytics Section */}
       <PortfolioAnalyticsSection portfolio={portfolio} allOrders={allOrders} />
