@@ -14,14 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Clock,
-  X,
-  AlertCircle,
-  Search,
-  ChevronRight,
-  ExternalLink,
-} from "lucide-react";
+import { Clock, X, Search, ChevronRight, ExternalLink } from "lucide-react";
 import { ordersApi, type OrderRecord } from "@/lib/api";
 import { OrderDetailSheet } from "@/components/order-detail-sheet";
 

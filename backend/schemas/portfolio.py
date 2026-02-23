@@ -23,6 +23,16 @@ class PortfolioSummary(BaseModel):
     market_value: float = Field(alias="marketValue")
     unrealised_pnl: float = Field(alias="unrealisedPnL")
     roi: float
+    avg_probability: float = Field(
+        alias="avgProbability",
+        description=(
+            "Position-cost-weighted average win probability across all markets. "
+            "Per-market probability is the sum of mark prices for held securities, "
+            "capped at 100."
+        ),
+    )
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class PortfolioSnapshot(BaseModel):

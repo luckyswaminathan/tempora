@@ -388,6 +388,7 @@ export interface PortfolioSnapshot {
     marketValue: number;
     unrealisedPnL: number;
     roi: number;
+    avgProbability: number;
   };
 }
 

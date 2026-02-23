@@ -365,15 +365,11 @@ def seed_markets() -> None:
                 models.Profile(
                     id=admin_user.id,
                     display_name="Admin",
-                    # Large enough wallet to cover all seeded trades without needing
-                    # to be recalculated; real value will drift as trades are added.
-                    wallet=100_000_00,  # $100,000
+                    wallet=5_000_00,  # $5,000
                     joined_at=datetime.now(timezone.utc),
                 )
             )
             session.flush()
-
-        admin_profile = session.get(models.Profile, admin_user.id)
 
         # ---------------------------------------------------------------------------
         # Market-maker user
@@ -416,8 +412,40 @@ def seed_markets() -> None:
         mm_profile = session.get(models.Profile, mm_user.id)
 
         # ---------------------------------------------------------------------------
+        # Trader user  (opinionated, non-admin demo account)
+        # ---------------------------------------------------------------------------
+        trader_user = (
+            session.query(models.User)
+            .filter(models.User.email == "trader@tempora.com")
+            .first()
+        )
+        if not trader_user:
+            trader_user = models.User(
+                email="trader@tempora.com",
+                role=models.UserRole.USER,
+                password_hash=hash_password("trader12345"),
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(trader_user)
+            session.flush()
+            session.add(
+                models.Profile(
+                    id=trader_user.id,
+                    display_name="Trader",
+                    wallet=30_000_00,  # $30,000 – covers longs and collateral for shorts
+                    joined_at=datetime.now(timezone.utc),
+                )
+            )
+            session.flush()
+
+        trader_profile = session.get(models.Profile, trader_user.id)
+
+        # ---------------------------------------------------------------------------
         # Markets
         # ---------------------------------------------------------------------------
+        # Collect DB market objects so we can place trader positions afterwards.
+        seeded_db_markets: list[models.Market] = []
+
         for market in markets:
             # Parse outcomes first so we know n (needed for funding collateral).
             parsed_outcomes: list[dict] = []
@@ -475,76 +503,223 @@ def seed_markets() -> None:
                 securities.append(sec)
             session.flush()
 
-            # ------------------------------------------------------------------
-            # Seed initial trades using correct LMSR pricing.
-            #
-            # All legs are placed under a SINGLE order so that the history
-            # service (which records one probability point per completed order)
-            # produces exactly one history point after the full batch.  This
-            # avoids the chart artefact where early per-outcome orders
-            # temporarily depress the viewed security's probability.
-            # ------------------------------------------------------------------
-            quantities: dict[str, float] = {sec.id: 0.0 for sec in securities}
+            seeded_db_markets.append(m)
 
-            random.seed(m.id)  # Deterministic per market.
+        # ---------------------------------------------------------------------------
+        # Trader positions  (opinionated, concentrated bets placed after the
+        # initial liquidity exists so prices are already meaningful)
+        # ---------------------------------------------------------------------------
+        # Each entry: (question_substring, [(outcome_substring, qty), ...], short)
+        # short=True means selling (negative quantity)
+        trader_positions: list[tuple[str, list[tuple[str, int]]]] = [
+            # NYC peak temp: long extreme heat, short mild end
+            (
+                "peak temperature in NYC",
+                [
+                    ("Below 90", -2500),  # short – very unlikely given trends
+                    ("90–95", -2000),  # short – below trader's expected range
+                    ("95–100", 3500),  # core long
+                    ("100–105", 3000),  # core long
+                    ("Above 105", 1500),  # tail long – heat dome risk
+                ],
+            ),
+            # Hurricane season: bullish on very active season, short quiet outcomes
+            (
+                "Atlantic named storms",
+                [
+                    ("1–10", -2500),  # short – historically unlikely
+                    ("11–15", -2000),  # short – below average
+                    ("16–20", 1500),  # long – average range
+                    ("21–25", 3500),  # core long
+                    ("26+", 2500),  # long – very active tail
+                ],
+            ),
+            # GPT-6: expects H2 2026 – Q1 2027, short "never"
+            (
+                "GPT-6",
+                [
+                    ("2026-07", 1500),
+                    ("2026-08", 2000),
+                    ("2026-09", 2500),
+                    ("2026-10", 2500),
+                    ("2026-11", 2000),
+                    ("2026-12", 1500),
+                    ("2027-01", 2000),
+                    ("2027-02", 2000),
+                    ("2027-03", 1500),
+                    ("Later or never", -2500),  # short – trader confident it's coming
+                ],
+            ),
+            # Fed cut: expects Sep or Nov 2026, short early cuts and no-cut
+            (
+                "Federal Reserve first cut",
+                [
+                    ("2026-03", -1500),  # short – too soon, data not there
+                    ("2026-04", -1500),  # short – too soon
+                    ("2026-05", -1000),  # short – unlikely
+                    ("2026-07", 1500),  # modest long – plausible
+                    ("2026-09", 3500),  # core long
+                    ("2026-11", 2500),  # core long
+                    ("Not in 2026", -2000),  # short – trader expects at least one cut
+                ],
+            ),
+            # S&P 500 first close >7000: expects late March or not before April
+            (
+                "S&P 500 first close above 7,000",
+                [
+                    ("2026-03-23", 1500),
+                    ("2026-03-24", 2000),
+                    ("2026-03-25", 2500),
+                    ("2026-03-26", 2500),
+                    ("2026-03-27", 2000),
+                    ("2026-03-28", 1500),
+                    ("Not before April 2026", 3000),
+                ],
+            ),
+            # Supreme Court last opinion: expects June 26–30, short early/late outliers
+            (
+                "Supreme Court",
+                [
+                    ("Before June 15", -2000),  # short the catch-all
+                    ("2026-06-15", -1500),  # short – historically early
+                    ("2026-06-16", -1500),
+                    ("2026-06-24", 1500),
+                    ("2026-06-25", 2000),
+                    ("2026-06-26", 3000),
+                    ("2026-06-27", 3000),
+                    ("2026-06-28", 2500),
+                    ("2026-06-29", 2000),
+                    ("2026-06-30", 1500),
+                ],
+            ),
+            # Eggs: expects $4.50–$5.10, short extreme lows and highs
+            (
+                "dozen large eggs",
+                [
+                    ("$2.00", -1500),  # short – pre-inflation price, won't happen
+                    ("$2.10", -1500),
+                    ("$2.20", -1000),
+                    ("$4.30", 1500),
+                    ("$4.40", 2000),
+                    ("$4.50", 2500),
+                    ("$4.60", 3000),
+                    ("$4.70", 3500),
+                    ("$4.80", 3500),
+                    ("$4.90", 3000),
+                    ("$5.00", 2500),
+                    ("$5.10", 2000),
+                    ("$5.20", 1500),
+                    ("$7.50", -1500),  # short – extreme high
+                    ("$7.60", -1000),
+                ],
+            ),
+            # CPI: expects 2.70–3.20%, short tails in both directions
+            (
+                "CPI year-over-year",
+                [
+                    ("0.50%", -1500),  # short extreme low tail
+                    ("0.60%", -1500),
+                    ("0.70%", -1000),
+                    ("2.50%", 1500),
+                    ("2.60%", 2000),
+                    ("2.70%", 2500),
+                    ("2.80%", 3000),
+                    ("2.90%", 3000),
+                    ("3.00%", 3000),
+                    ("3.10%", 2500),
+                    ("3.20%", 2000),
+                    ("3.30%", 1500),
+                    ("5.50%", -1500),  # short extreme high tail
+                    ("5.60%", -1000),
+                    ("5.70%", -1000),
+                ],
+            ),
+            # Continental US record high: expects 120–128°F, short low end
+            (
+                "continental US during summer",
+                [
+                    ("110°F", -2000),  # short – too low for summer record
+                    ("111°F", -2000),
+                    ("112°F", -1500),
+                    ("113°F", -1000),
+                    ("119°F", 1500),
+                    ("120°F", 2000),
+                    ("121°F", 2500),
+                    ("122°F", 3000),
+                    ("123°F", 3000),
+                    ("124°F", 3000),
+                    ("125°F", 2500),
+                    ("126°F", 2000),
+                    ("127°F", 1500),
+                    ("128°F", 1500),
+                ],
+            ),
+        ]
 
-            # Determine quantities first, then create one order for the batch.
-            legs: list[tuple[models.Security, int]] = []
-            for i, sec in enumerate(securities):
-                base_qty = random.randint(10, 50)
+        def _find_security(db_market: models.Market, outcome_substr: str):
+            for s in db_market.securities:
+                if outcome_substr in s.outcome:
+                    return s
+            return None
 
-                if "Later" in sec.outcome or "never" in sec.outcome:
-                    qty = random.randint(5, 20)
-                elif i < len(securities) // 3:
-                    qty = base_qty + random.randint(10, 30)
-                elif i < 2 * len(securities) // 3:
-                    qty = base_qty
-                else:
-                    qty = max(1, base_qty - random.randint(5, 15))
+        for question_substr, outcome_specs in trader_positions:
+            db_market = next(
+                (m for m in seeded_db_markets if question_substr in m.question), None
+            )
+            if db_market is None:
+                continue
 
-                legs.append((sec, qty))
+            # Start from a clean LMSR state — no prior trades exist.
+            current_qtys = {s.id: 0.0 for s in db_market.securities}
+            b = db_market.liquidity_parameter
 
-            # One order for all seeded trades in this market.
-            seed_order = models.Order(
-                user_id=admin_user.id,
-                market_id=m.id,
+            trader_legs: list[tuple[models.Security, int]] = []
+            for outcome_substr, qty in outcome_specs:
+                sec = _find_security(db_market, outcome_substr)
+                if sec is None:
+                    continue
+                trader_legs.append((sec, qty))
+
+            if not trader_legs:
+                continue
+
+            trader_order = models.Order(
+                user_id=trader_user.id,
+                market_id=db_market.id,
                 type=models.OrderType.MARKET,
-                legs=[{"security_id": sec.id, "quantity": qty} for sec, qty in legs],
+                legs=[{"security_id": s.id, "quantity": q} for s, q in trader_legs],
                 filled=True,
                 created_at=datetime.now(timezone.utc),
             )
-            session.add(seed_order)
+            session.add(trader_order)
             session.flush()
 
-            total_price = 0
-            for sec, qty in legs:
-                # True LMSR cost for buying `qty` units given current state.
-                price = _lmsr_price_cents(quantities, {sec.id: float(qty)}, b)
-
-                trade = models.Trade(
-                    order_id=seed_order.id,
-                    user_id=admin_user.id,
-                    security_id=sec.id,
-                    quantity=qty,
-                    price_cents=price,
-                    created_at=datetime.now(timezone.utc),
+            # Simulate seeded trades
+            order_total = 0
+            for sec, qty in trader_legs:
+                price = _lmsr_price_cents(current_qtys, {sec.id: float(qty)}, b)
+                session.add(
+                    models.Trade(
+                        order_id=trader_order.id,
+                        user_id=trader_user.id,
+                        security_id=sec.id,
+                        quantity=qty,
+                        price_cents=price,
+                        created_at=datetime.now(timezone.utc),
+                    )
                 )
-                session.add(trade)
+                current_qtys[sec.id] += float(qty)
+                order_total += price
 
-                # Advance the LMSR state for subsequent legs.
-                quantities[sec.id] += float(qty)
-                total_price += price
-
-            # Keep wallet balances consistent: admin pays, market maker receives.
-            admin_profile.wallet -= total_price
-            mm_profile.wallet += total_price
+            trader_profile.wallet -= order_total
+            mm_profile.wallet += order_total
 
         session.commit()
         print(
             f"Seeded {len(markets)} markets.\n"
             f"  Market-maker funding collateral: ${total_initial_funding / 100:,.2f}\n"
-            f"  Admin wallet after seeding:      ${admin_profile.wallet / 100:,.2f}\n"
-            f"  Market-maker wallet after seeding: ${mm_profile.wallet / 100:,.2f}"
+            f"  Market-maker wallet after seeding: ${mm_profile.wallet / 100:,.2f}\n"
+            f"  Trader wallet after seeding:     ${trader_profile.wallet / 100:,.2f}"
         )
     finally:
         session.close()

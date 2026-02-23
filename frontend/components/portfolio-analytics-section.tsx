@@ -61,15 +61,8 @@ export function PortfolioAnalyticsSection({
   );
   const totalCategoryValue = categoryData.reduce((s, d) => s + d.value, 0);
 
-  // C — Probability profile
-  let weightedProb = 0;
-  let totalWeight = 0;
-  for (const h of longPositions) {
-    const weight = h.markPriceCents * h.quantity;
-    weightedProb += (h.markPriceCents / 100) * weight;
-    totalWeight += weight;
-  }
-  const avgProb = totalWeight > 0 ? (weightedProb / totalWeight) * 100 : 0;
+  // C — Probability profile (computed by backend)
+  const avgProb = portfolio.summary.avgProbability;
 
   const extremePositions = [...longPositions]
     .sort((a, b) =>
@@ -79,7 +72,7 @@ export function PortfolioAnalyticsSection({
     )
     .slice(0, 5);
 
-  // E — Top / bottom performers
+  // D — Top / bottom performers
   const sortedByPnl = [...portfolio.holdings].sort((a, b) => b.pnl - a.pnl);
   const top2 = sortedByPnl.slice(0, 2).filter((h) => h.pnl > 0);
   const bottom2 = sortedByPnl
