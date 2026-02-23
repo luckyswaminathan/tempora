@@ -39,7 +39,7 @@ export default function MarketMakingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>(
     () => (searchParams.get("tab") as Tab) ?? "dashboard",
   );
@@ -331,9 +331,13 @@ export default function MarketMakingPage() {
                         <Button
                           variant={todo.is_overdue ? "destructive" : "default"}
                           size="sm"
-                          onClick={() => router.push(`/market/${todo.market_id}`)}
+                          onClick={() =>
+                            router.push(`/market/${todo.market_id}`)
+                          }
                           className={
-                            todo.is_overdue ? "" : "bg-amber-600 hover:bg-amber-700"
+                            todo.is_overdue
+                              ? ""
+                              : "bg-amber-600 hover:bg-amber-700"
                           }
                         >
                           Settle Now

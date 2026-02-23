@@ -59,21 +59,25 @@ const TUTORIAL_SECTIONS = [
         title: "Market Orders vs Limit Orders",
         duration: "12 min",
         lessonKey: "market-limit-orders",
+        isInteractive: false,
       },
       {
         title: "Reading Price Charts",
         duration: "15 min",
         lessonKey: "reading-charts",
+        isInteractive: false,
       },
       {
         title: "Understanding Bid-Ask Spread",
         duration: "8 min",
         lessonKey: "bid-ask-spread",
+        isInteractive: false,
       },
       {
         title: "Position Sizing Fundamentals",
         duration: "10 min",
         lessonKey: "position-sizing",
+        isInteractive: false,
       },
     ],
   },
@@ -87,21 +91,25 @@ const TUTORIAL_SECTIONS = [
         title: "Setting Stop Losses",
         duration: "10 min",
         lessonKey: "stop-losses",
+        isInteractive: false,
       },
       {
         title: "Portfolio Diversification",
         duration: "12 min",
         lessonKey: "diversification",
+        isInteractive: false,
       },
       {
         title: "Risk-Reward Ratios",
         duration: "14 min",
         lessonKey: "risk-reward",
+        isInteractive: false,
       },
       {
         title: "Managing Leverage",
         duration: "16 min",
         lessonKey: "leverage",
+        isInteractive: false,
       },
     ],
   },
@@ -115,21 +123,25 @@ const TUTORIAL_SECTIONS = [
         title: "Following Top Traders",
         duration: "8 min",
         lessonKey: "follow-traders",
+        isInteractive: false,
       },
       {
         title: "Sharing Trade Ideas",
         duration: "10 min",
         lessonKey: "share-ideas",
+        isInteractive: false,
       },
       {
         title: "Understanding Leaderboards",
         duration: "7 min",
         lessonKey: "leaderboards",
+        isInteractive: false,
       },
       {
         title: "Copy Trading Features",
         duration: "12 min",
         lessonKey: "copy-trading",
+        isInteractive: false,
       },
     ],
   },
@@ -297,12 +309,15 @@ export default function TutorialPage() {
                           className="px-4 py-1.5 text-sm font-medium rounded-md bg-blue-500 text-white cursor-pointer hover:bg-blue-600 transition-colors"
                           onClick={() => {
                             if (lesson.isInteractive) {
-                              if (lesson.lessonKey == "user-profile") {
+                              const key = lesson.lessonKey as Parameters<
+                                typeof handleStartTutorial
+                              >[0];
+                              if (lesson.lessonKey === "user-profile") {
                                 if (profile) {
-                                  handleStartTutorial(lesson.lessonKey);
+                                  handleStartTutorial(key);
                                 }
                               } else {
-                                handleStartTutorial(lesson.lessonKey);
+                                handleStartTutorial(key);
                               }
                             }
                           }}
