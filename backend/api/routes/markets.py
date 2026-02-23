@@ -57,31 +57,6 @@ def settle_market(
     return service.settle_market(payload)
 
 
-@router.put("/maker/settle", response_model=MarketSettlementResponse)
-def settle_market_as_maker(
-    payload: MarketSettlement,
-    service: MarketService = Depends(deps.get_market_service),
-    current_user: UserBase = Depends(deps.get_current_market_maker),
-    session: Session = Depends(deps.get_session),
-) -> MarketSettlementResponse:
-    """Settle a market as its market maker (owner only)."""
-    from fastapi import HTTPException
-    from core import models
-
-    security = session.get(models.Security, payload.winning_security_id)
-    if not security:
-        raise HTTPException(status_code=404, detail="Security not found")
-
-    market = security.market
-    if market.creator_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="You can only settle markets you created",
-        )
-
-    return service.settle_market(payload)
-
-
 @router.get("/maker/dashboard", response_model=MarketMakerDashboard)
 def get_market_maker_dashboard(
     service: MarketService = Depends(deps.get_market_service),

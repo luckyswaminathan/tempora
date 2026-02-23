@@ -12,7 +12,6 @@ interface SettleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSettleSuccess?: () => void;
-  asMarketMaker?: boolean;
 }
 
 export function SettleDialog({
@@ -20,7 +19,6 @@ export function SettleDialog({
   open,
   onOpenChange,
   onSettleSuccess,
-  asMarketMaker = false,
 }: SettleDialogProps) {
   const [selectedOutcome, setSelectedOutcome] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -38,11 +36,7 @@ export function SettleDialog({
 
     setLoading(true);
     try {
-      if (asMarketMaker) {
-        await marketsApi.settleMarketAsMaker(selectedOutcome);
-      } else {
-        await marketsApi.settleMarket(selectedOutcome);
-      }
+      await marketsApi.settleMarket(selectedOutcome);
       toast.success("Market settled successfully");
       setSelectedOutcome("");
       onOpenChange(false);

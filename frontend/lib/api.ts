@@ -211,16 +211,6 @@ export const marketsApi = {
     });
   },
 
-  async settleMarketAsMaker(
-    winningSecurityId: string,
-  ): Promise<MarketSettlementResponse> {
-    return fetchWithAuth(`/markets/maker/settle`, {
-      method: "PUT",
-      body: JSON.stringify({
-        winningSecurityId: winningSecurityId,
-      }),
-    });
-  },
 };
 
 // Orders API

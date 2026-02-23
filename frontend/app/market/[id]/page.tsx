@@ -17,7 +17,6 @@ import {
   X,
   TrendingDown,
   Gavel,
-  Settings,
 } from "lucide-react";
 import {
   marketsApi,
@@ -55,7 +54,7 @@ export default function MarketPage({
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [marketError, setMarketError] = useState<string | null>(null);
 
-  // Market maker settlement state
+  // Admin settlement state
   const [showSettleDialog, setShowSettleDialog] = useState(false);
 
   // User data
@@ -352,28 +351,27 @@ export default function MarketPage({
         )}
 
         {/* Market Owner Actions - Show for market makers who own this market */}
+        {/* Admin settlement banner */}
         {user &&
-          profile?.role === "market_maker" &&
-          market.creatorId === user.id &&
+          profile?.role === "admin" &&
           market.status !== "resolved" && (
-            <Card className="p-4 mb-6 border-emerald-200 bg-emerald-50 dark:bg-emerald-950">
+            <Card className="p-4 mb-6 border-amber-200 bg-amber-50 dark:bg-amber-950">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-emerald-600" />
+                  <Gavel className="w-5 h-5 text-amber-600" />
                   <div>
-                    <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
-                      You own this market
+                    <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                      Admin Actions
                     </span>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                      As the market maker, you can settle this market when the
-                      outcome is known.
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      You can settle this market when the outcome is known.
                     </p>
                   </div>
                 </div>
                 <Button
                   size="sm"
                   onClick={() => setShowSettleDialog(true)}
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="bg-amber-600 hover:bg-amber-700"
                 >
                   <Gavel className="w-4 h-4 mr-1" />
                   Settle Market
@@ -592,7 +590,6 @@ export default function MarketPage({
           market={market}
           open={showSettleDialog}
           onOpenChange={setShowSettleDialog}
-          asMarketMaker={true}
           onSettleSuccess={() => {
             setShowSettleDialog(false);
             refreshMarket();
