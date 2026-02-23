@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Gavel, Pen } from "lucide-react";
-import { marketsApi, type Market } from "@/lib/api";
+import { marketsApi, type Market, type MarketStatus } from "@/lib/api";
 import { toast } from "sonner";
 
 interface AdminDialogsControllerProps {
@@ -159,9 +159,7 @@ function AdminEditDialog({
   const [resolutionDate, setResolutionDate] = useState(
     market.resolutionDate.split("T")[0],
   );
-  const [status, setStatus] = useState<"open" | "closed" | "suspended">(
-    market.status,
-  );
+  const [status, setStatus] = useState<MarketStatus>(market.status);
   const [outcomes, setOutcomes] = useState<
     Array<{ id: string; outcome: string }>
   >(market.securities);
@@ -201,7 +199,7 @@ function AdminEditDialog({
         question: question.trim(),
         description: description.trim(),
         resolutionDate: new Date(resolutionDate).toISOString(),
-        status,
+        ...(status !== "resolved" && { status }),
         securities: outcomes,
       });
       toast.success("Market updated successfully");
@@ -266,7 +264,7 @@ function AdminEditDialog({
             <label className="text-sm font-medium block mb-2">Status</label>
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value as typeof status)}
+              onChange={(e) => setStatus(e.target.value as MarketStatus)}
               className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="open">Open</option>

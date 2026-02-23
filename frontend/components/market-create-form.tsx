@@ -194,7 +194,7 @@ export function MarketCreateForm({
     setSubmitting(true);
 
     try {
-      let outcomes: { text: string; isCatchAll: boolean }[];
+      let outcomes: { text: string; isCatchAll: boolean; value?: number }[];
 
       if (formData.uiType === "bars-ordered") {
         outcomes = formData.outcomes.filter((o) => o.text.trim());

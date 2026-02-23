@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useMemo, useCallback } from "react";
+import { use, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,13 +87,17 @@ export default function MarketPage({
   const [marketTab, setMarketTab] = useState(
     () => searchParams.get("tab") ?? "position",
   );
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   const handleMarketTabChange = useCallback(
     (tab: string) => {
       setMarketTab(tab);
       const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.set("tab", tab);
-      router.replace(`${pathname}?${params.toString()}`);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      requestAnimationFrame(() => {
+        tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     },
     [pathname, router, searchParams],
   );
@@ -382,123 +386,127 @@ export default function MarketPage({
 
         {/* User sections */}
         {user ? (
-          <Tabs
-            value={marketTab}
-            onValueChange={handleMarketTabChange}
-            className="w-full"
-          >
-            <TabsList className="mb-4">
-              <TabsTrigger value="position" className="gap-2">
-                <Wallet className="w-4 h-4" />
-                My Position
-                {myHoldings.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                    {myHoldings.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="orders" className="gap-2">
-                <Clock className="w-4 h-4" />
-                Open Orders
-                {pendingOrders.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                    {pendingOrders.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="history" className="gap-2">
-                <History className="w-4 h-4" />
-                My History
-              </TabsTrigger>
-            </TabsList>
+          <div ref={tabsRef}>
+            <Tabs
+              value={marketTab}
+              onValueChange={handleMarketTabChange}
+              className="w-full"
+            >
+              <TabsList className="mb-4">
+                <TabsTrigger value="position" className="gap-2">
+                  <Wallet className="w-4 h-4" />
+                  My Position
+                  {myHoldings.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                      {myHoldings.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="orders" className="gap-2">
+                  <Clock className="w-4 h-4" />
+                  Open Orders
+                  {pendingOrders.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                      {pendingOrders.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="history" className="gap-2">
+                  <History className="w-4 h-4" />
+                  My History
+                </TabsTrigger>
+              </TabsList>
 
-            {/* My Position */}
-            <TabsContent value="position">
-              {loadingUserData ? (
-                <div className="animate-pulse h-20 bg-muted rounded" />
-              ) : myHoldings.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-8 text-center">
-                  No positions in this market yet.
-                </p>
-              ) : (
-                <>
-                  <HoldingsTab
-                    filteredMarkets={[
-                      {
-                        marketId: id,
-                        question: market.question,
-                        endDate: market.resolutionDate,
-                        holdings: myHoldings,
-                        totalPnl,
-                        totalCost: 0,
-                        totalValue: 0,
-                      },
-                    ]}
-                    searchQuery=""
-                    setSearchQuery={() => {}}
-                    openOutcomeDetail={(h) =>
-                      setSelectedOutcome({
-                        marketId: id,
-                        securityId: h.securityId,
-                        holding: h,
-                      })
-                    }
+              {/* My Position */}
+              <TabsContent value="position">
+                {loadingUserData ? (
+                  <div className="animate-pulse h-20 bg-muted rounded" />
+                ) : myHoldings.length === 0 ? (
+                  <p className="text-muted-foreground text-sm py-8 text-center">
+                    No positions in this market yet.
+                  </p>
+                ) : (
+                  <>
+                    <HoldingsTab
+                      filteredMarkets={[
+                        {
+                          marketId: id,
+                          question: market.question,
+                          endDate: market.resolutionDate,
+                          holdings: myHoldings,
+                          totalPnl,
+                          totalCost: 0,
+                          totalValue: 0,
+                        },
+                      ]}
+                      searchQuery=""
+                      setSearchQuery={() => {}}
+                      openOutcomeDetail={(h) =>
+                        setSelectedOutcome({
+                          marketId: id,
+                          securityId: h.securityId,
+                          holding: h,
+                        })
+                      }
+                      hideSearch
+                      hideMarketLinks
+                      listMode
+                    />
+                    <div className="flex justify-between items-center px-1 pt-2 text-sm border-t mt-2">
+                      <span className="text-muted-foreground">
+                        Total P&amp;L
+                      </span>
+                      <span
+                        className={`font-semibold flex items-center gap-1 ${
+                          totalPnl >= 0 ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        {totalPnl >= 0 ? (
+                          <TrendingUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <TrendingDown className="w-3.5 h-3.5" />
+                        )}
+                        {totalPnl >= 0 ? "+" : ""}
+                        {(totalPnl / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </TabsContent>
+
+              {/* Open Orders */}
+              <TabsContent value="orders">
+                {loadingUserData ? (
+                  <div className="animate-pulse h-20 bg-muted rounded" />
+                ) : (
+                  <OpenOrdersTab
+                    pendingOrders={pendingOrders}
+                    loadingOrders={false}
+                    onOrderCancelled={fetchUserData}
                     hideSearch
                     hideMarketLinks
                     listMode
                   />
-                  <div className="flex justify-between items-center px-1 pt-2 text-sm border-t mt-2">
-                    <span className="text-muted-foreground">Total P&amp;L</span>
-                    <span
-                      className={`font-semibold flex items-center gap-1 ${
-                        totalPnl >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {totalPnl >= 0 ? (
-                        <TrendingUp className="w-3.5 h-3.5" />
-                      ) : (
-                        <TrendingDown className="w-3.5 h-3.5" />
-                      )}
-                      {totalPnl >= 0 ? "+" : ""}
-                      {(totalPnl / 100).toFixed(2)}
-                    </span>
-                  </div>
-                </>
-              )}
-            </TabsContent>
+                )}
+              </TabsContent>
 
-            {/* Open Orders */}
-            <TabsContent value="orders">
-              {loadingUserData ? (
-                <div className="animate-pulse h-20 bg-muted rounded" />
-              ) : (
-                <OpenOrdersTab
-                  pendingOrders={pendingOrders}
-                  loadingOrders={false}
-                  onOrderCancelled={fetchUserData}
-                  hideSearch
-                  hideMarketLinks
-                  listMode
-                />
-              )}
-            </TabsContent>
-
-            {/* My History */}
-            <TabsContent value="history">
-              {loadingUserData ? (
-                <div className="animate-pulse h-20 bg-muted rounded" />
-              ) : (
-                <HistoryTab
-                  orders={historyOrders}
-                  loading={false}
-                  searchQuery=""
-                  setSearchQuery={() => {}}
-                  hideSearch
-                  onOrderClick={(order) => setSelectedOrder(order)}
-                />
-              )}
-            </TabsContent>
-          </Tabs>
+              {/* My History */}
+              <TabsContent value="history">
+                {loadingUserData ? (
+                  <div className="animate-pulse h-20 bg-muted rounded" />
+                ) : (
+                  <HistoryTab
+                    orders={historyOrders}
+                    loading={false}
+                    searchQuery=""
+                    setSearchQuery={() => {}}
+                    hideSearch
+                    onOrderClick={(order) => setSelectedOrder(order)}
+                  />
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
         ) : (
           <Card className="p-6 text-center">
             <p className="text-muted-foreground text-sm mb-3">
