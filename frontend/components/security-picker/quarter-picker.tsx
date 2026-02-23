@@ -9,10 +9,27 @@ export function QuarterPicker({
   hoveredIndex,
   isInRange,
 }: SecurityPickerProps) {
+  const today = new Date();
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth() + 1; // 1-indexed
+
+  // A quarter is elapsed once its last month is fully in the past.
+  // Q1 ends month 3, Q2→6, Q3→9, Q4→12.
+  const isElapsedQuarter = (year: string, quarterNum: number) => {
+    const y = parseInt(year, 10);
+    const endMonth = quarterNum * 3;
+    return y < todayYear || (y === todayYear && endMonth < todayMonth);
+  };
+
   // Parse quarters and group by year
   const quartersByYear: Record<
     string,
-    Array<{ index: number; quarter: string; outcome: SecurityPickerOutcome }>
+    Array<{
+      index: number;
+      quarter: string;
+      quarterNum: number;
+      outcome: SecurityPickerOutcome;
+    }>
   > = {};
   const others: Array<{ index: number; outcome: SecurityPickerOutcome }> = [];
   const errors: string[] = [];
@@ -27,7 +44,12 @@ export function QuarterPicker({
         if (!quartersByYear[year]) {
           quartersByYear[year] = [];
         }
-        quartersByYear[year].push({ index, quarter: `Q${quarter}`, outcome });
+        quartersByYear[year].push({
+          index,
+          quarter: `Q${quarter}`,
+          quarterNum: parseInt(quarter, 10),
+          outcome,
+        });
       } else {
         errors.push(
           `Invalid quarter outcome: "${outcome.outcome}". Expected format: YYYY Q[1-4].`,
@@ -58,28 +80,36 @@ export function QuarterPicker({
             {year}
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {quartersByYear[year].map(({ index, quarter, outcome }) => (
-              <button
-                key={outcome.id}
-                onClick={() => handleCellClick(index)}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
-                className={`relative p-4 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[100px] ${
-                  isInRange(index)
-                    ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                    : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                }`}
-              >
-                <div className="text-xl font-bold text-center mb-2">
-                  {quarter}
-                </div>
-                <div className="text-center">
-                  <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
-                </div>
-              </button>
-            ))}
+            {quartersByYear[year].map(
+              ({ index, quarter, quarterNum, outcome }) => {
+                const elapsed = isElapsedQuarter(year, quarterNum);
+                return (
+                  <button
+                    key={outcome.id}
+                    disabled={elapsed}
+                    onClick={() => !elapsed && handleCellClick(index)}
+                    onMouseEnter={() => !elapsed && setHoveredIndex(index)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                    className={`relative p-4 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[100px] ${
+                      elapsed
+                        ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                        : isInRange(index)
+                          ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
+                          : hoveredIndex === index
+                            ? "border-blue-400 bg-blue-50"
+                            : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="text-xl font-bold text-center mb-2">
+                      {quarter}
+                    </div>
+                    <div className="text-center">
+                      <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
+                    </div>
+                  </button>
+                );
+              },
+            )}
           </div>
         </div>
       ))}

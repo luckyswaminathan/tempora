@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import random
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from math import log as math_log
 from pathlib import Path
 
@@ -30,71 +30,51 @@ def seed_markets() -> None:
     session = SessionLocal()
     try:
         markets = [
+            # ------------------------------------------------------------------
+            # Ordered categorical markets
+            # ------------------------------------------------------------------
             {
-                "question": "When will the US enter a recession?",
-                "category": "Economics",
-                "description": "A recession is defined as two consecutive quarters of negative GDP growth.",
-                "resolution_date": datetime.now(timezone.utc) + timedelta(days=730),
+                "question": "What will be the peak temperature in NYC this summer (°F)?",
+                "category": "Climate",
+                "description": "Predict the highest temperature recorded in Central Park during June–August 2026.",
+                "resolution_date": datetime(2026, 9, 1, tzinfo=timezone.utc),
                 "status": "open",
-                "tags": ["macroeconomics", "economy", "us"],
-                "liquidity_parameter": 100000,
-                "ui_type": "quarter",
+                "tags": ["weather", "temperature", "nyc", "climate"],
+                "liquidity_parameter": 75000,
+                "ui_type": "bars-ordered",
                 "securities": [
-                    "2026 Q1",
-                    "2026 Q2",
-                    "2026 Q3",
-                    "2026 Q4",
-                    "2027 Q1",
-                    "2027 Q2",
-                    "2027 Q3",
-                    "Later or never",
+                    {"outcome": "Below 90°F", "value": 85.0},
+                    {"outcome": "90–95°F", "value": 92.5},
+                    {"outcome": "95–100°F", "value": 97.5},
+                    {"outcome": "100–105°F", "value": 102.5},
+                    {"outcome": "Above 105°F", "value": 110.0},
                 ],
             },
             {
-                "question": "When will Bitcoin reach $150,000?",
+                "question": "How many Atlantic named storms will form in the 2026 hurricane season?",
+                "category": "Climate",
+                "description": "Includes all named tropical cyclones in the Atlantic basin between June 1 and November 30, 2026.",
+                "resolution_date": datetime(2026, 12, 1, tzinfo=timezone.utc),
+                "status": "open",
+                "tags": ["hurricane", "climate", "weather", "noaa"],
+                "liquidity_parameter": 70000,
+                "ui_type": "bars-ordered",
+                "securities": [
+                    {"outcome": "1–10 storms", "value": 5.0},
+                    {"outcome": "11–15 storms", "value": 13.0},
+                    {"outcome": "16–20 storms", "value": 18.0},
+                    {"outcome": "21–25 storms", "value": 23.0},
+                    {"outcome": "26+ storms", "value": 28.0},
+                ],
+            },
+            # ------------------------------------------------------------------
+            # Temporal markets (when will X happen?)
+            # ------------------------------------------------------------------
+            {
+                "question": "When will GPT-6 be publicly released?",
                 "category": "Technology",
-                "description": "Bitcoin price must reach or exceed $150,000 USD before January 1, 2026.",
-                "resolution_date": datetime.now(timezone.utc) + timedelta(days=365),
-                "status": "open",
-                "tags": ["cryptocurrency", "bitcoin", "crypto"],
-                "liquidity_parameter": 100000,
-                "ui_type": "quarter",
-                "securities": [
-                    "2026 Q1",
-                    "2026 Q2",
-                    "2026 Q3",
-                    "2026 Q4",
-                    "2027 Q1",
-                    "2027 Q2",
-                    "2027 Q3",
-                    "Later or never",
-                ],
-            },
-            {
-                "question": "When will the next Constitutional amendment be ratified?",
-                "category": "Politics",
-                "description": "",
-                "resolution_date": datetime.now(timezone.utc) + timedelta(days=365),
-                "status": "open",
-                "tags": ["constitution", "congress", "law"],
-                "liquidity_parameter": 100000,
-                "ui_type": "year",
-                "securities": [
-                    "2026",
-                    "2027",
-                    "2028",
-                    "2029",
-                    "2030",
-                    "2031",
-                    "2032",
-                    "Later or never",
-                ],
-            },
-            {
-                "question": "When will GPT-5 be released?",
-                "category": "Technology",
-                "description": "Official release date of GPT-5 or equivalent next-generation model from OpenAI.",
-                "resolution_date": datetime.now(timezone.utc) + timedelta(days=730),
+                "description": "Predict the month OpenAI publicly releases GPT-6 or an equivalent next-generation foundation model.",
+                "resolution_date": datetime(2027, 7, 1, tzinfo=timezone.utc),
                 "status": "open",
                 "tags": ["ai", "openai", "gpt", "technology"],
                 "liquidity_parameter": 100000,
@@ -122,90 +102,227 @@ def seed_markets() -> None:
                 ],
             },
             {
-                "question": "What day will the next Federal Reserve rate decision be announced?",
+                "question": "In which month will the Federal Reserve first cut interest rates in 2026?",
                 "category": "Economics",
-                "description": "The Federal Reserve announces interest rate decisions at scheduled FOMC meetings. Predict the exact day of the next announcement in February 2026.",
-                "resolution_date": datetime.now(timezone.utc) + timedelta(days=60),
+                "description": "Resolves to the month of the first fed funds rate reduction announced at an FOMC meeting in 2026, or 'Not in 2026' if no cut occurs.",
+                "resolution_date": datetime(2026, 12, 31, tzinfo=timezone.utc),
                 "status": "open",
-                "tags": ["federal-reserve", "interest-rates", "economics", "fed"],
+                "tags": ["federal-reserve", "interest-rates", "economics", "fomc"],
+                "liquidity_parameter": 80000,
+                "ui_type": "month",
+                "securities": [
+                    "2026-01",
+                    "2026-02",
+                    "2026-03",
+                    "2026-04",
+                    "2026-05",
+                    "2026-06",
+                    "2026-07",
+                    "2026-08",
+                    "2026-09",
+                    "2026-10",
+                    "2026-11",
+                    "2026-12",
+                    "Not in 2026",
+                ],
+            },
+            # ------------------------------------------------------------------
+            # Day markets (exact calendar date)
+            # ------------------------------------------------------------------
+            {
+                "question": "On what day will the S&P 500 first close above 7,000?",
+                "category": "Economics",
+                "description": "Resolves to the first calendar date on which the S&P 500 official closing price exceeds 7,000. If no such close occurs before April 1, 2026, resolves to the catch-all.",
+                "resolution_date": datetime(2026, 4, 1, tzinfo=timezone.utc),
+                "status": "open",
+                "tags": ["stocks", "s&p500", "equities"],
+                "liquidity_parameter": 60000,
+                "ui_type": "day",
+                "securities": [
+                    *[f"2026-02-{day:02d}" for day in range(1, 29)],
+                    *[f"2026-03-{day:02d}" for day in range(1, 32)],
+                    "Not before April 2026",
+                ],
+            },
+            {
+                "question": "On what day will the Supreme Court issue its last opinion of the 2025–2026 term?",
+                "category": "Politics",
+                "description": "The Supreme Court's term traditionally ends in late June or early July. Resolves to the date the final written opinion of the 2025–2026 term is published.",
+                "resolution_date": datetime(2026, 7, 15, tzinfo=timezone.utc),
+                "status": "open",
+                "tags": ["supreme-court", "law", "politics"],
                 "liquidity_parameter": 50000,
                 "ui_type": "day",
                 "securities": [
-                    "2026-02-01",
-                    "2026-02-02",
-                    "2026-02-03",
-                    "2026-02-04",
-                    "2026-02-05",
-                    "2026-02-06",
-                    "2026-02-07",
-                    "2026-02-08",
-                    "2026-02-09",
-                    "2026-02-10",
-                    "2026-02-11",
-                    "2026-02-12",
-                    "2026-02-13",
-                    "2026-02-14",
-                    "2026-02-15",
-                    "2026-02-16",
-                    "2026-02-17",
-                    "2026-02-18",
-                    "2026-02-19",
-                    "2026-02-20",
-                    "2026-02-21",
-                    "2026-02-22",
-                    "2026-02-23",
-                    "2026-02-24",
-                    "2026-02-25",
-                    "2026-02-26",
-                    "2026-02-27",
-                    "2026-02-28",
-                    "Later or never",
+                    # June 15 – June 30
+                    *[f"2026-06-{day:02d}" for day in range(15, 31)],
+                    # July 1 – July 14
+                    *[f"2026-07-{day:02d}" for day in range(1, 15)],
+                    # Last entry becomes the catch-all automatically
+                    "Before June 15 or after July 14",
                 ],
             },
+            # ------------------------------------------------------------------
+            # Interval markets (exact continuous measurements)
+            # ------------------------------------------------------------------
+            # {
+            #     "question": "What will be the maximum temperature (°F) in Death Valley on July 15, 2026?",
+            #     "category": "Climate",
+            #     "description": "Predict the exact maximum temperature recorded at Furnace Creek, Death Valley on July 15, 2026. Use the slider to pick a precise value.",
+            #     "resolution_date": datetime(2026, 7, 16, tzinfo=timezone.utc),
+            #     "status": "open",
+            #     "tags": ["weather", "temperature", "climate", "death-valley"],
+            #     "liquidity_parameter": 100000,
+            #     "ui_type": "interval",
+            #     "securities": [
+            #         {
+            #             "outcome": f"{temp}°F",
+            #             "value": float(temp),
+            #             "is_catch_all": False,
+            #         }
+            #         for temp in range(100, 131)
+            #     ]
+            #     + [
+            #         {
+            #             "outcome": "Outside 100–130°F range",
+            #             "value": 1e9,
+            #             "is_catch_all": True,
+            #         }
+            #     ],
+            # },
             {
-                "question": "What will be the peak temperature in NYC this summer (°F)?",
-                "category": "Climate",
-                "description": "Predict the highest temperature recorded in Central Park during June-August 2026.",
-                "resolution_date": datetime.now(timezone.utc) + timedelta(days=180),
+                "question": "What will the US national average retail price for a dozen large eggs be in May, 2026?",
+                "category": "Economics",
+                "description": "Based on USDA Agricultural Marketing Service weekly retail egg price data. Resolves to the reported average for the last full week of May 2026.",
+                "resolution_date": datetime(2026, 6, 1, tzinfo=timezone.utc),
                 "status": "open",
-                "tags": ["weather", "temperature", "nyc"],
-                "liquidity_parameter": 75000,
-                "ui_type": "bars-ordered",
+                "tags": ["eggs", "food", "inflation", "usda"],
+                "liquidity_parameter": 60000,
+                "ui_type": "interval",
                 "securities": [
-                    {"outcome": "Below 90°F", "value": 85.0},
-                    {"outcome": "90-95°F", "value": 92.5},
-                    {"outcome": "95-100°F", "value": 97.5},
-                    {"outcome": "100-105°F", "value": 102.5},
-                    {"outcome": "Above 105°F", "value": 110},
+                    {
+                        "outcome": f"${price / 100:.2f}",
+                        "value": float(price) / 100,
+                        "is_catch_all": False,
+                    }
+                    for price in range(200, 801, 10)
+                ]
+                + [
+                    {
+                        "outcome": "Outside $2.00–$8.00 range",
+                        "value": 1e9,
+                        "is_catch_all": True,
+                    }
                 ],
             },
+            # {
+            #     "question": "What will the US 30-year fixed mortgage rate be on September 1, 2026?",
+            #     "category": "Economics",
+            #     "description": "Based on the Freddie Mac Primary Mortgage Market Survey (PMMS) for the week containing September 1, 2026.",
+            #     "resolution_date": datetime(2026, 9, 2, tzinfo=timezone.utc),
+            #     "status": "open",
+            #     "tags": ["mortgage", "housing", "interest-rates", "freddie-mac"],
+            #     "liquidity_parameter": 80000,
+            #     "ui_type": "interval",
+            #     "securities": [
+            #         {
+            #             "outcome": f"{rate / 100:.2f}%",
+            #             "value": float(rate) / 100,
+            #             "is_catch_all": False,
+            #         }
+            #         for rate in range(500, 901, 25)
+            #     ]
+            #     + [
+            #         {
+            #             "outcome": "Outside 5.00%–9.00% range",
+            #             "value": 1e9,
+            #             "is_catch_all": True,
+            #         }
+            #     ],
+            # },
+            # {
+            #     "question": "How many nonfarm payroll jobs (thousands) will the March 2026 BLS report show were added in February 2026?",
+            #     "category": "Economics",
+            #     "description": "Resolves to the initial (pre-revision) February 2026 figure from the Bureau of Labor Statistics Employment Situation report, released in early March 2026.",
+            #     "resolution_date": datetime(2026, 3, 15, tzinfo=timezone.utc),
+            #     "status": "open",
+            #     "tags": ["jobs", "employment", "bls", "nonfarm-payrolls"],
+            #     "liquidity_parameter": 70000,
+            #     "ui_type": "interval",
+            #     "securities": [
+            #         {
+            #             "outcome": (f"+{k}k" if k > 0 else f"{k}k"),
+            #             "value": float(k),
+            #             "is_catch_all": False,
+            #         }
+            #         for k in range(-200, 501, 25)
+            #     ]
+            #     + [
+            #         {
+            #             "outcome": "Outside −200k to +500k range",
+            #             "value": 1e9,
+            #             "is_catch_all": True,
+            #         }
+            #     ],
+            # },
+            # {
+            #     "question": "What will the S&P 500 close at on December 31, 2026?",
+            #     "category": "Economics",
+            #     "description": "The official closing value of the S&P 500 index on the last trading day of 2026.",
+            #     "resolution_date": datetime(2026, 12, 31, tzinfo=timezone.utc),
+            #     "status": "open",
+            #     "tags": ["stocks", "s&p500", "equities", "markets"],
+            #     "liquidity_parameter": 150000,
+            #     "ui_type": "interval",
+            #     "securities": [
+            #         {
+            #             "outcome": str(price),
+            #             "value": float(price),
+            #             "is_catch_all": False,
+            #         }
+            #         for price in range(4500, 7501, 100)
+            #     ]
+            #     + [
+            #         {
+            #             "outcome": "Outside 4,500–7,500 range",
+            #             "value": 1e9,
+            #             "is_catch_all": True,
+            #         }
+            #     ],
+            # },
             {
-                "question": "Who will win the 2026 World Cup?",
-                "category": "Sports",
-                "description": "Predict which country will win the FIFA World Cup 2026.",
-                "resolution_date": datetime.now(timezone.utc) + timedelta(days=365),
+                "question": "What will the US CPI year-over-year inflation rate be in the March 2026 report (%)?",
+                "category": "Economics",
+                "description": "The Bureau of Labor Statistics releases the Consumer Price Index report in mid-April. Resolves to the headline (all items) year-over-year percentage for March 2026.",
+                "resolution_date": datetime(2026, 4, 20, tzinfo=timezone.utc),
                 "status": "open",
-                "tags": ["sports", "soccer", "worldcup"],
-                "liquidity_parameter": 150000,
-                "ui_type": "bars-categorical",
+                "tags": ["inflation", "cpi", "bls", "economics"],
+                "liquidity_parameter": 80000,
+                "ui_type": "interval",
                 "securities": [
-                    "Brazil",
-                    "Argentina",
-                    "France",
-                    "Germany",
-                    "Spain",
-                    "England",
-                    "Other",
+                    {
+                        "outcome": f"{rate / 100:.2f}%",
+                        "value": float(rate) / 100,
+                        "is_catch_all": False,
+                    }
+                    for rate in range(50, 601, 10)
+                ]
+                + [
+                    {
+                        "outcome": "Outside 0.50%–6.00% range",
+                        "value": 1e9,
+                        "is_catch_all": True,
+                    }
                 ],
             },
             {
-                "question": "What will be the maximum temperature (°F) in Death Valley on July 15, 2026?",
+                "question": "What will be the highest temperature (°F) recorded in the continental US during summer 2026?",
                 "category": "Climate",
-                "description": "Predict the exact maximum temperature recorded in Death Valley, California on July 15, 2026. Use the interval slider to select a temperature range.",
-                "resolution_date": datetime.now(timezone.utc) + timedelta(days=180),
+                "description": "The all-time high recorded at any official NOAA weather station in the contiguous 48 states between June 1 and August 31, 2026.",
+                "resolution_date": datetime(2026, 9, 1, tzinfo=timezone.utc),
                 "status": "open",
-                "tags": ["weather", "temperature", "climate"],
-                "liquidity_parameter": 100000,
+                "tags": ["weather", "heat", "climate", "noaa"],
+                "liquidity_parameter": 90000,
                 "ui_type": "interval",
                 "securities": [
                     {
@@ -213,11 +330,11 @@ def seed_markets() -> None:
                         "value": float(temp),
                         "is_catch_all": False,
                     }
-                    for temp in range(100, 131)
+                    for temp in range(110, 136)
                 ]
                 + [
                     {
-                        "outcome": "Outside 100-130°F range",
+                        "outcome": "Outside 110–135°F range",
                         "value": 1e9,
                         "is_catch_all": True,
                     }

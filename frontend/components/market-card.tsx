@@ -74,8 +74,8 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
     });
   }, [market?.securities, market?.quotes]);
 
-  const creationDate = market?.createdAt
-    ? format(new Date(market.createdAt), "MMM d, yyyy")
+  const resolutionDate = market?.resolutionDate
+    ? format(new Date(market.resolutionDate), "MMM d, yyyy")
     : "—";
 
   const handleOpenIntervalDialog = () => {
@@ -168,11 +168,19 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
           </Badge>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar className="w-3 h-3" />
-            <span>{creationDate}</span>
+            <span>Resolves {resolutionDate}</span>
           </div>
         </div>
 
-        <h3 className="text-lg font-semibold mb-2 leading-snug text-balance line-clamp-2 h-14">
+        <h3
+          className={`font-semibold mb-2 leading-snug text-balance min-h-[3.5rem] ${
+            (market.question?.length ?? 0) > 120
+              ? "text-sm line-clamp-3"
+              : (market.question?.length ?? 0) > 90
+                ? "text-base line-clamp-2"
+                : "text-lg line-clamp-2"
+          }`}
+        >
           <Link
             href={`/market/${market.id}`}
             className="group/link hover:underline inline-flex items-start gap-1"

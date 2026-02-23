@@ -288,7 +288,11 @@ export default function MarketPage({
             <Badge variant="secondary">{market.category}</Badge>
             <span className="text-xs text-muted-foreground flex items-center gap-1 ml-auto">
               <Calendar className="w-3 h-3" />
-              Resolves {format(new Date(market.resolutionDate), "MMM d, yyyy")}
+              Resolves{" "}
+              {format(
+                new Date(market.resolutionDate),
+                "MMM d, yyyy 'at' h:mm:ss a",
+              )}
             </span>
           </div>
           <h1 className="text-2xl font-bold leading-snug text-balance">

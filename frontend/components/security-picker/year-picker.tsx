@@ -9,6 +9,9 @@ export function YearPicker({
   hoveredIndex,
   isInRange,
 }: SecurityPickerProps) {
+  const todayYear = new Date().getFullYear();
+  const isElapsedYear = (year: string) => parseInt(year, 10) < todayYear;
+
   // Separate year outcomes from "other" outcomes like "Later or never"
   const yearOutcomes: Array<{
     index: number;
@@ -45,28 +48,34 @@ export function YearPicker({
         </div>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {yearOutcomes.map(({ index, outcome }) => (
-          <button
-            key={outcome.id}
-            onClick={() => handleCellClick(index)}
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-            className={`relative p-4 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[100px] ${
-              isInRange(index)
-                ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                : hoveredIndex === index
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-            }`}
-          >
-            <div className="text-base font-bold text-center mb-2 break-words w-full">
-              {outcome.outcome}
-            </div>
-            <div className="text-center">
-              <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
-            </div>
-          </button>
-        ))}
+        {yearOutcomes.map(({ index, outcome }) => {
+          const elapsed = isElapsedYear(outcome.outcome);
+          return (
+            <button
+              key={outcome.id}
+              disabled={elapsed}
+              onClick={() => !elapsed && handleCellClick(index)}
+              onMouseEnter={() => !elapsed && setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              className={`relative p-4 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[100px] ${
+                elapsed
+                  ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                  : isInRange(index)
+                    ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
+                    : hoveredIndex === index
+                      ? "border-blue-400 bg-blue-50"
+                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+              }`}
+            >
+              <div className="text-base font-bold text-center mb-2 break-words w-full">
+                {outcome.outcome}
+              </div>
+              <div className="text-center">
+                <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
+              </div>
+            </button>
+          );
+        })}
       </div>
       {others.length > 0 && (
         <div>

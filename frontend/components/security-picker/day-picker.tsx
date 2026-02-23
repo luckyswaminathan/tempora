@@ -12,6 +12,8 @@ export function DayPicker({
   hoveredIndex,
   isInRange,
 }: SecurityPickerProps) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+
   // Parse days from outcomes
   const dayMap = new Map<
     string,
@@ -35,16 +37,30 @@ export function DayPicker({
     }
   });
 
-  // Find earliest and latest dates
+  const isElapsedDate = (dateStr: string) => dateStr < todayStr;
+
+  // Open on the earliest non-elapsed date, falling back to the first date
   const dates = Array.from(dayMap.keys()).sort();
+
+  // YYYY-MM strings bounding the navigable range
+  const firstMonthKey = dates.length > 0 ? dates[0].slice(0, 7) : null;
+  const lastMonthKey =
+    dates.length > 0 ? dates[dates.length - 1].slice(0, 7) : null;
+
   const [currentMonth, setCurrentMonth] = useState(() => {
     if (dates.length === 0) return new Date();
-    const firstDate = new Date(dates[0]);
-    return new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+    const firstTradeable = dates.find((d) => !isElapsedDate(d)) ?? dates[0];
+    const d = new Date(firstTradeable);
+    return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
+
+  const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const canGoPrev = firstMonthKey !== null && currentMonthKey > firstMonthKey;
+  const canGoNext = lastMonthKey !== null && currentMonthKey < lastMonthKey;
+
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startDayOfWeek = firstDay.getDay();
@@ -60,11 +76,11 @@ export function DayPicker({
   }
 
   const previousMonth = () => {
-    setCurrentMonth(new Date(year, month - 1, 1));
+    if (canGoPrev) setCurrentMonth(new Date(year, month - 1, 1));
   };
 
   const nextMonth = () => {
-    setCurrentMonth(new Date(year, month + 1, 1));
+    if (canGoNext) setCurrentMonth(new Date(year, month + 1, 1));
   };
 
   return (
@@ -85,7 +101,8 @@ export function DayPicker({
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={previousMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            disabled={!canGoPrev}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Previous month"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -95,7 +112,8 @@ export function DayPicker({
           </h3>
           <button
             onClick={nextMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            disabled={!canGoNext}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Next month"
           >
             <ChevronRight className="w-5 h-5" />
@@ -131,18 +149,22 @@ export function DayPicker({
               );
             }
 
+            const elapsed = isElapsedDate(dayInfo.date);
             return (
               <button
                 key={dayInfo.date}
-                onClick={() => handleCellClick(dayData.index)}
-                onMouseEnter={() => setHoveredIndex(dayData.index)}
+                disabled={elapsed}
+                onClick={() => !elapsed && handleCellClick(dayData.index)}
+                onMouseEnter={() => !elapsed && setHoveredIndex(dayData.index)}
                 onMouseLeave={() => setHoveredIndex(null)}
                 className={`aspect-square p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                  isInRange(dayData.index)
-                    ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                    : hoveredIndex === dayData.index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                  elapsed
+                    ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                    : isInRange(dayData.index)
+                      ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
+                      : hoveredIndex === dayData.index
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                 }`}
               >
                 <div className="text-sm font-bold mb-1">{dayInfo.day}</div>
