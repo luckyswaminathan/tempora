@@ -163,6 +163,64 @@ class AdvanceTimeResponse(BaseModel):
     markets_closed: int
 
 
+class MarketSettlementItem(BaseModel):
+    id: str
+    question: str
+    category: str | None
+    status: str
+    resolution_date: datetime | None
+    created_at: datetime | None
+    creator_email: str | None
+    total_volume: int
+
+    class Config:
+        from_attributes = True
+
+
+class MarketsNeedingSettlementResponse(BaseModel):
+    markets: List[MarketSettlementItem]
+    count: int
+    platform_time: datetime
+
+
+@router.get("/markets/pending-settlement", response_model=MarketsNeedingSettlementResponse)
+def get_markets_needing_settlement(
+    current_user: UserBase = Depends(deps.get_current_admin),
+    session: Session = Depends(deps.get_session),
+) -> MarketsNeedingSettlementResponse:
+    """Get all markets that need settlement (status = CLOSED) (admin only)."""
+    current_time = platform_time.get_current_time(session)
+
+    markets = (
+        session.query(models.Market)
+        .filter(models.Market.status == models.MarketStatus.CLOSED)
+        .order_by(models.Market.resolution_date.asc())
+        .all()
+    )
+
+    market_items = []
+    for market in markets:
+        creator = session.get(models.User, market.creator_id)
+        market_items.append(
+            MarketSettlementItem(
+                id=market.id,
+                question=market.question,
+                category=market.category,
+                status=market.status.value if hasattr(market.status, 'value') else market.status,
+                resolution_date=market.resolution_date,
+                created_at=market.created_at,
+                creator_email=creator.email if creator else None,
+                total_volume=market.total_volume or 0,
+            )
+        )
+
+    return MarketsNeedingSettlementResponse(
+        markets=market_items,
+        count=len(market_items),
+        platform_time=current_time,
+    )
+
+
 @router.get("/time", response_model=PlatformTimeResponse)
 def get_platform_time(
     current_user: UserBase = Depends(deps.get_current_admin),

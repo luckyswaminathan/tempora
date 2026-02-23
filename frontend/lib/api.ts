@@ -671,6 +671,23 @@ export interface AdvanceTimeResponse {
   markets_closed: number;
 }
 
+export interface MarketSettlementItem {
+  id: string;
+  question: string;
+  category: string | null;
+  status: string;
+  resolution_date: string | null;
+  created_at: string | null;
+  creator_email: string | null;
+  total_volume: number;
+}
+
+export interface MarketsNeedingSettlementResponse {
+  markets: MarketSettlementItem[];
+  count: number;
+  platform_time: string;
+}
+
 export interface SettlementTodoItem {
   id: string;
   market_id: string;
@@ -711,6 +728,10 @@ export const platformTimeApi = {
       method: "POST",
       body: JSON.stringify(params),
     });
+  },
+
+  async getMarketsNeedingSettlement(): Promise<MarketsNeedingSettlementResponse> {
+    return fetchWithAuth("/admin/markets/pending-settlement");
   },
 };
 

@@ -33,9 +33,12 @@ import {
   type Proposal,
   type PlatformTimeResponse,
   type AdvanceTimeResponse,
+  type MarketSettlementItem,
+  type MarketsNeedingSettlementResponse,
 } from "@/lib/api";
+import { Gavel } from "lucide-react";
 
-type MainTab = "users" | "proposals" | "time";
+type MainTab = "users" | "proposals" | "time" | "markets";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -76,6 +79,10 @@ export default function AdminDashboard() {
   const [timeLoading, setTimeLoading] = useState(false);
   const [advanceResult, setAdvanceResult] =
     useState<AdvanceTimeResponse | null>(null);
+  const [marketsNeedingSettlement, setMarketsNeedingSettlement] = useState<
+    MarketSettlementItem[]
+  >([]);
+  const [marketsLoading, setMarketsLoading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
@@ -95,18 +102,32 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchMarketsNeedingSettlement = async () => {
+    try {
+      setMarketsLoading(true);
+      const response = await platformTimeApi.getMarketsNeedingSettlement();
+      setMarketsNeedingSettlement(response.markets);
+    } catch (err) {
+      console.error("Failed to load markets needing settlement:", err);
+    } finally {
+      setMarketsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [usersRes, marketMakersRes, proposalsRes] = await Promise.all([
+        const [usersRes, marketMakersRes, proposalsRes, marketsRes] = await Promise.all([
           adminApi.listUsers(),
           adminApi.listMarketMakers(),
           proposalsApi.getPendingProposals(),
+          platformTimeApi.getMarketsNeedingSettlement(),
         ]);
         setUsers(usersRes.users);
         setMarketMakers(marketMakersRes.users);
         setProposals(proposalsRes.proposals);
+        setMarketsNeedingSettlement(marketsRes.markets);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
@@ -333,6 +354,15 @@ export default function AdminDashboard() {
             <TabsTrigger value="time" className="gap-2">
               <Clock className="w-4 h-4" />
               Platform Time
+            </TabsTrigger>
+            <TabsTrigger value="markets" className="gap-2">
+              <Gavel className="w-4 h-4" />
+              Settlement
+              {marketsNeedingSettlement.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full">
+                  {marketsNeedingSettlement.length}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -1120,6 +1150,115 @@ export default function AdminDashboard() {
                       <li>
                         • Use the time controls above to simulate time passing
                         for testing and demos.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Markets Pending Settlement Section */}
+          <TabsContent value="markets">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Markets Pending Settlement</h2>
+                  <p className="text-sm text-muted-foreground">
+                    These markets have closed and need to be settled with a winning outcome.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchMarketsNeedingSettlement}
+                  disabled={marketsLoading}
+                >
+                  {marketsLoading ? "Refreshing..." : "Refresh"}
+                </Button>
+              </div>
+
+              {marketsLoading && marketsNeedingSettlement.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">Loading markets...</p>
+                </Card>
+              ) : marketsNeedingSettlement.length === 0 ? (
+                <Card className="p-8 text-center border-green-200 bg-green-50 dark:bg-green-950">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                  <h3 className="text-lg font-semibold text-green-700 dark:text-green-300">
+                    All caught up!
+                  </h3>
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    No markets are currently waiting for settlement.
+                  </p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {marketsNeedingSettlement.map((market) => (
+                    <Card
+                      key={market.id}
+                      className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => router.push(`/market/${market.id}`)}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="secondary" className="text-xs">
+                              {market.category || "Uncategorized"}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-xs border-amber-500 text-amber-600"
+                            >
+                              Needs Settlement
+                            </Badge>
+                          </div>
+                          <h3 className="font-medium mb-1 truncate">
+                            {market.question}
+                          </h3>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            {market.resolution_date && (
+                              <span>
+                                Resolution:{" "}
+                                {new Date(market.resolution_date).toLocaleDateString()}
+                              </span>
+                            )}
+                            <span>Volume: ${(market.total_volume / 100).toFixed(0)}</span>
+                            {market.creator_email && (
+                              <span>Created by: {market.creator_email}</span>
+                            )}
+                          </div>
+                        </div>
+                        <Button size="sm" className="shrink-0">
+                          <Gavel className="w-4 h-4 mr-1" />
+                          Settle
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Info Card */}
+              <Card className="p-6 border-border/50 bg-amber-500/5 border-amber-500/20">
+                <div className="flex gap-3">
+                  <div className="shrink-0">
+                    <Gavel className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-amber-600 mb-1">
+                      Settlement Process
+                    </h3>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>
+                        • Markets appear here when their resolution date has passed.
+                      </li>
+                      <li>
+                        • Click on a market to view details and settle it.
+                      </li>
+                      <li>
+                        • When you settle a market, select the winning outcome and
+                        payouts will be automatically distributed to winners.
                       </li>
                     </ul>
                   </div>
