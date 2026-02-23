@@ -379,6 +379,7 @@ export interface PortfolioSnapshot {
     markPriceCents: number;
     endDate: string;
     pnl: number;
+    category: string;
   }>;
   summary: {
     costBasis: number;

@@ -20,6 +20,7 @@ import { HoldingsTab } from "@/components/holdings-tab";
 import { OpenOrdersTab } from "@/components/open-orders-tab";
 import { CollateralTab } from "@/components/collateral-tab";
 import { HistoryTab } from "@/components/history-tab";
+import { PortfolioAnalyticsSection } from "@/components/portfolio-analytics-section";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
 import { OrderDetailSheet } from "@/components/order-detail-sheet";
 
@@ -103,6 +104,12 @@ export default function PortfolioPage() {
         setPendingOrders(
           ordersData.items.filter((o) => !o.filled && !o.canceled),
         );
+        setAllOrders(
+          ordersData.items.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          ),
+        );
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to load portfolio",
@@ -115,29 +122,7 @@ export default function PortfolioPage() {
     fetchPortfolio();
   }, [user]);
 
-  // Fetch all filled orders when History tab is active
-  useEffect(() => {
-    async function fetchAllOrders() {
-      if (!user || activeTab !== "history") return;
-
-      try {
-        setLoadingAllOrders(true);
-        const response = await ordersApi.listOrders();
-        // Show all orders (filled, unfilled, canceled), sorted by creation date (most recent first)
-        const allOrders = response.items.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        setAllOrders(allOrders);
-      } catch (err) {
-        console.error("Failed to fetch order history:", err);
-      } finally {
-        setLoadingAllOrders(false);
-      }
-    }
-
-    fetchAllOrders();
-  }, [user, activeTab]);
+  // allOrders is populated eagerly in the initial fetch above.
 
   // Callback to refresh orders after cancellation
   const handleOrderCancelled = useCallback(() => {
@@ -327,6 +312,9 @@ export default function PortfolioPage() {
 
       {/* Summary Cards */}
       <PortfolioSummaryCards portfolio={portfolio} />
+
+      {/* Analytics Section */}
+      <PortfolioAnalyticsSection portfolio={portfolio} allOrders={allOrders} />
 
       {/* Tabs for Holdings vs Open Orders vs Collateral */}
       <Tabs
