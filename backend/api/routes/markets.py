@@ -1,9 +1,6 @@
-from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, Query
 
 from api import deps
 from schemas.market import (
@@ -14,9 +11,10 @@ from schemas.market import (
     MarketSettlementResponse,
     MarketMakerDashboard,
 )
+from schemas.workflow import SettlementTodoListResponse
 from schemas.user import UserBase
 from services.markets import MarketService
-from services import platform_time
+from services.platform_time import PlatformTimeService
 
 router = APIRouter(prefix="/markets", tags=["markets"])
 
@@ -66,63 +64,15 @@ def get_market_maker_dashboard(
     return service.get_market_maker_dashboard(current_user.id)
 
 
-class SettlementTodoItem(BaseModel):
-    id: str
-    market_id: str
-    market_question: str
-    market_maker_id: str
-    created_at: datetime
-    deadline: datetime
-    settled_at: datetime | None
-    is_overdue: bool
-    hours_remaining: float | None
-
-    class Config:
-        from_attributes = True
-
-
-class SettlementTodoListResponse(BaseModel):
-    todos: List[SettlementTodoItem]
-    count: int
-    platform_time: datetime
-
-
 @router.get("/maker/todos", response_model=SettlementTodoListResponse)
 def get_settlement_todos(
     include_settled: bool = Query(default=False),
     current_user: UserBase = Depends(deps.get_current_market_maker),
-    session: Session = Depends(deps.get_session),
+    platform_time_service: PlatformTimeService = Depends(
+        deps.get_platform_time_service
+    ),
 ) -> SettlementTodoListResponse:
     """Get settlement TODOs for the current market maker."""
-    current_time = platform_time.get_current_time(session)
-    todos = platform_time.get_settlement_todos_for_user(
-        session, current_user.id, include_settled=include_settled
-    )
-
-    todo_items = []
-    for todo in todos:
-        is_overdue = todo.settled_at is None and todo.deadline < current_time
-        hours_remaining = None
-        if todo.settled_at is None:
-            delta = todo.deadline - current_time
-            hours_remaining = delta.total_seconds() / 3600
-
-        todo_items.append(
-            SettlementTodoItem(
-                id=todo.id,
-                market_id=todo.market_id,
-                market_question=todo.market.question if todo.market else "Unknown",
-                market_maker_id=todo.market_maker_id,
-                created_at=todo.created_at,
-                deadline=todo.deadline,
-                settled_at=todo.settled_at,
-                is_overdue=is_overdue,
-                hours_remaining=hours_remaining,
-            )
-        )
-
-    return SettlementTodoListResponse(
-        todos=todo_items,
-        count=len(todo_items),
-        platform_time=current_time,
+    return platform_time_service.get_settlement_todos_for_user(
+        current_user.id, include_settled=include_settled
     )

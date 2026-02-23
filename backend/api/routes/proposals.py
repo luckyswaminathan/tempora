@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 
 from api import deps
-from schemas.proposal import (
+from schemas.workflow import (
     Proposal,
     ProposalCreate,
     ProposalListResponse,
@@ -16,7 +16,9 @@ from sqlalchemy.orm import Session
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
 
-def get_proposal_service(session: Session = Depends(deps.get_session)) -> ProposalService:
+def get_proposal_service(
+    session: Session = Depends(deps.get_session),
+) -> ProposalService:
     return ProposalService(session)
 
 
@@ -82,4 +84,3 @@ def publish_proposal(
 ) -> Proposal:
     """Publish an approved proposal to make it a live market (market maker only)."""
     return service.publish_proposal(proposal_id, current_user.id)
-

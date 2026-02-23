@@ -19,8 +19,6 @@ What this does NOT test:
 - Settlement/resolution - see test_settlement.py
 """
 
-import pytest
-
 
 def test_limit_order_executes_within_limit(trader_client, trade_market):
     """Test that limit order executes when market price is within limit."""

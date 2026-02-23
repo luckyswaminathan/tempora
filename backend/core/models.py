@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     Float,
@@ -256,6 +257,7 @@ class Trade(Base):
 
 class PlatformState(Base):
     __tablename__ = "platform_state"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_platform_state_singleton"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     current_time: Mapped[datetime] = mapped_column(
@@ -278,7 +280,9 @@ class SettlementTodo(Base):
     market_maker_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.id"), nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     settled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

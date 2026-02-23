@@ -1,9 +1,16 @@
+from __future__ import annotations
+
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from schemas.date import UTCDateTime
 from schemas.market import MarketBase, OutcomeWithValue
+
+
+# ---------------------------------------------------------------------------
+# Proposal schemas
+# ---------------------------------------------------------------------------
 
 
 class ProposalCreate(MarketBase):
@@ -40,3 +47,28 @@ class Proposal(MarketBase):
 class ProposalListResponse(BaseModel):
     proposals: List[Proposal]
     count: int
+
+
+# ---------------------------------------------------------------------------
+# Settlement schemas
+# ---------------------------------------------------------------------------
+
+
+class SettlementTodoItem(BaseModel):
+    id: str
+    market_id: str
+    market_question: str
+    market_maker_id: str
+    created_at: UTCDateTime
+    deadline: UTCDateTime
+    settled_at: UTCDateTime | None
+    is_overdue: bool
+    hours_remaining: float | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SettlementTodoListResponse(BaseModel):
+    todos: List[SettlementTodoItem]
+    count: int
+    platform_time: UTCDateTime

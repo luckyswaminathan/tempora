@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from core import models
 from core.models import ProposalStatus
-from schemas.proposal import (
+from schemas.workflow import (
     Proposal,
     ProposalCreate,
     ProposalListResponse,

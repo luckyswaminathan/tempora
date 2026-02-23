@@ -8,10 +8,10 @@ from sqlalchemy.orm import Session
 from api import deps
 from core import models
 from core.models import UserRole
-from schemas.user import UserBase, UserProfile
-from schemas.proposal import ProposalListResponse
+from schemas.user import UserBase
+from schemas.workflow import ProposalListResponse
+from services.platform_time import PlatformTimeService
 from services.proposals import ProposalService
-from services import platform_time
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -183,13 +183,16 @@ class MarketsNeedingSettlementResponse(BaseModel):
     platform_time: datetime
 
 
-@router.get("/markets/pending-settlement", response_model=MarketsNeedingSettlementResponse)
+@router.get(
+    "/markets/pending-settlement", response_model=MarketsNeedingSettlementResponse
+)
 def get_markets_needing_settlement(
     current_user: UserBase = Depends(deps.get_current_admin),
+    pt_service: PlatformTimeService = Depends(deps.get_platform_time_service),
     session: Session = Depends(deps.get_session),
 ) -> MarketsNeedingSettlementResponse:
     """Get all markets that need settlement (status = CLOSED) (admin only)."""
-    current_time = platform_time.get_current_time(session)
+    current_time = pt_service.get_current_time()
 
     markets = (
         session.query(models.Market)
@@ -206,7 +209,11 @@ def get_markets_needing_settlement(
                 id=market.id,
                 question=market.question,
                 category=market.category,
-                status=market.status.value if hasattr(market.status, 'value') else market.status,
+                status=(
+                    market.status.value
+                    if hasattr(market.status, "value")
+                    else market.status
+                ),
                 resolution_date=market.resolution_date,
                 created_at=market.created_at,
                 creator_email=creator.email if creator else None,
@@ -224,12 +231,12 @@ def get_markets_needing_settlement(
 @router.get("/time", response_model=PlatformTimeResponse)
 def get_platform_time(
     current_user: UserBase = Depends(deps.get_current_admin),
-    session: Session = Depends(deps.get_session),
+    pt_service: PlatformTimeService = Depends(deps.get_platform_time_service),
 ) -> PlatformTimeResponse:
     """Get the current platform time (admin only)."""
     from core.config import settings
 
-    current_time = platform_time.get_current_time(session)
+    current_time = pt_service.get_current_time()
     return PlatformTimeResponse(
         current_time=current_time,
         settlement_deadline_hours=settings.settlement_deadline_hours,
@@ -240,12 +247,12 @@ def get_platform_time(
 def set_platform_time(
     payload: SetTimeRequest,
     current_user: UserBase = Depends(deps.get_current_admin),
-    session: Session = Depends(deps.get_session),
+    pt_service: PlatformTimeService = Depends(deps.get_platform_time_service),
 ) -> PlatformTimeResponse:
     """Set the platform time to an absolute value (admin only)."""
     from core.config import settings
 
-    new_time = platform_time.set_current_time(session, payload.current_time)
+    new_time = pt_service.set_current_time(payload.current_time)
     return PlatformTimeResponse(
         current_time=new_time,
         settlement_deadline_hours=settings.settlement_deadline_hours,
@@ -256,26 +263,18 @@ def set_platform_time(
 def advance_platform_time(
     payload: AdvanceTimeRequest,
     current_user: UserBase = Depends(deps.get_current_admin),
-    session: Session = Depends(deps.get_session),
+    pt_service: PlatformTimeService = Depends(deps.get_platform_time_service),
 ) -> AdvanceTimeResponse:
     """Advance the platform time by a specified duration (admin only)."""
-    previous_time = platform_time.get_current_time(session)
-    new_time = platform_time.advance_time(
-        session, hours=payload.hours, days=payload.days, minutes=payload.minutes
+    previous_time = pt_service.get_current_time()
+    new_time = pt_service.advance_time(
+        hours=payload.hours, days=payload.days, minutes=payload.minutes
     )
 
-    closed_markets = (
-        session.query(models.Market)
-        .filter(
-            models.Market.status == models.MarketStatus.CLOSED,
-            models.Market.resolution_date <= new_time,
-            models.Market.resolution_date > previous_time,
-        )
-        .count()
-    )
+    markets_closed = pt_service.count_newly_closed_markets(previous_time, new_time)
 
     return AdvanceTimeResponse(
         previous_time=previous_time,
         current_time=new_time,
-        markets_closed=closed_markets,
+        markets_closed=markets_closed,
     )
