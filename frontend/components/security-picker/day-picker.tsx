@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { SecurityPickerProps, Pill, SecurityPickerOutcome } from "./types";
 import { MONTHS } from "@/lib/utils";
 
@@ -12,7 +12,7 @@ export function DayPicker({
   hoveredIndex,
   isInRange,
 }: SecurityPickerProps) {
-  // Parse days from outcomes
+  // Parse days from outcomes - try multiple date formats
   const dayMap = new Map<
     string,
     { index: number; outcome: SecurityPickerOutcome }
@@ -24,27 +24,44 @@ export function DayPicker({
     if (outcome.isCatchAll) {
       others.push({ index, outcome });
     } else {
-      const match = outcome.outcome.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (match) {
+      // Try strict YYYY-MM-DD format first
+      const strictMatch = outcome.outcome.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (strictMatch) {
         dayMap.set(outcome.outcome, { index, outcome });
       } else {
-        errors.push(
-          `Invalid day outcome: "${outcome.outcome}". Expected format: YYYY-MM-DD.`,
-        );
+        // Try parsing as a date string (handles various formats)
+        const parsed = new Date(outcome.outcome);
+        if (!isNaN(parsed.getTime())) {
+          const normalizedDate = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+          dayMap.set(normalizedDate, { index, outcome });
+        } else {
+          errors.push(
+            `Invalid day outcome: "${outcome.outcome}". Expected format: YYYY-MM-DD.`,
+          );
+        }
       }
     }
   });
 
   // Find earliest and latest dates
-  const dates = Array.from(dayMap.keys()).sort();
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    if (dates.length === 0) return new Date();
-    const firstDate = new Date(dates[0]);
-    return new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
-  });
+  const dates = useMemo(() => Array.from(dayMap.keys()).sort(), [outcomes]);
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  const year = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
+  // Initialize to the first outcome's month when outcomes are available
+  useEffect(() => {
+    if (!hasInitialized && dates.length > 0) {
+      const firstDate = new Date(dates[0]);
+      setCurrentMonth(new Date(firstDate.getFullYear(), firstDate.getMonth(), 1));
+      setHasInitialized(true);
+    }
+  }, [dates, hasInitialized]);
+
+  // Default to current date if no outcomes
+  const displayMonth = currentMonth ?? new Date();
+
+  const year = displayMonth.getFullYear();
+  const month = displayMonth.getMonth();
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const startDayOfWeek = firstDay.getDay();
@@ -79,6 +96,16 @@ export function DayPicker({
               <li key={idx}>{error}</li>
             ))}
           </ul>
+        </div>
+      )}
+      {dayMap.size === 0 && others.length === 0 && errors.length === 0 && (
+        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-yellow-900">
+            No outcomes available for this market.
+          </p>
+          <p className="text-xs text-yellow-700 mt-1">
+            Outcomes received: {outcomes.length}
+          </p>
         </div>
       )}
       <div>

@@ -9,6 +9,7 @@ from schemas.user import UserBase
 from services.markets import MarketService
 from services.orders import OrderService
 from services.auth import AuthService
+from services.platform_time import PlatformTimeService
 from services.portfolio import PortfolioService
 from services.leaderboard import LeaderboardService
 from services.tutorial import TutorialService
@@ -43,6 +44,12 @@ def get_tutorial_service(session: Session = Depends(get_session)) -> TutorialSer
 
 def get_history_service(session: Session = Depends(get_session)) -> HistoryService:
     return HistoryService(session)
+
+
+def get_platform_time_service(
+    session: Session = Depends(get_session),
+) -> PlatformTimeService:
+    return PlatformTimeService(session)
 
 
 def get_current_user(

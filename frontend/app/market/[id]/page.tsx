@@ -16,6 +16,7 @@ import {
   History,
   X,
   TrendingDown,
+  Gavel,
 } from "lucide-react";
 import {
   marketsApi,
@@ -34,6 +35,7 @@ import { OpenOrdersTab } from "@/components/open-orders-tab";
 import { HistoryTab } from "@/components/history-tab";
 import { HoldingsTab } from "@/components/holdings-tab";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
+import { SettleDialog } from "@/components/settle-dialog";
 import { format } from "date-fns";
 
 export default function MarketPage({
@@ -42,7 +44,7 @@ export default function MarketPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -51,6 +53,9 @@ export default function MarketPage({
   const [market, setMarket] = useState<Market | null>(null);
   const [loadingMarket, setLoadingMarket] = useState(true);
   const [marketError, setMarketError] = useState<string | null>(null);
+
+  // Admin settlement state
+  const [showSettleDialog, setShowSettleDialog] = useState(false);
 
   // User data
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
@@ -345,6 +350,36 @@ export default function MarketPage({
           </Card>
         )}
 
+        {/* Market Owner Actions - Show for market makers who own this market */}
+        {/* Admin settlement banner */}
+        {user &&
+          profile?.role === "admin" &&
+          market.status !== "resolved" && (
+            <Card className="p-4 mb-6 border-amber-200 bg-amber-50 dark:bg-amber-950">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Gavel className="w-5 h-5 text-amber-600" />
+                  <div>
+                    <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                      Admin Actions
+                    </span>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      You can settle this market when the outcome is known.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setShowSettleDialog(true)}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  <Gavel className="w-4 h-4 mr-1" />
+                  Settle Market
+                </Button>
+              </div>
+            </Card>
+          )}
+
         {/* Trade panel */}
         {market.status === "open" && (
           <Card className="p-4 mb-6">
@@ -549,6 +584,18 @@ export default function MarketPage({
         loadingHistory={loadingHistory}
         fetchTradeHistory={fetchTradeHistory}
       />
+
+      {market && (
+        <SettleDialog
+          market={market}
+          open={showSettleDialog}
+          onOpenChange={setShowSettleDialog}
+          onSettleSuccess={() => {
+            setShowSettleDialog(false);
+            refreshMarket();
+          }}
+        />
+      )}
     </>
   );
 }

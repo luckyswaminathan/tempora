@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     )
     cors_allow_origins: str = Field(default="*", alias="CORS_ALLOW_ORIGINS")
     starting_amount: int = Field(default="100000", alias="STARTING_AMOUNT")
+    settlement_deadline_hours: int = Field(default=24, alias="SETTLEMENT_DEADLINE_HOURS")
 
     model_config = SettingsConfigDict(
         env_file=(".env",),

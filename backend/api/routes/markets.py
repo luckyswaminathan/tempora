@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query
 
 from api import deps
 from schemas.market import (
@@ -11,8 +11,10 @@ from schemas.market import (
     MarketSettlementResponse,
     MarketMakerDashboard,
 )
+from schemas.workflow import SettlementTodoListResponse
 from schemas.user import UserBase
 from services.markets import MarketService
+from services.platform_time import PlatformTimeService
 
 router = APIRouter(prefix="/markets", tags=["markets"])
 
@@ -60,3 +62,17 @@ def get_market_maker_dashboard(
 ) -> MarketMakerDashboard:
     """Get market maker dashboard with P&L for all their markets."""
     return service.get_market_maker_dashboard(current_user.id)
+
+
+@router.get("/maker/todos", response_model=SettlementTodoListResponse)
+def get_settlement_todos(
+    include_settled: bool = Query(default=False),
+    current_user: UserBase = Depends(deps.get_current_market_maker),
+    platform_time_service: PlatformTimeService = Depends(
+        deps.get_platform_time_service
+    ),
+) -> SettlementTodoListResponse:
+    """Get settlement TODOs for the current market maker."""
+    return platform_time_service.get_settlement_todos_for_user(
+        current_user.id, include_settled=include_settled
+    )

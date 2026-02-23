@@ -121,7 +121,7 @@ export function SecurityPicker({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 security-picker">
       {config.showToggle && (
         <div className="flex gap-2">
           <Button

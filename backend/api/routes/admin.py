@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,8 +8,9 @@ from sqlalchemy.orm import Session
 from api import deps
 from core import models
 from core.models import UserRole
-from schemas.user import UserBase, UserProfile
-from schemas.proposal import ProposalListResponse
+from schemas.user import UserBase
+from schemas.workflow import ProposalListResponse
+from services.platform_time import PlatformTimeService
 from services.proposals import ProposalService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -138,3 +140,141 @@ def get_user_proposals(
 ) -> ProposalListResponse:
     """Get all proposals for a specific user (admin only)."""
     return service.get_my_proposals(user_id)
+
+
+class PlatformTimeResponse(BaseModel):
+    current_time: datetime
+    settlement_deadline_hours: int
+
+
+class SetTimeRequest(BaseModel):
+    current_time: datetime
+
+
+class AdvanceTimeRequest(BaseModel):
+    hours: int = 0
+    days: int = 0
+    minutes: int = 0
+
+
+class AdvanceTimeResponse(BaseModel):
+    previous_time: datetime
+    current_time: datetime
+    markets_closed: int
+
+
+class MarketSettlementItem(BaseModel):
+    id: str
+    question: str
+    category: str | None
+    status: str
+    resolution_date: datetime | None
+    created_at: datetime | None
+    creator_email: str | None
+    total_volume: int
+
+    class Config:
+        from_attributes = True
+
+
+class MarketsNeedingSettlementResponse(BaseModel):
+    markets: List[MarketSettlementItem]
+    count: int
+    platform_time: datetime
+
+
+@router.get(
+    "/markets/pending-settlement", response_model=MarketsNeedingSettlementResponse
+)
+def get_markets_needing_settlement(
+    current_user: UserBase = Depends(deps.get_current_admin),
+    pt_service: PlatformTimeService = Depends(deps.get_platform_time_service),
+    session: Session = Depends(deps.get_session),
+) -> MarketsNeedingSettlementResponse:
+    """Get all markets that need settlement (status = CLOSED) (admin only)."""
+    current_time = pt_service.get_current_time()
+
+    markets = (
+        session.query(models.Market)
+        .filter(models.Market.status == models.MarketStatus.CLOSED)
+        .order_by(models.Market.resolution_date.asc())
+        .all()
+    )
+
+    market_items = []
+    for market in markets:
+        creator = session.get(models.User, market.creator_id)
+        market_items.append(
+            MarketSettlementItem(
+                id=market.id,
+                question=market.question,
+                category=market.category,
+                status=(
+                    market.status.value
+                    if hasattr(market.status, "value")
+                    else market.status
+                ),
+                resolution_date=market.resolution_date,
+                created_at=market.created_at,
+                creator_email=creator.email if creator else None,
+                total_volume=market.total_volume or 0,
+            )
+        )
+
+    return MarketsNeedingSettlementResponse(
+        markets=market_items,
+        count=len(market_items),
+        platform_time=current_time,
+    )
+
+
+@router.get("/time", response_model=PlatformTimeResponse)
+def get_platform_time(
+    current_user: UserBase = Depends(deps.get_current_admin),
+    pt_service: PlatformTimeService = Depends(deps.get_platform_time_service),
+) -> PlatformTimeResponse:
+    """Get the current platform time (admin only)."""
+    from core.config import settings
+
+    current_time = pt_service.get_current_time()
+    return PlatformTimeResponse(
+        current_time=current_time,
+        settlement_deadline_hours=settings.settlement_deadline_hours,
+    )
+
+
+@router.post("/time", response_model=PlatformTimeResponse)
+def set_platform_time(
+    payload: SetTimeRequest,
+    current_user: UserBase = Depends(deps.get_current_admin),
+    pt_service: PlatformTimeService = Depends(deps.get_platform_time_service),
+) -> PlatformTimeResponse:
+    """Set the platform time to an absolute value (admin only)."""
+    from core.config import settings
+
+    new_time = pt_service.set_current_time(payload.current_time)
+    return PlatformTimeResponse(
+        current_time=new_time,
+        settlement_deadline_hours=settings.settlement_deadline_hours,
+    )
+
+
+@router.post("/time/advance", response_model=AdvanceTimeResponse)
+def advance_platform_time(
+    payload: AdvanceTimeRequest,
+    current_user: UserBase = Depends(deps.get_current_admin),
+    pt_service: PlatformTimeService = Depends(deps.get_platform_time_service),
+) -> AdvanceTimeResponse:
+    """Advance the platform time by a specified duration (admin only)."""
+    previous_time = pt_service.get_current_time()
+    new_time = pt_service.advance_time(
+        hours=payload.hours, days=payload.days, minutes=payload.minutes
+    )
+
+    markets_closed = pt_service.count_newly_closed_markets(previous_time, new_time)
+
+    return AdvanceTimeResponse(
+        previous_time=previous_time,
+        current_time=new_time,
+        markets_closed=markets_closed,
+    )

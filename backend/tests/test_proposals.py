@@ -13,7 +13,6 @@ Collateral rules for publishing:
 - Collateral is paid out at settlement
 """
 
-import pytest
 import sys
 from pathlib import Path
 
