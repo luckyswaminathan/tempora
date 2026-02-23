@@ -91,36 +91,32 @@ export function IntervalPicker({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Probability Distribution Chart */}
       <div className="space-y-3">
-        <div className="h-72">
+        <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={regularOutcomes.map((outcome, idx) => ({
                 name: outcome.outcome,
-                probability: outcome.probability * 100, // Convert to percentage
+                probability: outcome.probability * 100,
                 index: idx,
                 id: outcome.id,
               }))}
-              margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+              margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
             >
               <XAxis
                 dataKey="name"
                 angle={-45}
                 textAnchor="end"
-                height={80}
+                height={55}
                 interval={Math.max(0, Math.floor(regularOutcomes.length / 10))}
                 tick={{ fontSize: 10 }}
               />
               <YAxis
-                label={{
-                  value: "Probability (%)",
-                  angle: -90,
-                  position: "insideLeft",
-                  style: { textAnchor: "middle" },
-                }}
                 domain={[0, "auto"]}
+                width={42}
+                tick={{ fontSize: 10 }}
                 tickFormatter={(value) => `${value.toFixed(1)}%`}
               />
               <Tooltip

@@ -21,9 +21,21 @@ const Tabs = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
     defaultValue?: string;
+    value?: string;
+    onValueChange?: (value: string) => void;
   }
->(({ className, defaultValue = "create", ...props }, ref) => {
-  const [activeTab, setActiveTab] = React.useState(defaultValue);
+>(({ className, defaultValue = "", value, onValueChange, ...props }, ref) => {
+  const [internalTab, setInternalTab] = React.useState(defaultValue);
+  const isControlled = value !== undefined;
+  const activeTab = isControlled ? value : internalTab;
+
+  const setActiveTab = React.useCallback(
+    (v: string) => {
+      if (!isControlled) setInternalTab(v);
+      onValueChange?.(v);
+    },
+    [isControlled, onValueChange],
+  );
 
   return (
     <TabsContext.Provider value={{ activeTab, setActiveTab }}>
@@ -41,7 +53,7 @@ const TabsList = React.forwardRef<
 >(({ className = "", ...props }, ref) => (
   <div
     ref={ref}
-    className={`inline-flex h-10 items-center justify-center gap-0 ${className}`}
+    className={`flex gap-2 p-1 bg-muted rounded-lg w-fit ${className}`}
     {...props}
   />
 ));
@@ -57,10 +69,10 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
     return (
       <button
         ref={ref}
-        className={`relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+        className={`relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
           activeTab === value
-            ? "bg-background text-foreground shadow-md hover:shadow-lg"
-            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
         } ${className}`}
         onClick={() => setActiveTab(value)}
         {...props}

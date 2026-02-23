@@ -112,7 +112,10 @@ class MarketMakerMarket(BaseModel):
     status: MarketStatus
     resolution_date: UTCDateTime = Field(alias="resolutionDate")
     created_at: UTCDateTime = Field(alias="createdAt")
-    funding_collateral_cents: int = Field(alias="fundingCollateralCents")
+    initial_funding_cents: int = Field(
+        alias="initialFundingCents",
+        description="b·ln(N) worst-case net loss locked at market creation",
+    )
     revenue_cents: int = Field(alias="revenueCents")  # Total received from trades
     liability_cents: int = Field(
         alias="liabilityCents"
@@ -130,7 +133,10 @@ class MarketMakerDashboard(BaseModel):
     """Dashboard data for market makers."""
 
     markets: List[MarketMakerMarket]
-    total_funding_collateral_cents: int = Field(alias="totalFundingCollateralCents")
+    total_initial_funding_cents: int = Field(
+        alias="totalInitialFundingCents",
+        description="Sum of b·ln(N) across all markets",
+    )
     total_revenue_cents: int = Field(alias="totalRevenueCents")
     total_liability_cents: int = Field(alias="totalLiabilityCents")
     total_net_pnl_cents: int = Field(alias="totalNetPnlCents")

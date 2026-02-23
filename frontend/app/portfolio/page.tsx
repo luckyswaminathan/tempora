@@ -1,23 +1,79 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Calendar, Wallet } from "lucide-react";
-import { usersApi, type PortfolioSnapshot } from "@/lib/api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Wallet, Clock, Lock, History } from "lucide-react";
+import {
+  usersApi,
+  ordersApi,
+  type PortfolioSnapshot,
+  type OrderRecord,
+} from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
 import { useTutorial } from "@/hooks/useTutorial";
 import { UNDERSTANDING_PNL_STEPS } from "@/lib/tutorial-steps";
+import { PortfolioSummaryCards } from "@/components/portfolio-summary-cards";
+import { HoldingsTab } from "@/components/holdings-tab";
+import { OpenOrdersTab } from "@/components/open-orders-tab";
+import { CollateralTab } from "@/components/collateral-tab";
+import { HistoryTab } from "@/components/history-tab";
+import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
+import { OrderDetailSheet } from "@/components/order-detail-sheet";
+
+// Group holdings by market
+interface MarketGroup {
+  marketId: string;
+  question: string;
+  endDate: string;
+  holdings: PortfolioSnapshot["holdings"];
+  totalPnl: number;
+  totalCost: number;
+  totalValue: number;
+}
 
 export default function PortfolioPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [tradeHistory, setTradeHistory] = useState<
+    Record<string, OrderRecord[]>
+  >({});
+  const [loadingHistory, setLoadingHistory] = useState<Set<string>>(new Set());
+  const [selectedOutcome, setSelectedOutcome] = useState<{
+    marketId: string;
+    securityId: string;
+    holding: PortfolioSnapshot["holdings"][0];
+  } | null>(null);
+  const [activeTab, setActiveTab] = useState(
+    () => searchParams.get("tab") ?? "holdings",
+  );
+  const [pendingOrders, setPendingOrders] = useState<OrderRecord[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [allOrders, setAllOrders] = useState<OrderRecord[]>([]);
+  const [loadingAllOrders, setLoadingAllOrders] = useState(false);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+  const [collateralRefreshKey, setCollateralRefreshKey] = useState(0);
+  const tutorialStartedRef = useRef(false);
+
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      setActiveTab(tab);
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("tab", tab);
+      router.replace(`${pathname}?${params.toString()}`);
+    },
+    [pathname, router, searchParams],
+  );
 
   const pnlTutorial = useTutorial({
     steps: UNDERSTANDING_PNL_STEPS,
@@ -39,8 +95,14 @@ export default function PortfolioPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await usersApi.getPortfolio();
-        setPortfolio(data);
+        const [portfolioData, ordersData] = await Promise.all([
+          usersApi.getPortfolio(),
+          ordersApi.listOrders(),
+        ]);
+        setPortfolio(portfolioData);
+        setPendingOrders(
+          ordersData.items.filter((o) => !o.filled && !o.canceled),
+        );
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to load portfolio",
@@ -53,14 +115,139 @@ export default function PortfolioPage() {
     fetchPortfolio();
   }, [user]);
 
+  // Fetch all filled orders when History tab is active
   useEffect(() => {
-    if (mounted && !loading) {
+    async function fetchAllOrders() {
+      if (!user || activeTab !== "history") return;
+
+      try {
+        setLoadingAllOrders(true);
+        const response = await ordersApi.listOrders();
+        // Show all orders (filled, unfilled, canceled), sorted by creation date (most recent first)
+        const allOrders = response.items.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        setAllOrders(allOrders);
+      } catch (err) {
+        console.error("Failed to fetch order history:", err);
+      } finally {
+        setLoadingAllOrders(false);
+      }
+    }
+
+    fetchAllOrders();
+  }, [user, activeTab]);
+
+  // Callback to refresh orders after cancellation
+  const handleOrderCancelled = useCallback(() => {
+    if (user) {
+      setLoadingOrders(true);
+      Promise.all([ordersApi.listOrders(), usersApi.getPortfolio()])
+        .then(([ordersResponse, portfolioData]) => {
+          const pending = ordersResponse.items.filter(
+            (order) => !order.filled && !order.canceled,
+          );
+          setPendingOrders(pending);
+          setPortfolio(portfolioData);
+          setCollateralRefreshKey((k) => k + 1);
+        })
+        .catch((err) => console.error("Failed to refresh after cancel:", err))
+        .finally(() => setLoadingOrders(false));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (mounted && !loading && !tutorialStartedRef.current) {
       const tutorialMode = searchParams?.get("tutorial");
       if (tutorialMode === "understanding-pnl") {
+        tutorialStartedRef.current = true;
         pnlTutorial.start();
       }
     }
-  }, [mounted, searchParams, loading]);
+  }, [mounted, searchParams, loading, pnlTutorial]);
+
+  // Group holdings by market
+  const marketGroups = useMemo(() => {
+    if (!portfolio?.holdings) return [];
+
+    const groupMap = new Map<string, MarketGroup>();
+
+    for (const h of portfolio.holdings) {
+      const existing = groupMap.get(h.marketId);
+      if (existing) {
+        existing.holdings.push(h);
+        existing.totalPnl += h.pnl;
+        existing.totalCost += h.avgPriceCents * h.quantity;
+        existing.totalValue += h.markPriceCents * h.quantity;
+      } else {
+        groupMap.set(h.marketId, {
+          marketId: h.marketId,
+          question: h.question,
+          endDate: h.endDate,
+          holdings: [h],
+          totalPnl: h.pnl,
+          totalCost: h.avgPriceCents * h.quantity,
+          totalValue: h.markPriceCents * h.quantity,
+        });
+      }
+    }
+
+    return Array.from(groupMap.values());
+  }, [portfolio?.holdings]);
+
+  // Filter markets by search query
+  const filteredMarkets = useMemo(() => {
+    if (!searchQuery.trim()) return marketGroups;
+
+    const query = searchQuery.toLowerCase();
+    return marketGroups.filter(
+      (group) =>
+        group.question.toLowerCase().includes(query) ||
+        group.holdings.some((h) => h.outcome.toLowerCase().includes(query)),
+    );
+  }, [marketGroups, searchQuery]);
+
+  // Open outcome detail panel
+  const openOutcomeDetail = async (
+    holding: PortfolioSnapshot["holdings"][0],
+  ) => {
+    setSelectedOutcome({
+      marketId: holding.marketId,
+      securityId: holding.securityId,
+      holding,
+    });
+
+    // Fetch trade history if not already loaded
+    if (!tradeHistory[holding.marketId]) {
+      await fetchTradeHistory(holding.marketId);
+    }
+  };
+
+  // Fetch trade history for a market
+  const fetchTradeHistory = useCallback(async (marketId: string) => {
+    setLoadingHistory((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(marketId);
+      return newSet;
+    });
+
+    try {
+      const orders = await ordersApi.listOrders({ marketId });
+      setTradeHistory((prev) => ({
+        ...prev,
+        [marketId]: orders.items,
+      }));
+    } catch (err) {
+      console.error("Failed to fetch trade history:", err);
+    } finally {
+      setLoadingHistory((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(marketId);
+        return newSet;
+      });
+    }
+  }, []);
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
@@ -89,9 +276,7 @@ export default function PortfolioPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           {[...Array(4)].map((_, i) => (
-            <Card key={i} className="p-4">
-              <div className="h-16 bg-muted animate-pulse rounded" />
-            </Card>
+            <div key={i} className="h-16 bg-muted animate-pulse rounded" />
           ))}
         </div>
       </div>
@@ -120,8 +305,6 @@ export default function PortfolioPage() {
     );
   }
 
-  const summary = portfolio.summary;
-
   return (
     <div className="container mx-auto px-4 py-8">
       <TutorialOverlay
@@ -142,138 +325,102 @@ export default function PortfolioPage() {
         </p>
       </div>
 
-      <Card className="p-6 mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm text-muted-foreground mb-1">
-              Spendable Balance
-            </div>
-            <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">
-              ${(portfolio.spendableBalance / 100.0).toFixed(2)}
-            </div>
-            <div className="mt-2 text-sm text-muted-foreground space-y-1">
-              <div className="flex justify-between gap-4">
-                <span>Total wallet:</span>
-                <span className="font-mono">
-                  ${(portfolio.wallet / 100.0).toFixed(2)}
-                </span>
-              </div>
-              {portfolio.collateralLocked > 0 && (
-                <div className="flex justify-between gap-4 text-amber-600">
-                  <span>Collateral locked:</span>
-                  <span className="font-mono">
-                    -${(portfolio.collateralLocked / 100.0).toFixed(2)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full">
-            <Wallet className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-          </div>
-        </div>
-      </Card>
+      {/* Summary Cards */}
+      <PortfolioSummaryCards portfolio={portfolio} />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card id="pnl-cost-basis" className="p-4">
-          <div className="text-xs text-muted-foreground">Cost Basis</div>
-          <div className="text-2xl font-semibold">
-            ${(summary.costBasis / 100.0).toFixed(2)}
-          </div>
-        </Card>
-        <Card id="pnl-market-value" className="p-4">
-          <div className="text-xs text-muted-foreground">Market Value</div>
-          <div className="text-2xl font-semibold">
-            ${(summary.marketValue / 100.0).toFixed(2)}
-          </div>
-        </Card>
-        <Card id="pnl-unrealized" className="p-4">
-          <div className="text-xs text-muted-foreground">P&L</div>
-          <div
-            className={`text-2xl font-semibold ${
-              summary.unrealisedPnL >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            ${(summary.unrealisedPnL / 100.0).toFixed(2)}
-          </div>
-        </Card>
-        <Card id="pnl-roi" className="p-4">
-          <div className="text-xs text-muted-foreground">ROI</div>
-          <div
-            className={`text-2xl font-semibold ${
-              summary.roi >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            {summary.roi.toFixed(1)}%
-          </div>
-        </Card>
-      </div>
+      {/* Tabs for Holdings vs Open Orders vs Collateral */}
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
+        <TabsList className="mb-6">
+          <TabsTrigger value="holdings" className="gap-2">
+            <Wallet className="w-4 h-4" />
+            Holdings
+          </TabsTrigger>
+          <TabsTrigger value="orders" className="gap-2">
+            <Clock className="w-4 h-4" />
+            Open Orders
+            {pendingOrders.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                {pendingOrders.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="collateral" className="gap-2">
+            <Lock className="w-4 h-4" />
+            Collateral
+            {portfolio.collateralLocked > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                ${(portfolio.collateralLocked / 100).toFixed(0)}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="history" className="gap-2">
+            <History className="w-4 h-4" />
+            History
+          </TabsTrigger>
+        </TabsList>
 
-      {portfolio.holdings.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No open positions yet</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {portfolio.holdings.map((h) => {
-            const isUp = h.pnl >= 0;
-            return (
-              <Card key={`${h.marketId}:${h.securityId}`} className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="mb-1 font-medium leading-snug text-balance">
-                      {h.question}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="outline" className="font-mono">
-                        {h.outcome}
-                      </Badge>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {h.endDate}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div className="text-right">
-                      <div className="text-xs text-muted-foreground">
-                        Avg Price
-                      </div>
-                      <div className="font-semibold">
-                        {h.avgPriceCents.toFixed(2)}¢
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-muted-foreground">Qty</div>
-                      <div className="font-semibold">{h.quantity}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-muted-foreground">Mark</div>
-                      <div className="font-semibold">
-                        {h.markPriceCents.toFixed(2)}¢
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-muted-foreground">P&L</div>
-                      <div
-                        className={`font-semibold flex items-center justify-end gap-1 ${
-                          isUp ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {isUp ? (
-                          <TrendingUp className="w-4 h-4" />
-                        ) : (
-                          <TrendingDown className="w-4 h-4" />
-                        )}{" "}
-                        ${(h.pnl / 100.0).toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+        {/* Holdings Tab */}
+        <TabsContent value="holdings">
+          <HoldingsTab
+            filteredMarkets={filteredMarkets}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            openOutcomeDetail={openOutcomeDetail}
+          />
+        </TabsContent>
+
+        {/* Open Orders Tab */}
+        <TabsContent value="orders">
+          <OpenOrdersTab
+            pendingOrders={pendingOrders}
+            loadingOrders={loadingOrders}
+            onOrderCancelled={handleOrderCancelled}
+          />
+        </TabsContent>
+
+        {/* Collateral Tab */}
+        <TabsContent value="collateral">
+          <CollateralTab
+            totalCollateralLocked={portfolio.collateralLocked}
+            holdings={portfolio.holdings}
+            openOutcomeDetail={openOutcomeDetail}
+            refreshKey={collateralRefreshKey}
+            pendingOrders={pendingOrders}
+            openOrderDetail={(order) => setSelectedOrder(order)}
+          />
+        </TabsContent>
+
+        {/* History Tab */}
+        <TabsContent value="history">
+          <HistoryTab
+            orders={allOrders}
+            loading={loadingAllOrders}
+            searchQuery={historySearchQuery}
+            setSearchQuery={setHistorySearchQuery}
+            onOrderClick={(order) => setSelectedOrder(order)}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Outcome Detail Sheet */}
+      <OutcomeDetailSheet
+        selectedOutcome={selectedOutcome}
+        onClose={() => setSelectedOutcome(null)}
+        tradeHistory={tradeHistory}
+        loadingHistory={loadingHistory}
+        fetchTradeHistory={fetchTradeHistory}
+      />
+
+      {/* Order Detail Sheet (history tab) */}
+      <OrderDetailSheet
+        order={selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onOrderCancelled={handleOrderCancelled}
+      />
     </div>
   );
 }

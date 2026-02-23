@@ -1,10 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Users, Calendar, X, Pen, Gavel } from "lucide-react";
+import {
+  TrendingUp,
+  Users,
+  Calendar,
+  X,
+  Pen,
+  Gavel,
+  ExternalLink,
+} from "lucide-react";
 import { TradeDialog } from "@/components/trade-dialog";
 import { AuthDialog } from "@/components/auth-dialog";
 import { SecurityPicker, getUITypeConfig } from "@/components/security-picker";
@@ -164,7 +173,13 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
         </div>
 
         <h3 className="text-lg font-semibold mb-2 leading-snug text-balance line-clamp-2 h-14">
-          {market.question || "Untitled Market"}
+          <Link
+            href={`/market/${market.id}`}
+            className="group/link hover:underline inline-flex items-start gap-1"
+          >
+            {market.question || "Untitled Market"}
+            <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-0 group-hover/link:opacity-60 transition-opacity mt-1" />
+          </Link>
         </h3>
 
         {market.status === "resolved" && market.winningSecurityId && (
@@ -197,7 +212,8 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
                 Trading Closed
               </p>
               <p className="text-xs text-amber-700 mt-1">
-                No new trades can be placed. Existing positions remain until market is resolved.
+                No new trades can be placed. Existing positions remain until
+                market is resolved.
               </p>
             </div>
           </div>
@@ -213,7 +229,8 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
                 Trading Suspended
               </p>
               <p className="text-xs text-red-700 mt-1">
-                Trading is temporarily halted due to administrative review or technical issues.
+                Trading is temporarily halted due to administrative review or
+                technical issues.
               </p>
             </div>
           </div>
@@ -245,22 +262,22 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
           </div>
         )}
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t mt-auto">
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-4 border-t mt-auto gap-2">
           <div className="flex items-center gap-1">
             <TrendingUp className="w-3 h-3" />
             <span>${(market.totalVolume / 100).toFixed(0)} volume</span>
           </div>
-          {user?.role === "admin" && (
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowEditForm(true)}
-                className="h-8 px-2"
-              >
-                <Pen className="w-3 h-3" />
-              </Button>
-              {(market.status === "open" || market.status === "closed") && (
+          {user?.role === "admin" &&
+            (market.status === "open" || market.status === "closed") && (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowEditForm(true)}
+                  className="h-8 px-2"
+                >
+                  <Pen className="w-3 h-3" />
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -269,9 +286,8 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
                 >
                   <Gavel className="w-3 h-3" />
                 </Button>
-              )}
-            </div>
-          )}
+              </div>
+            )}
           <div className="flex items-center gap-1">
             <Users className="w-3 h-3" />
             <span>{Math.round(market.openInterest)} shares</span>

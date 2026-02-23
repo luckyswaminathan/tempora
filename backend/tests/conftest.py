@@ -115,7 +115,7 @@ def test_market(request, db_session, test_user) -> models.Market:
         liquidity_parameter=1000,
         ui_type="bars-ordered",
         creator_id=test_user.id,
-        funding_collateral_cents=0,
+        initial_funding_cents=0,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
@@ -216,7 +216,7 @@ def trade_market(request, db_session, market_maker_user) -> models.Market:
         liquidity_parameter=1000,
         ui_type="bars-ordered",
         creator_id=market_maker_user.id,  # Market maker creates it
-        funding_collateral_cents=0,
+        initial_funding_cents=0,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
@@ -483,6 +483,6 @@ def create_position(client, market_id, security_id, quantity):
         "marketId": market_id,
         "legs": [{"securityId": security_id, "quantity": quantity}],
     }
-    resp = client.post("/trades", json=payload)
+    resp = client.post("/orders", json=payload)
     assert resp.status_code == 201, f"Position setup failed: {resp.json()}"
     return resp.json()

@@ -8,12 +8,22 @@ from __future__ import annotations
 import random
 import sys
 from datetime import datetime, timedelta, timezone
+from math import log as math_log
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core import models  # noqa: E402
 from core.database import SessionLocal, init_db  # noqa: E402
+from utils.pricing import _lmsr_price_cents  # noqa: E402
+
+
+def _compute_initial_funding_cents(liquidity_parameter: float, n_outcomes: int) -> int:
+    """
+    LMSR worst-case market-maker loss = b * ln(n).
+    Returns that amount in cents (stored as initial_funding_cents on Market).
+    """
+    return round(100 * liquidity_parameter * math_log(n_outcomes))
 
 
 def seed_markets() -> None:
@@ -215,19 +225,21 @@ def seed_markets() -> None:
             },
         ]
 
-        # Get or create an admin user
+        from core.security import hash_password
+
+        # ---------------------------------------------------------------------------
+        # Admin user
+        # ---------------------------------------------------------------------------
         admin_user = (
             session.query(models.User)
             .filter(models.User.email == "admin@tempora.com")
             .first()
         )
         if not admin_user:
-            from core.security import hash_password
-
             admin_user = models.User(
                 email="admin@tempora.com",
                 role=models.UserRole.ADMIN,
-                password_hash=hash_password("admin123"),
+                password_hash=hash_password("admin12345"),
                 created_at=datetime.now(timezone.utc),
             )
             session.add(admin_user)
@@ -236,12 +248,85 @@ def seed_markets() -> None:
                 models.Profile(
                     id=admin_user.id,
                     display_name="Admin",
+                    # Large enough wallet to cover all seeded trades without needing
+                    # to be recalculated; real value will drift as trades are added.
+                    wallet=100_000_00,  # $100,000
                     joined_at=datetime.now(timezone.utc),
                 )
             )
             session.flush()
 
+        admin_profile = session.get(models.Profile, admin_user.id)
+
+        # ---------------------------------------------------------------------------
+        # Market-maker user
+        # ---------------------------------------------------------------------------
+        # Pre-compute total funding collateral so we can initialise the wallet.
+        def _count_outcomes(mkt: dict) -> int:
+            return len(mkt["securities"])
+
+        total_initial_funding = sum(
+            _compute_initial_funding_cents(
+                mkt["liquidity_parameter"], _count_outcomes(mkt)
+            )
+            for mkt in markets
+        )
+
+        mm_user = (
+            session.query(models.User)
+            .filter(models.User.email == "mm@tempora.com")
+            .first()
+        )
+        if not mm_user:
+            mm_user = models.User(
+                email="mm@tempora.com",
+                role=models.UserRole.MARKET_MAKER,
+                password_hash=hash_password("mm12345"),
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(mm_user)
+            session.flush()
+            session.add(
+                models.Profile(
+                    id=mm_user.id,
+                    display_name="Market Maker",
+                    wallet=10_000_00 + total_initial_funding,
+                    joined_at=datetime.now(timezone.utc),
+                )
+            )
+            session.flush()
+
+        mm_profile = session.get(models.Profile, mm_user.id)
+
+        # ---------------------------------------------------------------------------
+        # Markets
+        # ---------------------------------------------------------------------------
         for market in markets:
+            # Parse outcomes first so we know n (needed for funding collateral).
+            parsed_outcomes: list[dict] = []
+            for outcome in market["securities"]:
+                if isinstance(outcome, str):
+                    parsed_outcomes.append(
+                        {"outcome": outcome, "value": None, "is_catch_all": False}
+                    )
+                else:
+                    parsed_outcomes.append(dict(outcome))
+
+            # Auto-assign sequential numeric values when none are provided.
+            has_values = any(o["value"] is not None for o in parsed_outcomes)
+            if not has_values:
+                for i, outcome in enumerate(parsed_outcomes, start=1):
+                    if i < len(parsed_outcomes):
+                        outcome["value"] = float(i)
+                        outcome["is_catch_all"] = False
+                    else:
+                        outcome["value"] = 1e9
+                        outcome["is_catch_all"] = True
+
+            n_outcomes = len(parsed_outcomes)
+            b = market["liquidity_parameter"]
+            initial_funding_cents = _compute_initial_funding_cents(b, n_outcomes)
+
             m = models.Market(
                 question=market["question"],
                 category=market["category"],
@@ -249,39 +334,18 @@ def seed_markets() -> None:
                 resolution_date=market["resolution_date"],
                 status=market["status"],
                 tags=market["tags"],
-                liquidity_parameter=market["liquidity_parameter"],
+                liquidity_parameter=b,
                 ui_type=market["ui_type"],
-                creator_id=admin_user.id,  # For testing purposes
+                # Market is owned by the market-maker; their initial_funding_cents
+                # is locked adaptively against their wallet via get_user_collateral_locked().
+                creator_id=mm_user.id,
+                initial_funding_cents=initial_funding_cents,
             )
             session.add(m)
             session.flush()
 
-            securities = []
-            # Parse outcomes - can be strings or dicts with outcome and value
-            parsed_outcomes = []
-            for outcome in market["securities"]:
-                if isinstance(outcome, str):
-                    parsed_outcomes.append(
-                        {"outcome": outcome, "value": None, "is_catch_all": False}
-                    )
-                else:
-                    parsed_outcomes.append(outcome)
-
-            # Check if any outcomes have values
-            has_values = any(o["value"] is not None for o in parsed_outcomes)
-
-            # If no values provided, auto-assign sequential values
-            if not has_values:
-                for i, outcome in enumerate(parsed_outcomes, start=1):
-                    if i < len(parsed_outcomes):
-                        outcome["value"] = float(i)
-                        outcome["is_catch_all"] = False
-                    else:
-                        # Last outcome is catch-all (use 1e9 for sorting)
-                        outcome["value"] = 1e9
-                        outcome["is_catch_all"] = True
-
-            # Create securities with values
+            # Create security rows.
+            securities: list[models.Security] = []
             for outcome_data in parsed_outcomes:
                 sec = models.Security(
                     market_id=m.id,
@@ -294,30 +358,55 @@ def seed_markets() -> None:
                 securities.append(sec)
             session.flush()
 
-            # Add random initial trades to create varied probabilities
-            # Use different patterns for different markets
-            random.seed(m.id)  # Consistent randomness per market
+            # ------------------------------------------------------------------
+            # Seed initial trades using correct LMSR pricing.
+            #
+            # All legs are placed under a SINGLE order so that the history
+            # service (which records one probability point per completed order)
+            # produces exactly one history point after the full batch.  This
+            # avoids the chart artefact where early per-outcome orders
+            # temporarily depress the viewed security's probability.
+            # ------------------------------------------------------------------
+            quantities: dict[str, float] = {sec.id: 0.0 for sec in securities}
 
+            random.seed(m.id)  # Deterministic per market.
+
+            # Determine quantities first, then create one order for the batch.
+            legs: list[tuple[models.Security, int]] = []
             for i, sec in enumerate(securities):
-                # Generate quantities that vary but sum to reasonable totals
-                # Earlier outcomes get slightly higher quantities for variety
                 base_qty = random.randint(10, 50)
 
-                # Add some variation based on position
                 if "Later" in sec.outcome or "never" in sec.outcome:
-                    qty = random.randint(5, 20)  # Lower for "later/never"
+                    qty = random.randint(5, 20)
                 elif i < len(securities) // 3:
-                    qty = base_qty + random.randint(10, 30)  # Higher for early outcomes
+                    qty = base_qty + random.randint(10, 30)
                 elif i < 2 * len(securities) // 3:
-                    qty = base_qty  # Medium for middle
+                    qty = base_qty
                 else:
-                    qty = base_qty - random.randint(5, 15)  # Lower for late outcomes
+                    qty = max(1, base_qty - random.randint(5, 15))
 
-                # Create a trade with random price
-                price = random.randint(30, 70)  # Price in cents
+                legs.append((sec, qty))
+
+            # One order for all seeded trades in this market.
+            seed_order = models.Order(
+                user_id=admin_user.id,
+                market_id=m.id,
+                type=models.OrderType.MARKET,
+                legs=[{"security_id": sec.id, "quantity": qty} for sec, qty in legs],
+                filled=True,
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(seed_order)
+            session.flush()
+
+            total_price = 0
+            for sec, qty in legs:
+                # True LMSR cost for buying `qty` units given current state.
+                price = _lmsr_price_cents(quantities, {sec.id: float(qty)}, b)
+
                 trade = models.Trade(
+                    order_id=seed_order.id,
                     user_id=admin_user.id,
-                    market_id=m.id,
                     security_id=sec.id,
                     quantity=qty,
                     price_cents=price,
@@ -325,8 +414,21 @@ def seed_markets() -> None:
                 )
                 session.add(trade)
 
+                # Advance the LMSR state for subsequent legs.
+                quantities[sec.id] += float(qty)
+                total_price += price
+
+            # Keep wallet balances consistent: admin pays, market maker receives.
+            admin_profile.wallet -= total_price
+            mm_profile.wallet += total_price
+
         session.commit()
-        print(f"Seeded {len(markets)} markets with varied probabilities.")
+        print(
+            f"Seeded {len(markets)} markets.\n"
+            f"  Market-maker funding collateral: ${total_initial_funding / 100:,.2f}\n"
+            f"  Admin wallet after seeding:      ${admin_profile.wallet / 100:,.2f}\n"
+            f"  Market-maker wallet after seeding: ${mm_profile.wallet / 100:,.2f}"
+        )
     finally:
         session.close()
 

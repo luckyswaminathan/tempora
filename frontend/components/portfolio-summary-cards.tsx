@@ -1,0 +1,86 @@
+import { Card } from "@/components/ui/card";
+import { Wallet } from "lucide-react";
+import type { PortfolioSnapshot } from "@/lib/api";
+
+interface PortfolioSummaryCardsProps {
+  portfolio: PortfolioSnapshot;
+}
+
+export function PortfolioSummaryCards({
+  portfolio,
+}: PortfolioSummaryCardsProps) {
+  const summary = portfolio.summary;
+
+  return (
+    <>
+      {/* Main Spendable Balance Card */}
+      <Card className="p-6 mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-muted-foreground mb-1">
+              Spendable Balance
+            </div>
+            <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+              ${(portfolio.spendableBalance / 100.0).toFixed(2)}
+            </div>
+            <div className="mt-2 text-sm text-muted-foreground space-y-1">
+              <div className="flex justify-between gap-4">
+                <span>Total wallet:</span>
+                <span className="font-mono">
+                  ${(portfolio.wallet / 100.0).toFixed(2)}
+                </span>
+              </div>
+              {portfolio.collateralLocked > 0 && (
+                <div className="flex justify-between gap-4 text-amber-600">
+                  <span>Collateral locked:</span>
+                  <span className="font-mono">
+                    -${(portfolio.collateralLocked / 100.0).toFixed(2)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full">
+            <Wallet className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          </div>
+        </div>
+      </Card>
+
+      {/* 4 Summary Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <Card id="pnl-cost-basis" className="p-4">
+          <div className="text-xs text-muted-foreground">Cost Basis</div>
+          <div className="text-2xl font-semibold">
+            ${(summary.costBasis / 100.0).toFixed(2)}
+          </div>
+        </Card>
+        <Card id="pnl-market-value" className="p-4">
+          <div className="text-xs text-muted-foreground">Market Value</div>
+          <div className="text-2xl font-semibold">
+            ${(summary.marketValue / 100.0).toFixed(2)}
+          </div>
+        </Card>
+        <Card id="pnl-unrealized" className="p-4">
+          <div className="text-xs text-muted-foreground">P&L</div>
+          <div
+            className={`text-2xl font-semibold ${
+              summary.unrealisedPnL >= 0 ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            ${(summary.unrealisedPnL / 100.0).toFixed(2)}
+          </div>
+        </Card>
+        <Card id="pnl-roi" className="p-4">
+          <div className="text-xs text-muted-foreground">ROI</div>
+          <div
+            className={`text-2xl font-semibold ${
+              summary.roi >= 0 ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {summary.roi.toFixed(1)}%
+          </div>
+        </Card>
+      </div>
+    </>
+  );
+}

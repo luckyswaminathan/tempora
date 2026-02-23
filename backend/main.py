@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import admin, auth, markets, proposals, trades, users
+from api.routes import admin, auth, history, markets, orders, proposals, users
 from core.config import settings
 from core.database import init_db
 
@@ -26,7 +26,8 @@ def create_app() -> FastAPI:
     app.include_router(users.router)
     app.include_router(markets.router)
     app.include_router(proposals.router)
-    app.include_router(trades.router)
+    app.include_router(orders.router)
+    app.include_router(history.router)
 
     @app.on_event("startup")
     def _init_db() -> None:

@@ -210,41 +210,83 @@ export const marketsApi = {
   },
 };
 
-// Trades API
+// Orders API
+export type OrderType = "market" | "limit";
+
 export interface Leg {
   securityId: string;
   quantity: number;
 }
 
-export interface TradeCreate {
+export interface LegWithOutcome {
+  securityId: string;
+  outcome: string;
+  quantity: number;
+}
+
+export interface OrderCreateRequest {
   marketId: string;
   legs: Leg[];
+  // Advanced order options (optional - defaults to market order)
+  orderType?: OrderType;
+  // Max avg price for limit orders
+  limitPriceCents?: number;
 }
 
 export interface TradeRecord {
   id: string;
-  userId: string;
-  marketId: string;
-  tradeGroupId: string;
   securityId: string;
+  outcome: string;
   quantity: number;
   priceCents: number;
   createdAt: string;
 }
 
-export interface TradeListResponse {
-  items: TradeRecord[];
+interface _BaseOrderFields {
+  id: string;
+  userId: string;
+  marketId: string;
+  question: string;
+  collateralLockedCents?: number;
+  createdAt: string;
+  filled: boolean;
+  canceled: boolean;
+  legs: [LegWithOutcome, ...LegWithOutcome[]];
+  trades: TradeRecord[];
+  priceCents: number;
+}
+
+export interface MarketOrderRecord extends _BaseOrderFields {
+  type: "market";
+}
+
+export interface LimitOrderRecord extends _BaseOrderFields {
+  type: "limit";
+  limitPriceCents: number;
+}
+
+export type OrderRecord = MarketOrderRecord | LimitOrderRecord;
+
+export function isLimitOrder(order: OrderRecord): order is LimitOrderRecord {
+  return order.type === "limit";
+}
+
+export interface OrderListResponse {
+  items: OrderRecord[];
   count: number;
 }
 
-export interface TradePriceResponse {
+export interface OrderPlaceResponse {
+  orderId: string;
+  filled: boolean;
   priceCents: number;
-  pricedAt: string;
 }
 
-export interface TradePlaceResponse {
+export interface OrderPriceResponse {
   priceCents: number;
-  executedAt: string;
+  pricedAt: string;
+  /** Only present when called via the authenticated /price/me endpoint */
+  collateralRequiredCents?: number;
 }
 
 export interface ProbabilityHistData {
@@ -256,26 +298,42 @@ export interface ProbabilityHistResponse {
   history: ProbabilityHistData[];
 }
 
-export const tradesApi = {
-  async listTrades(params?: { marketId?: string }): Promise<TradeListResponse> {
+export const ordersApi = {
+  async listOrders(params?: { marketId?: string }): Promise<OrderListResponse> {
     const searchParams = new URLSearchParams();
     if (params?.marketId) searchParams.set("marketId", params.marketId);
 
     const query = searchParams.toString();
-    return fetchWithAuth(`/trades${query ? `?${query}` : ""}`);
+    return fetchWithAuth(`/orders${query ? `?${query}` : ""}`);
   },
 
-  async priceTrade(data: TradeCreate): Promise<TradePriceResponse> {
-    return fetchWithAuth("/trades/price", {
+  async priceOrder(data: OrderCreateRequest): Promise<OrderPriceResponse> {
+    return fetchWithAuth("/orders/price", {
       method: "POST",
       body: JSON.stringify(data),
     });
   },
 
-  async placeTrade(data: TradeCreate): Promise<TradePlaceResponse> {
-    return fetchWithAuth("/trades", {
+  /** Authenticated variant — also returns collateralRequiredCents for the current user. */
+  async priceOrderAuthenticated(
+    data: OrderCreateRequest,
+  ): Promise<OrderPriceResponse> {
+    return fetchWithAuth("/orders/price/me", {
       method: "POST",
       body: JSON.stringify(data),
+    });
+  },
+
+  async placeOrder(data: OrderCreateRequest): Promise<OrderPlaceResponse> {
+    return fetchWithAuth("/orders", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async cancelOrder(orderId: string): Promise<OrderRecord> {
+    return fetchWithAuth(`/orders/${orderId}/cancel`, {
+      method: "POST",
     });
   },
 };
@@ -330,6 +388,52 @@ export interface PortfolioSnapshot {
   };
 }
 
+export interface ShortPosition {
+  outcome: string;
+  quantity: number; // negative value
+}
+
+export interface MarketShortCollateral {
+  marketId: string;
+  question: string;
+  positions: ShortPosition[];
+  collateralCents: number; // max(abs(quantity)) * 100
+}
+
+export interface LimitOrderCollateral {
+  orderId: string;
+  marketId: string;
+  question: string;
+  collateralCents: number;
+  createdAt: string;
+}
+
+export interface MarketMakerCollateral {
+  marketId: string;
+  question: string;
+  /** b·ln(N) worst-case net loss set at market creation */
+  initialFundingCents: number;
+  /** Trade revenue already collected into wallet */
+  revenueCents: number;
+  /**
+   * initialFunding + revenue: total worst-case payout obligation.
+   * Grows when traders buy (revenue > 0); shrinks when traders sell back to the AMM
+   * (revenue < 0, reducing the AMM's payout exposure at resolution).
+   */
+  effectiveCollateralCents: number;
+  endDate: string;
+}
+
+export interface CollateralBreakdown {
+  totalLocked: number;
+  shortMarkets: MarketShortCollateral[];
+  totalShortCollateral: number;
+  limitOrders: LimitOrderCollateral[];
+  totalLimitOrderCollateral: number;
+  marketMakerMarkets: MarketMakerCollateral[];
+  totalMarketMakerCollateral: number;
+}
+
 export interface LeaderboardResponse {
   leaderboard: Array<{
     id: string;
@@ -350,6 +454,10 @@ export const usersApi = {
 
   async getPortfolio(): Promise<PortfolioSnapshot> {
     return fetchWithAuth("/users/me/portfolio");
+  },
+
+  async getCollateral(): Promise<CollateralBreakdown> {
+    return fetchWithAuth("/users/me/collateral");
   },
 
   async syncProfile(displayName: string): Promise<JSON> {
@@ -379,17 +487,20 @@ export const usersApi = {
     });
   },
 
-  async getProbabilityHistory(
-    securityId: string,
-  ): Promise<ProbabilityHistResponse> {
-    return fetchWithAuth(`/trades/probability/${securityId}`);
-  },
-
   async addFunds(amount: number): Promise<UserProfile> {
     return fetchWithAuth("/users/me/wallet/add-funds", {
       method: "POST",
       body: JSON.stringify({ amount }),
     });
+  },
+};
+
+// History API
+export const historyApi = {
+  async getProbabilityHistory(
+    securityId: string,
+  ): Promise<ProbabilityHistResponse> {
+    return fetchWithAuth(`/history/probability/${securityId}`);
   },
 };
 
@@ -515,7 +626,8 @@ export interface MarketMakerMarket {
   status: string;
   resolutionDate: string;
   createdAt: string;
-  fundingCollateralCents: number;
+  /** b·ln(N) worst-case net loss set at market creation */
+  initialFundingCents: number;
   revenueCents: number;
   liabilityCents: number;
   netPnlCents: number;
@@ -525,7 +637,7 @@ export interface MarketMakerMarket {
 
 export interface MarketMakerDashboard {
   markets: MarketMakerMarket[];
-  totalFundingCollateralCents: number;
+  totalInitialFundingCents: number;
   totalRevenueCents: number;
   totalLiabilityCents: number;
   totalNetPnlCents: number;

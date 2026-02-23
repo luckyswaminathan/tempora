@@ -11,7 +11,6 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
-    ForeignKeyConstraint,
     Integer,
     JSON,
     String,
@@ -61,6 +60,11 @@ class UserRole(StrEnum):
     ADMIN = "admin"
 
 
+class OrderType(StrEnum):
+    MARKET = "market"
+    LIMIT = "limit"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -80,7 +84,6 @@ class User(Base):
     profile: Mapped["Profile"] = relationship(
         back_populates="user", cascade="all, delete-orphan", uselist=False
     )
-    trades: Mapped[List["Trade"]] = relationship(back_populates="user", viewonly=True)
 
 
 class Profile(Base):
@@ -124,7 +127,7 @@ class Market(MarketBase, Base):
     status: Mapped[str] = mapped_column(
         Enum(MarketStatus), nullable=False, default=MarketStatus.OPEN
     )
-    funding_collateral_cents: Mapped[int] = mapped_column(
+    initial_funding_cents: Mapped[int] = mapped_column(
         Integer, default=0, nullable=False
     )
     winning_security_id: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -137,7 +140,6 @@ class Market(MarketBase, Base):
     securities: Mapped[List["Security"]] = relationship(
         back_populates="market", cascade="all, delete-orphan", viewonly=True
     )
-    trades: Mapped[List["Trade"]] = relationship(viewonly=True)
 
 
 class Security(Base):
@@ -199,11 +201,14 @@ class MarketProposal(MarketBase, Base):
     created_market: Mapped[Market | None] = relationship()
 
 
-class Trade(Base):
-    __tablename__ = "trades"
+class Order(Base):
+    __tablename__ = "orders"
 
     id: Mapped[str] = mapped_column(
         String, primary_key=True, default=lambda: str(uuid4())
+    )
+    type: Mapped[str] = mapped_column(
+        Enum(OrderType), nullable=False, default=OrderType.MARKET
     )
     user_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -211,23 +216,39 @@ class Trade(Base):
     market_id: Mapped[str] = mapped_column(
         String, ForeignKey("markets.id"), nullable=False, index=True
     )
-    trade_group_id: Mapped[str] = mapped_column(
-        String, nullable=False, default=lambda: str(uuid4())
+    legs: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    limit_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    collateral_locked_cents: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
     )
-    security_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    filled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    canceled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    user: Mapped[User] = relationship()
+    market: Mapped[Market] = relationship()
+    trades: Mapped[List["Trade"]] = relationship(back_populates="order", viewonly=True)
+
+
+class Trade(Base):
+    __tablename__ = "trades"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    order_id: Mapped[str] = mapped_column(
+        String, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    security_id: Mapped[str] = mapped_column(
+        String, ForeignKey("securities.id"), nullable=False, index=True
+    )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
-    user: Mapped[User] = relationship(back_populates="trades")
-    market: Mapped[Market] = relationship(viewonly=True)
+    order: Mapped[Order] = relationship(back_populates="trades")
+    user: Mapped[User] = relationship()
     security: Mapped[Security] = relationship(back_populates="trades")
-
-    __table_args__ = (
-        ForeignKeyConstraint(
-            ["market_id", "security_id"],
-            ["securities.market_id", "securities.id"],
-            ondelete="CASCADE",
-            name="fk_trades_security_in_market",
-        ),
-    )

@@ -16,7 +16,7 @@ from schemas.proposal import (
     ProposerInfo,
 )
 from services.markets import MarketService
-from services.trades import TradeService
+from utils.collateral import get_user_collateral_locked
 
 
 def calculate_max_loss_cents(liquidity_parameter: float, num_outcomes: int) -> int:
@@ -30,7 +30,6 @@ class ProposalService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.market_service = MarketService(self.session)
-        self.trade_service = TradeService(self.session)
 
     def create_proposal(self, proposer_id: str, payload: ProposalCreate) -> Proposal:
         """Create a new market proposal."""
@@ -166,29 +165,29 @@ class ProposalService:
                 detail="User profile not found",
             )
 
-        # Calculate the funding collateral (max loss = b * ln(N))
-        # This represents the worst-case loss for the market maker (the collateral they must have).
-        # The market maker does NOT pay this upfront - they only pay out during settlement.
+        # Calculate the initial funding (max loss = b * ln(N)).
+        # This is the worst-case net loss the market maker can incur.
+        # They do NOT pay it upfront; it is locked as collateral against their wallet
+        # and released adaptively as trade revenue accumulates.
         liquidity = proposal.liquidity_parameter or 100.0
         num_outcomes = len(proposal.outcomes)
-        funding_collateral_cents = calculate_max_loss_cents(liquidity, num_outcomes)
+        initial_funding_cents = calculate_max_loss_cents(liquidity, num_outcomes)
 
         # Calculate total collateral already locked (from short positions + other markets)
-        current_collateral_locked = self.trade_service._get_user_collateral_locked(
-            user_id
-        )
+        current_collateral_locked = get_user_collateral_locked(self.session, user_id)
+        spendable_balance = max(0, profile.wallet - current_collateral_locked)
 
         # Verify market maker has enough funds to cover worst-case loss plus existing collateral
-        total_collateral_required = current_collateral_locked + funding_collateral_cents
+        total_collateral_required = current_collateral_locked + initial_funding_cents
         if profile.wallet < total_collateral_required:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient funds to cover collateral requirements. Total required: ${total_collateral_required/100:.2f} (Current locked: ${current_collateral_locked/100:.2f} + New market: ${funding_collateral_cents/100:.2f}), Available: ${profile.wallet/100:.2f}",
+                detail=f"Insufficient funds to cover collateral requirements. Initial funding required for new market: ${initial_funding_cents/100:.2f}, Available: ${spendable_balance/100:.2f}",
             )
 
         # Create the actual market with creator info
         market = self.market_service.create_market(
-            proposal, user_id, funding_collateral_cents
+            proposal, user_id, initial_funding_cents
         )
         proposal.created_market_id = market.id
         proposal.status = ProposalStatus.LIVE
