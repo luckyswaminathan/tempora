@@ -92,6 +92,7 @@ class PortfolioService:
                         "markPriceCents": round(mark_price, 2),
                         "endDate": market.resolution_date.strftime("%b %d, %Y"),
                         "pnl": round(pnl),
+                        "category": market.category,
                     }
                 )
             )

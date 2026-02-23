@@ -13,6 +13,7 @@ class Holding(BaseModel):
     mark_price_cents: float = Field(alias="markPriceCents")
     end_date: str = Field(alias="endDate")
     pnl: int = Field(alias="pnl", description="pnl in cents")
+    category: str
 
     model_config = ConfigDict(populate_by_name=True)
 

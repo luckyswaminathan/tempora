@@ -10,9 +10,9 @@ async function fetchWithAuth<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const token = getAccessToken();
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {
@@ -107,11 +107,13 @@ export const authApi = {
 };
 
 // Markets API
+export type MarketStatus = "open" | "closed" | "resolved" | "suspended";
+
 export interface Market {
   id: string;
   question: string;
   category: string;
-  status: "open" | "closed" | "resolved" | "suspended";
+  status: MarketStatus;
   resolutionDate: string;
   createdAt: string;
   updatedAt: string;
@@ -164,7 +166,7 @@ export interface MarketUpdate {
   resolutionDate: string;
   description?: string;
   tags?: string[];
-  status?: "open" | "closed" | "suspended";
+  status?: Exclude<MarketStatus, "resolved">;
   securities: SecurityUpdate[];
 }
 
@@ -379,6 +381,7 @@ export interface PortfolioSnapshot {
     markPriceCents: number;
     endDate: string;
     pnl: number;
+    category: string;
   }>;
   summary: {
     costBasis: number;
@@ -492,6 +495,12 @@ export const usersApi = {
       method: "POST",
       body: JSON.stringify({ amount }),
     });
+  },
+
+  async getWalletHistory(
+    days: number = 30,
+  ): Promise<{ data: Array<{ t: string; v: number }> }> {
+    return fetchWithAuth(`/users/me/wallet-history?days=${days}`);
   },
 };
 

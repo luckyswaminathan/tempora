@@ -262,38 +262,6 @@ export default function ProfilePage() {
               </div>
               <Wallet className="w-8 h-8 text-muted-foreground" />
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-muted rounded-lg">
-                <div className="text-xs text-muted-foreground">
-                  Total Trades
-                </div>
-                <div className="text-xl font-semibold">
-                  {profile?.totalTrades || 0}
-                </div>
-              </div>
-              <div className="p-3 bg-muted rounded-lg">
-                <div className="text-xs text-muted-foreground">
-                  Open Positions
-                </div>
-                <div className="text-xl font-semibold">
-                  {profile?.openPositions || 0}
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 bg-muted rounded-lg">
-              <div className="text-xs text-muted-foreground">Realized P&L</div>
-              <div
-                className={`text-xl font-semibold ${
-                  (profile?.realisedPnL || 0) >= 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                ${(profile?.realisedPnL || 0).toFixed(2)}
-              </div>
-            </div>
           </div>
         </Card>
       </div>
