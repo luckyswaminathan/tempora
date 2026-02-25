@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, User } from "lucide-react";
+import { User } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { AuthDialog } from "@/components/auth-dialog";
 
@@ -17,8 +17,94 @@ export function Header() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-primary-foreground">
-                <TrendingUp className="w-6 h-6" />
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-foreground">
+                <svg
+                  viewBox="1 0.5 30 27"
+                  className="w-6 h-6"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <rect
+                    x="1.5"
+                    y="23.4"
+                    width="3"
+                    height="3.6"
+                    rx="0.8"
+                    fill="white"
+                    opacity="0.5"
+                  />
+                  <rect
+                    x="4.75"
+                    y="19.8"
+                    width="3"
+                    height="7.2"
+                    rx="0.8"
+                    fill="white"
+                    opacity="0.62"
+                  />
+                  <rect
+                    x="8.0"
+                    y="15"
+                    width="3"
+                    height="12"
+                    rx="0.8"
+                    fill="white"
+                    opacity="0.75"
+                  />
+                  <rect
+                    x="11.25"
+                    y="7.8"
+                    width="3"
+                    height="19.2"
+                    rx="0.8"
+                    fill="white"
+                    opacity="0.88"
+                  />
+                  <rect
+                    x="14.5"
+                    y="1"
+                    width="3"
+                    height="26"
+                    rx="0.8"
+                    fill="white"
+                    opacity="1"
+                  />
+                  <rect
+                    x="17.75"
+                    y="7.8"
+                    width="3"
+                    height="19.2"
+                    rx="0.8"
+                    fill="white"
+                    opacity="0.88"
+                  />
+                  <rect
+                    x="21.0"
+                    y="15"
+                    width="3"
+                    height="12"
+                    rx="0.8"
+                    fill="white"
+                    opacity="0.75"
+                  />
+                  <rect
+                    x="24.25"
+                    y="19.8"
+                    width="3"
+                    height="7.2"
+                    rx="0.8"
+                    fill="white"
+                    opacity="0.62"
+                  />
+                  <rect
+                    x="27.5"
+                    y="23.4"
+                    width="3"
+                    height="3.6"
+                    rx="0.8"
+                    fill="white"
+                    opacity="0.5"
+                  />
+                </svg>
               </div>
               <a
                 id="logo-tempora"

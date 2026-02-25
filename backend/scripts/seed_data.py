@@ -5,10 +5,9 @@ Seed the SQLite database with sample markets and securities.
 
 from __future__ import annotations
 
-import random
 import sys
 from datetime import datetime, timezone
-from math import log as math_log
+from math import log as math_log, exp as math_exp, sin as math_sin, pi as math_pi
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -592,66 +591,46 @@ def seed_markets() -> None:
                     ("2026-06-30", 1500),
                 ],
             ),
-            # Eggs: expects $4.50–$5.10, short extreme lows and highs
+            # Eggs: big peak (~$3.50) then big valley (~$6.50) – one full sine cycle
+            # across the entire $2.00–$8.00 interval for a dramatic peak-then-trough shape
             (
                 "dozen large eggs",
                 [
-                    ("$2.00", -1500),  # short – pre-inflation price, won't happen
-                    ("$2.10", -1500),
-                    ("$2.20", -1000),
-                    ("$4.30", 1500),
-                    ("$4.40", 2000),
-                    ("$4.50", 2500),
-                    ("$4.60", 3000),
-                    ("$4.70", 3500),
-                    ("$4.80", 3500),
-                    ("$4.90", 3000),
-                    ("$5.00", 2500),
-                    ("$5.10", 2000),
-                    ("$5.20", 1500),
-                    ("$7.50", -1500),  # short – extreme high
-                    ("$7.60", -1000),
+                    (
+                        f"${price / 100:.2f}",
+                        round(8000 * math_sin(2 * math_pi * (price / 100 - 2.0) / 6.0)),
+                    )
+                    for price in range(200, 801, 10)
                 ],
             ),
-            # CPI: expects 2.70–3.20%, short tails in both directions
+            # CPI: unimodal – dense Gaussian bell centred at 3.00%, σ ≈ 0.4%
+            # Every outcome is traded so the curve is perfectly smooth
             (
                 "CPI year-over-year",
                 [
-                    ("0.50%", -1500),  # short extreme low tail
-                    ("0.60%", -1500),
-                    ("0.70%", -1000),
-                    ("2.50%", 1500),
-                    ("2.60%", 2000),
-                    ("2.70%", 2500),
-                    ("2.80%", 3000),
-                    ("2.90%", 3000),
-                    ("3.00%", 3000),
-                    ("3.10%", 2500),
-                    ("3.20%", 2000),
-                    ("3.30%", 1500),
-                    ("5.50%", -1500),  # short extreme high tail
-                    ("5.60%", -1000),
-                    ("5.70%", -1000),
+                    (
+                        f"{rate / 100:.2f}%",
+                        round(12000 * math_exp(-0.5 * ((rate / 100 - 3.0) / 0.4) ** 2)),
+                    )
+                    for rate in range(50, 601, 10)
                 ],
             ),
-            # Continental US record high: expects 120–128°F, short low end
+            # Continental US record high: 3 Gaussian peaks at ~114°F, ~122°F, ~130°F
+            # Amplitudes scaled to b=90k so peaks are clearly visible; heights are
+            # deliberately different (small ~5k, tall ~35k, medium ~20k) with negative valleys
             (
                 "continental US during summer",
                 [
-                    ("110°F", -2000),  # short – too low for summer record
-                    ("111°F", -2000),
-                    ("112°F", -1500),
-                    ("113°F", -1000),
-                    ("119°F", 1500),
-                    ("120°F", 2000),
-                    ("121°F", 2500),
-                    ("122°F", 3000),
-                    ("123°F", 3000),
-                    ("124°F", 3000),
-                    ("125°F", 2500),
-                    ("126°F", 2000),
-                    ("127°F", 1500),
-                    ("128°F", 1500),
+                    (
+                        f"{temp}°F",
+                        round(
+                            20000 * math_exp(-0.5 * ((temp - 114) / 2.0) ** 2)
+                            + 50000 * math_exp(-0.5 * ((temp - 122) / 2.0) ** 2)
+                            + 35000 * math_exp(-0.5 * ((temp - 130) / 2.0) ** 2)
+                            - 15000
+                        ),
+                    )
+                    for temp in range(110, 136)
                 ],
             ),
         ]
