@@ -7,17 +7,35 @@ from schemas.proposal import (
     Proposal,
     ProposalCreate,
     ProposalListResponse,
+    ProposalQuote,
     ProposalReview,
 )
 from schemas.user import UserBase
-from services.proposals import ProposalService
+from services.proposals import ProposalService, calculate_max_loss_cents
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
 
-def get_proposal_service(session: Session = Depends(deps.get_session)) -> ProposalService:
+def get_proposal_service(
+    session: Session = Depends(deps.get_session),
+) -> ProposalService:
     return ProposalService(session)
+
+
+@router.get("/quote", response_model=ProposalQuote)
+def get_proposal_quote(
+    liquidity_parameter: float = Query(..., alias="liquidityParameter", gt=0),
+    num_outcomes: int = Query(..., alias="numOutcomes", ge=2),
+    current_user: UserBase = Depends(deps.get_current_market_maker),
+) -> ProposalQuote:
+    """Return the initial funding cost for a market with the given parameters."""
+    funding_cents = calculate_max_loss_cents(liquidity_parameter, num_outcomes)
+    return ProposalQuote(
+        liquidityParameter=liquidity_parameter,
+        numOutcomes=num_outcomes,
+        initialFundingCents=funding_cents,
+    )
 
 
 @router.post("", response_model=Proposal, status_code=status.HTTP_201_CREATED)
@@ -82,4 +100,3 @@ def publish_proposal(
 ) -> Proposal:
     """Publish an approved proposal to make it a live market (market maker only)."""
     return service.publish_proposal(proposal_id, current_user.id)
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,7 @@ interface FormConfig {
   intervalMax: string;
   intervalStep: string;
   intervalUnit: string;
+  discreteMode: boolean;
   includeLowerBound: boolean;
   lowerBoundLabel: string;
   includeUpperBound: boolean;
@@ -85,12 +86,13 @@ export function MarketCreateForm({
     intervalMax: "",
     intervalStep: "",
     intervalUnit: "",
+    discreteMode: true,
     includeLowerBound: false,
     lowerBoundLabel: "Below",
     includeUpperBound: false,
     upperBoundLabel: "Above",
     includeCatchAll: true,
-    catchAllLabel: "Later or never",
+    catchAllLabel: "None of the above",
   });
 
   // Calendar navigation state
@@ -101,6 +103,10 @@ export function MarketCreateForm({
   const [currentYear, setCurrentYear] = useState(() =>
     new Date().getFullYear(),
   );
+
+  // Live collateral quote
+  const [quote, setQuote] = useState<number | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
 
   // Generate outcomes from calendar config
   const generateOutcomes = (): {
@@ -119,10 +125,12 @@ export function MarketCreateForm({
       const unit = formConfig.intervalUnit;
 
       if (!isNaN(min) && !isNaN(max) && !isNaN(step) && step > 0 && max > min) {
+        const unitStr = unit ? ` ${unit}` : "";
+
         // Add lower bound if enabled
         if (formConfig.includeLowerBound) {
           outcomes.push({
-            text: `${formConfig.lowerBoundLabel} ${min}${unit}`,
+            text: `${formConfig.lowerBoundLabel} ${min}${unitStr}`,
             isCatchAll: false,
             value: min - step, // Value below minimum
           });
@@ -131,8 +139,11 @@ export function MarketCreateForm({
         // Generate interval outcomes
         for (let i = min; i < max; i += step) {
           const rangeEnd = Math.min(i + step, max);
+          const label = formConfig.discreteMode
+            ? `${i}${unitStr}`
+            : `${i}-${rangeEnd}${unitStr}`;
           outcomes.push({
-            text: `${i}-${rangeEnd}${unit}`,
+            text: label,
             isCatchAll: false,
             value: i, // Use start of interval as the value
           });
@@ -141,7 +152,7 @@ export function MarketCreateForm({
         // Add upper bound if enabled
         if (formConfig.includeUpperBound) {
           outcomes.push({
-            text: `${formConfig.upperBoundLabel} ${max}${unit}`,
+            text: `${formConfig.upperBoundLabel} ${max}${unitStr}`,
             isCatchAll: false,
             value: max, // Value at or above maximum
           });
@@ -608,6 +619,33 @@ export function MarketCreateForm({
   const previewOutcomes =
     formData.uiType !== "bars-ordered" ? generateOutcomes() : [];
 
+  const effectiveOutcomeCount =
+    formData.uiType === "bars-ordered"
+      ? formData.outcomes.filter((o) => o.text.trim()).length
+      : previewOutcomes.length;
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const b = parseInt(formData.liquidityParameter);
+    if (!b || b <= 0 || effectiveOutcomeCount < 2) {
+      setQuote(null);
+      setQuoteLoading(false);
+      return;
+    }
+    setQuoteLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const result = await proposalsApi.getQuote(b, effectiveOutcomeCount);
+        setQuote(result.initialFundingCents);
+      } catch {
+        setQuote(null);
+      } finally {
+        setQuoteLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [formData.liquidityParameter, effectiveOutcomeCount]);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6 sm:max-w-2xl">
       {/* Question */}
@@ -807,6 +845,23 @@ export function MarketCreateForm({
                 }
               />
             </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="discreteMode"
+                checked={formConfig.discreteMode}
+                onChange={(e) =>
+                  setFormConfig({
+                    ...formConfig,
+                    discreteMode: e.target.checked,
+                  })
+                }
+                className="w-4 h-4"
+              />
+              <Label htmlFor="discreteMode" className="cursor-pointer">
+                Discrete mode (show single values instead of ranges)
+              </Label>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -1003,6 +1058,17 @@ export function MarketCreateForm({
             setFormData({ ...formData, liquidityParameter: e.target.value })
           }
         />
+        {quoteLoading && (
+          <p className="text-sm text-muted-foreground">Calculating cost…</p>
+        )}
+        {!quoteLoading && quote !== null && (
+          <p className="text-sm text-muted-foreground">
+            Initial funding required:{" "}
+            <span className="font-semibold text-foreground">
+              ${(quote / 100).toFixed(2)}
+            </span>
+          </p>
+        )}
       </div>
 
       <Button

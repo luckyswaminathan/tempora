@@ -44,6 +44,9 @@ export default function MarketMakingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [proposalQuotes, setProposalQuotes] = useState<Record<string, number>>(
+    {},
+  );
 
   useEffect(() => {
     if (!authLoading && !(profile?.role === "market_maker")) {
@@ -56,6 +59,29 @@ export default function MarketMakingPage() {
       setLoading(true);
       const response = await proposalsApi.getMyProposals();
       setProposals(response.proposals);
+
+      // Fetch collateral quotes for approved proposals
+      const approved = response.proposals.filter(
+        (p) => p.status === "approved" && p.liquidityParameter,
+      );
+      const entries = await Promise.all(
+        approved.map(async (p) => {
+          try {
+            const q = await proposalsApi.getQuote(
+              p.liquidityParameter!,
+              p.outcomes.length,
+            );
+            return [p.id, q.initialFundingCents] as [string, number];
+          } catch {
+            return null;
+          }
+        }),
+      );
+      const quotes: Record<string, number> = {};
+      entries.forEach((e) => {
+        if (e) quotes[e[0]] = e[1];
+      });
+      setProposalQuotes(quotes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load proposals");
     } finally {
@@ -545,6 +571,16 @@ export default function MarketMakingPage() {
                         <span className="text-xs text-muted-foreground">
                           {new Date(proposal.createdAt).toLocaleDateString()}
                         </span>
+                        {proposal.status === "approved" &&
+                          proposalQuotes[proposal.id] != null && (
+                            <p className="text-xs text-muted-foreground text-right">
+                              Collateral needed:{" "}
+                              <span className="font-semibold text-foreground">
+                                $
+                                {(proposalQuotes[proposal.id] / 100).toFixed(2)}
+                              </span>
+                            </p>
+                          )}
                         {proposal.status === "approved" && (
                           <Button
                             size="sm"

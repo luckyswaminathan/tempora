@@ -40,3 +40,13 @@ class Proposal(MarketBase):
 class ProposalListResponse(BaseModel):
     proposals: List[Proposal]
     count: int
+
+
+class ProposalQuote(BaseModel):
+    """Cost estimate for creating a market with given parameters."""
+
+    liquidity_parameter: float = Field(alias="liquidityParameter")
+    num_outcomes: int = Field(alias="numOutcomes")
+    initial_funding_cents: int = Field(alias="initialFundingCents")
+
+    model_config = ConfigDict(populate_by_name=True)

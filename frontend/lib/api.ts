@@ -578,6 +578,12 @@ export interface ProposalListResponse {
   count: number;
 }
 
+export interface ProposalQuote {
+  liquidityParameter: number;
+  numOutcomes: number;
+  initialFundingCents: number;
+}
+
 export interface ProposalCreate {
   question: string;
   category: string;
@@ -625,6 +631,15 @@ export const proposalsApi = {
     return fetchWithAuth(`/proposals/${proposalId}/publish`, {
       method: "POST",
     });
+  },
+
+  async getQuote(
+    liquidityParameter: number,
+    numOutcomes: number,
+  ): Promise<ProposalQuote> {
+    return fetchWithAuth(
+      `/proposals/quote?liquidityParameter=${liquidityParameter}&numOutcomes=${numOutcomes}`,
+    );
   },
 };
 
