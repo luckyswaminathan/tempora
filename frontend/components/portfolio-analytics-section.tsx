@@ -161,6 +161,7 @@ export function PortfolioAnalyticsSection({
               <div className="flex justify-center items-center">
                 <PieChart width={120} height={120}>
                   <Pie
+                    key={categoryData.map((d) => d.name).join(",")}
                     data={categoryData}
                     cx={55}
                     cy={55}

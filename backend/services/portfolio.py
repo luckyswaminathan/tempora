@@ -60,6 +60,8 @@ class PortfolioService:
         market_value = 0.0
 
         for (market_id, security_id), metrics in metrics_by_security.items():
+            if metrics["quantity"] == 0:
+                continue
             market = self.market_service.get_market(market_id)
             security = self.market_service.get_security(security_id)
 
