@@ -360,7 +360,7 @@ class TestProposalPublishing:
         assert resp.status_code == 200
 
         data = resp.json()
-        assert data["status"] == "live"
+        assert data["status"] == "published"
         assert "createdMarketId" in data
 
     def test_cannot_publish_pending_proposal(self, market_maker_client):

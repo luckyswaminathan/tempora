@@ -362,6 +362,7 @@ class MarketService:
         total_initial_funding = 0
         total_revenue = 0
         total_liability = 0
+        total_net_pnl = 0
 
         for market in markets:
             # Get all trades for this market
@@ -375,27 +376,23 @@ class MarketService:
             # Calculate revenue from trades (sum of all trade prices)
             revenue = sum(t.price_cents for t in market_trades)
 
-            # Calculate current liability (potential payout)
-            # For each security, liability = 100 cents * quantity held by traders
-            liability = 0
-            for security in market.securities:
-                security_quantity = sum(
-                    t.quantity for t in market_trades if t.security_id == security.id
-                )
-                # Each share pays out 100 cents if it wins
-                liability = max(liability, security_quantity * 100)
-
-            # If market is resolved, actual P&L is known
+            # Calculate net P&L (for resolved markets) and liability (for unresolved markets)
+            net_pnl, liability = 0, 0
             if market.status == models.MarketStatus.RESOLVED:
-                # Find winning security trades
                 winning_payout = 0
                 for t in market_trades:
                     if t.security_id == market.winning_security_id:
                         winning_payout += t.quantity * 100
                 net_pnl = revenue - winning_payout
             else:
-                # Unrealized P&L: revenue minus max potential liability
-                net_pnl = revenue - liability
+                for security in market.securities:
+                    security_quantity = sum(
+                        t.quantity
+                        for t in market_trades
+                        if t.security_id == security.id
+                    )
+                    # Each share pays out 100 cents if it wins
+                    liability = max(liability, security_quantity * 100)
 
             market_data.append(
                 MarketMakerMarket(
@@ -417,8 +414,7 @@ class MarketService:
             total_initial_funding += market.initial_funding_cents or 0
             total_revenue += revenue
             total_liability += liability
-
-        total_net_pnl = sum(m.net_pnl_cents for m in market_data)
+            total_net_pnl += net_pnl
 
         return MarketMakerDashboard(
             markets=market_data,

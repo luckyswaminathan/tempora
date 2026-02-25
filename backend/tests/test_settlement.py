@@ -21,7 +21,6 @@ Note: Trading in these tests assumes test_trades.py passes and uses trading
       only to establish positions before testing settlement behavior.
 """
 
-import pytest
 from conftest import (
     create_and_publish_market,
     create_position,

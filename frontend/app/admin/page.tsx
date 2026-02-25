@@ -352,10 +352,10 @@ export default function AdminDashboard() {
                               Ready to Publish
                             </Badge>
                           )}
-                          {proposal.status === "live" && (
+                          {proposal.status === "published" && (
                             <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                               <Zap className="w-3 h-3 mr-1" />
-                              Live
+                              Published
                             </Badge>
                           )}
                           {proposal.status === "rejected" && (
@@ -826,10 +826,10 @@ export default function AdminDashboard() {
                                         Ready to Publish
                                       </Badge>
                                     )}
-                                    {proposal.status === "live" && (
+                                    {proposal.status === "published" && (
                                       <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
                                         <Zap className="w-3 h-3 mr-1" />
-                                        Live
+                                        Published
                                       </Badge>
                                     )}
                                     {proposal.status === "rejected" && (

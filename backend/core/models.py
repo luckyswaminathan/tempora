@@ -51,7 +51,7 @@ class ProposalStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
-    LIVE = "live"
+    PUBLISHED = "published"
 
 
 class UserRole(StrEnum):

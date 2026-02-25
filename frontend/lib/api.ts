@@ -564,7 +564,7 @@ export interface Proposal {
   tags: string[];
   liquidityParameter?: number;
   uiType: string;
-  status: "pending" | "approved" | "rejected" | "live";
+  status: "pending" | "approved" | "rejected" | "published";
   reviewerId?: string;
   reviewNote?: string;
   reviewedAt?: string;

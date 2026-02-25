@@ -155,11 +155,11 @@ export default function MarketMakingPage() {
             Rejected
           </Badge>
         );
-      case "live":
+      case "published":
         return (
           <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
             <Zap className="w-3 h-3 mr-1" />
-            Live
+            Published
           </Badge>
         );
     }
@@ -167,7 +167,7 @@ export default function MarketMakingPage() {
 
   const pendingCount = proposals.filter((p) => p.status === "pending").length;
   const approvedCount = proposals.filter((p) => p.status === "approved").length;
-  const liveCount = proposals.filter((p) => p.status === "live").length;
+  const liveCount = proposals.filter((p) => p.status === "published").length;
   const rejectedCount = proposals.filter((p) => p.status === "rejected").length;
 
   if (authLoading || !(profile?.role === "market_maker")) {
@@ -234,7 +234,7 @@ export default function MarketMakingPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Live
+                  Published
                 </p>
                 <p className="text-2xl font-bold mt-1">{liveCount}</p>
               </div>
@@ -326,7 +326,7 @@ export default function MarketMakingPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-muted-foreground">
-                            Max Liability
+                            Total Liability
                           </p>
                           <p className="text-2xl font-bold mt-1 text-amber-600">
                             ${(dashboard.totalLiabilityCents / 100).toFixed(2)}
@@ -417,25 +417,33 @@ export default function MarketMakingPage() {
                                     ${(market.revenueCents / 100).toFixed(2)}
                                   </p>
                                 </div>
-                                <div>
-                                  <p className="text-muted-foreground">
-                                    Liability
-                                  </p>
-                                  <p className="font-medium text-amber-600">
-                                    ${(market.liabilityCents / 100).toFixed(2)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">
-                                    Net P&L
-                                  </p>
-                                  <p
-                                    className={`font-medium ${market.netPnlCents >= 0 ? "text-emerald-600" : "text-red-600"}`}
-                                  >
-                                    {market.netPnlCents >= 0 ? "+" : ""}$
-                                    {(market.netPnlCents / 100).toFixed(2)}
-                                  </p>
-                                </div>
+                                {market.status !== "resolved" ? (
+                                  <div>
+                                    <p className="text-muted-foreground">
+                                      Max Liability
+                                    </p>
+                                    <p className="font-medium text-amber-600">
+                                      $
+                                      {(market.liabilityCents / 100).toFixed(2)}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <p className="text-muted-foreground">
+                                      Net P&L
+                                    </p>
+                                    <p
+                                      className={`font-medium ${
+                                        market.netPnlCents >= 0
+                                          ? "text-emerald-600"
+                                          : "text-red-600"
+                                      }`}
+                                    >
+                                      {market.netPnlCents >= 0 ? "+" : ""}$
+                                      {(market.netPnlCents / 100).toFixed(2)}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="text-right shrink-0">
@@ -598,7 +606,7 @@ export default function MarketMakingPage() {
                             )}
                           </Button>
                         )}
-                        {proposal.status === "live" &&
+                        {proposal.status === "published" &&
                           proposal.createdMarketId && (
                             <Button
                               variant="outline"

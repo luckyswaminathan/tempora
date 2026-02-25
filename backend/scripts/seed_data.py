@@ -431,7 +431,7 @@ def seed_markets() -> None:
                 models.Profile(
                     id=trader_user.id,
                     display_name="Trader",
-                    wallet=30_000_00,  # $30,000 – covers longs and collateral for shorts
+                    wallet=75_000_00,
                     joined_at=datetime.now(timezone.utc),
                 )
             )
