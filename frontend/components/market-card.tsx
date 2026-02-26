@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { categoryColor } from "@/lib/utils";
 import {
   TrendingUp,
   Users,
@@ -163,7 +164,11 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
         )}
 
         <div className="flex items-start justify-between mb-4">
-          <Badge variant="secondary" className="text-xs">
+          <Badge
+            variant="secondary"
+            className="text-xs text-white"
+            style={{ backgroundColor: categoryColor(market.category || "") }}
+          >
             {market.category || "Uncategorized"}
           </Badge>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">

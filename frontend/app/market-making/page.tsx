@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { categoryColor } from "@/lib/utils";
 import {
   Plus,
   FileText,
@@ -390,7 +391,14 @@ export default function MarketMakingPage() {
                                     ? "Resolved"
                                     : "Live"}
                                 </Badge>
-                                <Badge variant="outline">
+                                <Badge
+                                  className="text-xs text-white"
+                                  style={{
+                                    backgroundColor: categoryColor(
+                                      market.category,
+                                    ),
+                                  }}
+                                >
                                   {market.category}
                                 </Badge>
                               </div>
@@ -535,7 +543,12 @@ export default function MarketMakingPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
                           {getStatusBadge(proposal.status)}
-                          <Badge variant="outline" className="text-xs">
+                          <Badge
+                            className="text-xs text-white"
+                            style={{
+                              backgroundColor: categoryColor(proposal.category),
+                            }}
+                          >
                             {proposal.category}
                           </Badge>
                         </div>
@@ -582,7 +595,7 @@ export default function MarketMakingPage() {
                         {proposal.status === "approved" &&
                           proposalQuotes[proposal.id] != null && (
                             <p className="text-xs text-muted-foreground text-right">
-                              Collateral needed:{" "}
+                              Funding required:{" "}
                               <span className="font-semibold text-foreground">
                                 $
                                 {(proposalQuotes[proposal.id] / 100).toFixed(2)}
