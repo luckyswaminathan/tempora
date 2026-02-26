@@ -190,7 +190,7 @@ class ProposalService:
             proposal, user_id, initial_funding_cents
         )
         proposal.created_market_id = market.id
-        proposal.status = ProposalStatus.LIVE
+        proposal.status = ProposalStatus.PUBLISHED
 
         self.session.commit()
         self.session.refresh(proposal)

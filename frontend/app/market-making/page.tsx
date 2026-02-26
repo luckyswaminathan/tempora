@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { categoryColor } from "@/lib/utils";
 import {
   Plus,
   FileText,
@@ -44,6 +45,9 @@ export default function MarketMakingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [proposalQuotes, setProposalQuotes] = useState<Record<string, number>>(
+    {},
+  );
 
   useEffect(() => {
     if (!authLoading && !(profile?.role === "market_maker")) {
@@ -56,6 +60,29 @@ export default function MarketMakingPage() {
       setLoading(true);
       const response = await proposalsApi.getMyProposals();
       setProposals(response.proposals);
+
+      // Fetch collateral quotes for approved proposals
+      const approved = response.proposals.filter(
+        (p) => p.status === "approved" && p.liquidityParameter,
+      );
+      const entries = await Promise.all(
+        approved.map(async (p) => {
+          try {
+            const q = await proposalsApi.getQuote(
+              p.liquidityParameter!,
+              p.outcomes.length,
+            );
+            return [p.id, q.initialFundingCents] as [string, number];
+          } catch {
+            return null;
+          }
+        }),
+      );
+      const quotes: Record<string, number> = {};
+      entries.forEach((e) => {
+        if (e) quotes[e[0]] = e[1];
+      });
+      setProposalQuotes(quotes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load proposals");
     } finally {
@@ -129,11 +156,11 @@ export default function MarketMakingPage() {
             Rejected
           </Badge>
         );
-      case "live":
+      case "published":
         return (
           <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
             <Zap className="w-3 h-3 mr-1" />
-            Live
+            Published
           </Badge>
         );
     }
@@ -141,7 +168,7 @@ export default function MarketMakingPage() {
 
   const pendingCount = proposals.filter((p) => p.status === "pending").length;
   const approvedCount = proposals.filter((p) => p.status === "approved").length;
-  const liveCount = proposals.filter((p) => p.status === "live").length;
+  const liveCount = proposals.filter((p) => p.status === "published").length;
   const rejectedCount = proposals.filter((p) => p.status === "rejected").length;
 
   if (authLoading || !(profile?.role === "market_maker")) {
@@ -208,7 +235,7 @@ export default function MarketMakingPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Live
+                  Published
                 </p>
                 <p className="text-2xl font-bold mt-1">{liveCount}</p>
               </div>
@@ -300,7 +327,7 @@ export default function MarketMakingPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-muted-foreground">
-                            Max Liability
+                            Total Liability
                           </p>
                           <p className="text-2xl font-bold mt-1 text-amber-600">
                             ${(dashboard.totalLiabilityCents / 100).toFixed(2)}
@@ -364,7 +391,14 @@ export default function MarketMakingPage() {
                                     ? "Resolved"
                                     : "Live"}
                                 </Badge>
-                                <Badge variant="outline">
+                                <Badge
+                                  className="text-xs text-white"
+                                  style={{
+                                    backgroundColor: categoryColor(
+                                      market.category,
+                                    ),
+                                  }}
+                                >
                                   {market.category}
                                 </Badge>
                               </div>
@@ -391,25 +425,33 @@ export default function MarketMakingPage() {
                                     ${(market.revenueCents / 100).toFixed(2)}
                                   </p>
                                 </div>
-                                <div>
-                                  <p className="text-muted-foreground">
-                                    Liability
-                                  </p>
-                                  <p className="font-medium text-amber-600">
-                                    ${(market.liabilityCents / 100).toFixed(2)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">
-                                    Net P&L
-                                  </p>
-                                  <p
-                                    className={`font-medium ${market.netPnlCents >= 0 ? "text-emerald-600" : "text-red-600"}`}
-                                  >
-                                    {market.netPnlCents >= 0 ? "+" : ""}$
-                                    {(market.netPnlCents / 100).toFixed(2)}
-                                  </p>
-                                </div>
+                                {market.status !== "resolved" ? (
+                                  <div>
+                                    <p className="text-muted-foreground">
+                                      Max Liability
+                                    </p>
+                                    <p className="font-medium text-amber-600">
+                                      $
+                                      {(market.liabilityCents / 100).toFixed(2)}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <p className="text-muted-foreground">
+                                      Net P&L
+                                    </p>
+                                    <p
+                                      className={`font-medium ${
+                                        market.netPnlCents >= 0
+                                          ? "text-emerald-600"
+                                          : "text-red-600"
+                                      }`}
+                                    >
+                                      {market.netPnlCents >= 0 ? "+" : ""}$
+                                      {(market.netPnlCents / 100).toFixed(2)}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="text-right shrink-0">
@@ -501,7 +543,12 @@ export default function MarketMakingPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
                           {getStatusBadge(proposal.status)}
-                          <Badge variant="outline" className="text-xs">
+                          <Badge
+                            className="text-xs text-white"
+                            style={{
+                              backgroundColor: categoryColor(proposal.category),
+                            }}
+                          >
                             {proposal.category}
                           </Badge>
                         </div>
@@ -545,6 +592,16 @@ export default function MarketMakingPage() {
                         <span className="text-xs text-muted-foreground">
                           {new Date(proposal.createdAt).toLocaleDateString()}
                         </span>
+                        {proposal.status === "approved" &&
+                          proposalQuotes[proposal.id] != null && (
+                            <p className="text-xs text-muted-foreground text-right">
+                              Funding required:{" "}
+                              <span className="font-semibold text-foreground">
+                                $
+                                {(proposalQuotes[proposal.id] / 100).toFixed(2)}
+                              </span>
+                            </p>
+                          )}
                         {proposal.status === "approved" && (
                           <Button
                             size="sm"
@@ -562,7 +619,7 @@ export default function MarketMakingPage() {
                             )}
                           </Button>
                         )}
-                        {proposal.status === "live" &&
+                        {proposal.status === "published" &&
                           proposal.createdMarketId && (
                             <Button
                               variant="outline"

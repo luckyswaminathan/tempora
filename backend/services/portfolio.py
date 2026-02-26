@@ -60,6 +60,8 @@ class PortfolioService:
         market_value = 0.0
 
         for (market_id, security_id), metrics in metrics_by_security.items():
+            if metrics["quantity"] == 0:
+                continue
             market = self.market_service.get_market(market_id)
             security = self.market_service.get_security(security_id)
 
@@ -100,12 +102,39 @@ class PortfolioService:
         unrealised_pnl = market_value - cost_basis
         roi = (unrealised_pnl / cost_basis * 100) if cost_basis > 0 else 0.0
 
+        # Probability profile: for each position, compute the probability that
+        # it resolves in the user's favour:
+        #   - Long  (qty > 0): market mark probability (you win if it resolves)
+        #   - Short (qty < 0): 100 − mark probability   (you win if it doesn't)
+        # Group by market, sum the per-security contributions (capped at 100),
+        # then weight-average across markets by absolute position cost.
+        market_prob: dict[str, dict] = {}
+        for h in holdings:
+            if h.quantity == 0:
+                continue
+            grp = market_prob.setdefault(h.market_id, {"prob": 0.0, "cost": 0.0})
+            position_cost = abs(h.avg_price_cents * h.quantity)
+            if h.quantity > 0:
+                grp["prob"] += h.mark_price_cents
+            else:
+                grp["prob"] += 100.0 - h.mark_price_cents
+            grp["cost"] += position_cost
+        weighted_prob = 0.0
+        total_weight = 0.0
+        for grp in market_prob.values():
+            weighted_prob += min(grp["prob"], 100.0) * grp["cost"]
+            total_weight += grp["cost"]
+        avg_probability = (
+            round(weighted_prob / total_weight, 2) if total_weight > 0 else 0.0
+        )
+
         summary = PortfolioSummary.model_validate(
             {
                 "costBasis": cost_basis,
                 "marketValue": round(market_value, 2),
                 "unrealisedPnL": round(unrealised_pnl, 2),
                 "roi": round(roi, 2),
+                "avgProbability": avg_probability,
             }
         )
 

@@ -2,6 +2,7 @@
 
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 import { Card } from "@/components/ui/card";
+import { categoryColor } from "@/lib/utils";
 import type { PortfolioSnapshot, OrderRecord } from "@/lib/api";
 
 interface Props {
@@ -9,15 +10,6 @@ interface Props {
   allOrders: OrderRecord[];
   onSelectOutcome?: (holding: PortfolioSnapshot["holdings"][0]) => void;
 }
-
-const COLORS = [
-  "#6366f1",
-  "#22c55e",
-  "#f59e0b",
-  "#ec4899",
-  "#14b8a6",
-  "#8b5cf6",
-];
 
 function probabilityLabel(prob: number): string {
   if (prob < 25) return "Strong contrarian";
@@ -61,15 +53,8 @@ export function PortfolioAnalyticsSection({
   );
   const totalCategoryValue = categoryData.reduce((s, d) => s + d.value, 0);
 
-  // C — Probability profile
-  let weightedProb = 0;
-  let totalWeight = 0;
-  for (const h of longPositions) {
-    const weight = h.markPriceCents * h.quantity;
-    weightedProb += (h.markPriceCents / 100) * weight;
-    totalWeight += weight;
-  }
-  const avgProb = totalWeight > 0 ? (weightedProb / totalWeight) * 100 : 0;
+  // C — Probability profile (computed by backend)
+  const avgProb = portfolio.summary.avgProbability;
 
   const extremePositions = [...longPositions]
     .sort((a, b) =>
@@ -79,7 +64,7 @@ export function PortfolioAnalyticsSection({
     )
     .slice(0, 5);
 
-  // E — Top / bottom performers
+  // D — Top / bottom performers
   const sortedByPnl = [...portfolio.holdings].sort((a, b) => b.pnl - a.pnl);
   const top2 = sortedByPnl.slice(0, 2).filter((h) => h.pnl > 0);
   const bottom2 = sortedByPnl
@@ -168,6 +153,7 @@ export function PortfolioAnalyticsSection({
               <div className="flex justify-center items-center">
                 <PieChart width={120} height={120}>
                   <Pie
+                    key={categoryData.map((d) => d.name).join(",")}
                     data={categoryData}
                     cx={55}
                     cy={55}
@@ -176,8 +162,8 @@ export function PortfolioAnalyticsSection({
                     paddingAngle={2}
                     dataKey="value"
                   >
-                    {categoryData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    {categoryData.map((d, i) => (
+                      <Cell key={i} fill={categoryColor(d.name)} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -201,7 +187,7 @@ export function PortfolioAnalyticsSection({
                     >
                       <span
                         className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                        style={{ backgroundColor: categoryColor(d.name) }}
                       />
                       <span className="truncate text-muted-foreground flex-1">
                         {d.name}

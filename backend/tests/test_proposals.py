@@ -13,13 +13,128 @@ Collateral rules for publishing:
 - Collateral is paid out at settlement
 """
 
-import pytest
+import math
+
 import sys
 from pathlib import Path
 
 # Import email constant from conftest
 sys.path.insert(0, str(Path(__file__).parent))
 from conftest import MARKET_MAKER_EMAIL  # noqa: E402
+
+
+class TestProposalQuote:
+    """Tests for the GET /proposals/quote pricing endpoint."""
+
+    def test_quote_two_outcomes(self, market_maker_client):
+        """Quote for 2 outcomes matches b * ln(2) * 100 cents."""
+        liquidity = 100
+        num_outcomes = 2
+        expected = int(liquidity * math.log(num_outcomes) * 100)
+
+        resp = market_maker_client.get(
+            "/proposals/quote",
+            params={"liquidityParameter": liquidity, "numOutcomes": num_outcomes},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["initialFundingCents"] == expected
+        assert data["liquidityParameter"] == liquidity
+        assert data["numOutcomes"] == num_outcomes
+
+    def test_quote_scales_with_num_outcomes(self, market_maker_client):
+        """Quoted cost grows as ln(N) when number of outcomes increases."""
+        liquidity = 200
+        for n in [2, 5, 10, 20]:
+            expected = int(liquidity * math.log(n) * 100)
+            resp = market_maker_client.get(
+                "/proposals/quote",
+                params={"liquidityParameter": liquidity, "numOutcomes": n},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["initialFundingCents"] == expected
+
+    def test_quote_scales_with_liquidity_parameter(self, market_maker_client):
+        """Quoted cost scales linearly with the liquidity parameter."""
+        num_outcomes = 4
+        for b in [50, 100, 500, 1000]:
+            expected = int(b * math.log(num_outcomes) * 100)
+            resp = market_maker_client.get(
+                "/proposals/quote",
+                params={"liquidityParameter": b, "numOutcomes": num_outcomes},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["initialFundingCents"] == expected
+
+    def test_quote_matches_actual_collateral_locked_on_publish(
+        self, market_maker_client, admin_client
+    ):
+        """The quoted cost equals the initial_funding_cents stored when the market is published."""
+        liquidity = 75
+        outcomes_payload = [
+            {"outcome": "A", "isCatchAll": False},
+            {"outcome": "B", "isCatchAll": False},
+            {"outcome": "C", "isCatchAll": False},
+        ]
+        num_outcomes = len(outcomes_payload)
+
+        # Get quote first
+        resp = market_maker_client.get(
+            "/proposals/quote",
+            params={"liquidityParameter": liquidity, "numOutcomes": num_outcomes},
+        )
+        assert resp.status_code == 200
+        quoted_cents = resp.json()["initialFundingCents"]
+
+        # Create, approve, publish
+        resp = market_maker_client.post(
+            "/proposals",
+            json={
+                "question": "Quote vs actual collateral test",
+                "outcomes": outcomes_payload,
+                "category": "general",
+                "resolutionDate": "2030-12-31T23:59:59",
+                "liquidityParameter": liquidity,
+                "uiType": "bars-ordered",
+            },
+        )
+        assert resp.status_code == 201
+        proposal_id = resp.json()["id"]
+
+        admin_client.post(f"/proposals/{proposal_id}/review", json={"approved": True})
+        resp = market_maker_client.post(f"/proposals/{proposal_id}/publish")
+        assert resp.status_code == 200
+        market_id = resp.json()["createdMarketId"]
+
+        # Verify market's initial funding matches the quote
+        resp = market_maker_client.get(f"/markets/maker/dashboard")
+        assert resp.status_code == 200
+        market_data = next(m for m in resp.json()["markets"] if m["id"] == market_id)
+        assert market_data["initialFundingCents"] == quoted_cents
+
+    def test_quote_requires_at_least_two_outcomes(self, market_maker_client):
+        """numOutcomes < 2 is rejected with 422."""
+        resp = market_maker_client.get(
+            "/proposals/quote",
+            params={"liquidityParameter": 100, "numOutcomes": 1},
+        )
+        assert resp.status_code == 422
+
+    def test_quote_requires_positive_liquidity(self, market_maker_client):
+        """liquidityParameter <= 0 is rejected with 422."""
+        resp = market_maker_client.get(
+            "/proposals/quote",
+            params={"liquidityParameter": 0, "numOutcomes": 2},
+        )
+        assert resp.status_code == 422
+
+    def test_quote_requires_authentication(self, user_client):
+        """Unauthenticated requests are rejected with 401."""
+        resp = user_client.get(
+            "/proposals/quote",
+            params={"liquidityParameter": 100, "numOutcomes": 2},
+        )
+        assert resp.status_code == 401
 
 
 class TestProposalCreation:
@@ -245,7 +360,7 @@ class TestProposalPublishing:
         assert resp.status_code == 200
 
         data = resp.json()
-        assert data["status"] == "live"
+        assert data["status"] == "published"
         assert "createdMarketId" in data
 
     def test_cannot_publish_pending_proposal(self, market_maker_client):

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { categoryColor } from "@/lib/utils";
 
 interface MarketFiltersProps {
   category?: string | null;
@@ -49,7 +50,10 @@ export function MarketFilters({
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto" id="dashboard-status-filters">
+        <div
+          className="flex gap-2 overflow-x-auto"
+          id="dashboard-status-filters"
+        >
           {STATUSES.map((st) => (
             <Button
               key={st.label}
@@ -66,24 +70,45 @@ export function MarketFilters({
           ))}
         </div>
       </div>
-      <div className="flex gap-2 overflow-x-auto" id="dashboard-category-filters">
+      <div
+        className="flex gap-2 overflow-x-auto"
+        id="dashboard-category-filters"
+      >
         <span className="text-sm text-muted-foreground flex items-center mr-2">
           Category:
         </span>
-        {CATEGORIES.map((cat) => (
-          <Button
-            key={cat}
-            variant={
-              category === cat || (cat === "All" && !category)
-                ? "default"
-                : "outline"
-            }
-            size="sm"
-            onClick={() => onCategoryChange(cat === "All" ? null : cat)}
-          >
-            {cat}
-          </Button>
-        ))}
+        {CATEGORIES.map((cat) => {
+          const isActive = category === cat || (cat === "All" && !category);
+          const color = cat === "All" ? undefined : categoryColor(cat);
+          return (
+            <Button
+              key={cat}
+              variant={isActive ? "default" : "outline"}
+              size="sm"
+              onClick={() => onCategoryChange(cat === "All" ? null : cat)}
+              className={
+                color
+                  ? isActive
+                    ? "hover:opacity-75 transition-opacity"
+                    : "hover:!bg-transparent hover:opacity-75 transition-opacity"
+                  : ""
+              }
+              style={
+                isActive && color
+                  ? {
+                      backgroundColor: color,
+                      borderColor: color,
+                      color: "#fff",
+                    }
+                  : !isActive && color
+                    ? { borderColor: color, color: color }
+                    : undefined
+              }
+            >
+              {cat}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );

@@ -388,6 +388,7 @@ export interface PortfolioSnapshot {
     marketValue: number;
     unrealisedPnL: number;
     roi: number;
+    avgProbability: number;
   };
 }
 
@@ -563,7 +564,7 @@ export interface Proposal {
   tags: string[];
   liquidityParameter?: number;
   uiType: string;
-  status: "pending" | "approved" | "rejected" | "live";
+  status: "pending" | "approved" | "rejected" | "published";
   reviewerId?: string;
   reviewNote?: string;
   reviewedAt?: string;
@@ -575,6 +576,12 @@ export interface Proposal {
 export interface ProposalListResponse {
   proposals: Proposal[];
   count: number;
+}
+
+export interface ProposalQuote {
+  liquidityParameter: number;
+  numOutcomes: number;
+  initialFundingCents: number;
 }
 
 export interface ProposalCreate {
@@ -624,6 +631,15 @@ export const proposalsApi = {
     return fetchWithAuth(`/proposals/${proposalId}/publish`, {
       method: "POST",
     });
+  },
+
+  async getQuote(
+    liquidityParameter: number,
+    numOutcomes: number,
+  ): Promise<ProposalQuote> {
+    return fetchWithAuth(
+      `/proposals/quote?liquidityParameter=${liquidityParameter}&numOutcomes=${numOutcomes}`,
+    );
   },
 };
 
