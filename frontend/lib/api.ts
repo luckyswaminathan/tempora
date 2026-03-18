@@ -176,6 +176,30 @@ export interface MarketSettlementResponse {
   netPayout: number;
 }
 
+export interface SettlementUserTotals {
+  positionCount: number;
+  totalCostCents: number;
+  totalPayoutCents: number;
+  totalPnlCents: number;
+}
+
+export interface SettlementPayoutEntry {
+  userId: string;
+  payoutCents: number;
+}
+
+export interface SettlementInfo {
+  marketId: string;
+  winningSecurityId: string;
+  winningOutcome: string;
+  settlementDate: string;
+  userTotals?: SettlementUserTotals;
+  payoutDistribution?: SettlementPayoutEntry[];
+  marketTotalRevenueCents?: number;
+  marketTotalPayoutCents?: number;
+  marketNetPnlCents?: number;
+}
+
 export const marketsApi = {
   async listMarkets(params?: {
     category?: string;
@@ -198,6 +222,10 @@ export const marketsApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+  },
+
+  async getSettlementInfo(marketId: string): Promise<SettlementInfo> {
+    return fetchWithAuth(`/markets/${marketId}/settlement-info`);
   },
 
   async settleMarket(
@@ -309,6 +337,10 @@ export const ordersApi = {
     return fetchWithAuth(`/orders${query ? `?${query}` : ""}`);
   },
 
+  async listMarketHistory(marketId: string): Promise<OrderListResponse> {
+    return fetchWithAuth(`/orders/market/${marketId}/history`);
+  },
+
   async priceOrder(data: OrderCreateRequest): Promise<OrderPriceResponse> {
     return fetchWithAuth("/orders/price", {
       method: "POST",
@@ -382,6 +414,19 @@ export interface PortfolioSnapshot {
     endDate: string;
     pnl: number;
     category: string;
+  }>;
+  settledPositions: Array<{
+    marketId: string;
+    question: string;
+    category: string;
+    securityId: string;
+    outcome: string;
+    quantity: number;
+    costBasisCents: number;
+    payoutCents: number;
+    pnlCents: number;
+    winningOutcome: string;
+    settlementDate: string;
   }>;
   summary: {
     costBasis: number;

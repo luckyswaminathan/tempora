@@ -16,6 +16,8 @@ export interface SecurityPickerProps {
   handleCellClick: (index: number) => void;
   isInRange: (index: number) => boolean;
   onRangeChange?: (range: [number, number]) => void;
+  winningSecurityId?: string;
+  readOnly?: boolean;
 }
 
 export function Pill({ children }: { children: ReactNode }) {

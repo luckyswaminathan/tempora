@@ -1,6 +1,7 @@
 from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field
+from schemas.date import UTCDateTime
 
 
 class Holding(BaseModel):
@@ -14,6 +15,24 @@ class Holding(BaseModel):
     end_date: str = Field(alias="endDate")
     pnl: int = Field(alias="pnl", description="pnl in cents")
     category: str
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class SettledPosition(BaseModel):
+    """A user's position in a resolved/settled market."""
+
+    market_id: str = Field(alias="marketId")
+    question: str
+    category: str
+    security_id: str = Field(alias="securityId")
+    outcome: str
+    quantity: int
+    cost_basis_cents: int = Field(alias="costBasisCents")
+    payout_cents: int = Field(alias="payoutCents", description="$1 per share if won")
+    pnl_cents: int = Field(alias="pnlCents", description="Payout - cost basis")
+    winning_outcome: str = Field(alias="winningOutcome")
+    settlement_date: UTCDateTime = Field(alias="settlementDate")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -44,6 +63,11 @@ class PortfolioSnapshot(BaseModel):
         alias="collateralLocked", description="Collateral locked for short positions"
     )
     holdings: List[Holding]
+    settled_positions: List[SettledPosition] = Field(
+        alias="settledPositions",
+        default_factory=list,
+        description="Resolved/settled market positions",
+    )
     summary: PortfolioSummary
 
     model_config = ConfigDict(populate_by_name=True)

@@ -9,6 +9,8 @@ export function MonthPicker({
   setHoveredIndex,
   hoveredIndex,
   isInRange,
+  winningSecurityId,
+  readOnly,
 }: SecurityPickerProps) {
   const today = new Date();
   const todayYear = today.getFullYear();
@@ -88,21 +90,25 @@ export function MonthPicker({
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
             {monthsByYear[year].map(({ index, month, monthNum, outcome }) => {
               const elapsed = isElapsedMonth(year, monthNum);
+              const disabled = elapsed && !readOnly;
+              const isWinning = outcome.id === winningSecurityId;
               return (
                 <button
                   key={outcome.id}
-                  disabled={elapsed}
-                  onClick={() => !elapsed && handleCellClick(index)}
-                  onMouseEnter={() => !elapsed && setHoveredIndex(index)}
+                  disabled={disabled}
+                  onClick={() => !disabled && handleCellClick(index)}
+                  onMouseEnter={() => !disabled && setHoveredIndex(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
                   className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[80px] ${
-                    elapsed
+                    disabled
                       ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
                       : isInRange(index)
                         ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                        : hoveredIndex === index
-                          ? "border-blue-400 bg-blue-50"
-                          : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        : isWinning
+                          ? "border-emerald-400 bg-emerald-50"
+                          : hoveredIndex === index
+                            ? "border-blue-400 bg-blue-50"
+                            : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                   }`}
                 >
                   <div className="text-sm font-bold text-center mb-1">
@@ -132,9 +138,11 @@ export function MonthPicker({
                 className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[70px] ${
                   isInRange(index)
                     ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                    : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                    : outcome.id === winningSecurityId
+                      ? "border-emerald-400 bg-emerald-50"
+                      : hoveredIndex === index
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                 }`}
               >
                 <div className="text-sm font-bold text-center mb-1 break-words w-full">

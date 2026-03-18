@@ -51,6 +51,8 @@ interface SecurityPickerProps {
   onRangeChange: (range: [number, number]) => void;
   viewMode: "individual" | "interval";
   onViewModeChange: (mode: "individual" | "interval") => void;
+  winningSecurityId?: string;
+  readOnly?: boolean;
 }
 
 export function SecurityPicker({
@@ -60,6 +62,8 @@ export function SecurityPicker({
   onRangeChange,
   viewMode,
   onViewModeChange,
+  winningSecurityId,
+  readOnly = false,
 }: SecurityPickerProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const config = getUITypeConfig(uiType);
@@ -73,6 +77,11 @@ export function SecurityPicker({
   }));
 
   const handleCellClick = (index: number) => {
+    if (readOnly) {
+      onRangeChange([index, index]);
+      return;
+    }
+
     const [start, end] = selectedRange;
 
     // If nothing selected yet, start a new range
@@ -118,11 +127,13 @@ export function SecurityPicker({
     hoveredIndex,
     isInRange,
     onRangeChange,
+    winningSecurityId,
+    readOnly,
   };
 
   return (
     <div className="space-y-4">
-      {config.showToggle && (
+      {!readOnly && config.showToggle && (
         <div className="flex gap-2">
           <Button
             variant={viewMode === "individual" ? "default" : "outline"}
@@ -152,13 +163,15 @@ export function SecurityPicker({
       )}
 
       <div className="text-xs text-muted-foreground mb-3 font-medium">
-        {config.showToggle
-          ? viewMode === "individual"
-            ? "Click any outcome to trade"
-            : selectedRange[0] === -1
-              ? "Click to select interval start"
-              : "Click another outcome to adjust interval range"
-          : "Click any outcome to trade"}
+        {readOnly
+          ? "Select an outcome to view probability history"
+          : config.showToggle
+            ? viewMode === "individual"
+              ? "Click any outcome to trade"
+              : selectedRange[0] === -1
+                ? "Click to select interval start"
+                : "Click another outcome to adjust interval range"
+            : "Click any outcome to trade"}
       </div>
 
       {uiType === "year" && <YearPicker {...pickerProps} />}

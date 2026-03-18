@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, Clock, Lock, History } from "lucide-react";
+import { Wallet, Clock, Lock, History, CheckCircle2 } from "lucide-react";
 import {
   usersApi,
   ordersApi,
@@ -22,6 +22,7 @@ import { HoldingsTab } from "@/components/holdings-tab";
 import { OpenOrdersTab } from "@/components/open-orders-tab";
 import { CollateralTab } from "@/components/collateral-tab";
 import { HistoryTab } from "@/components/history-tab";
+import { SettledPositionsTab } from "@/components/settled-positions-tab";
 import { PortfolioAnalyticsSection } from "@/components/portfolio-analytics-section";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
 import { OrderDetailSheet } from "@/components/order-detail-sheet";
@@ -368,6 +369,10 @@ export default function PortfolioPage() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="settled" className="gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              Settled Positions
+            </TabsTrigger>
             <TabsTrigger value="history" className="gap-2">
               <History className="w-4 h-4" />
               Order History
@@ -402,6 +407,37 @@ export default function PortfolioPage() {
               refreshKey={collateralRefreshKey}
               pendingOrders={pendingOrders}
               openOrderDetail={(order) => setSelectedOrder(order)}
+            />
+          </TabsContent>
+
+          {/* Settled Positions Tab */}
+          <TabsContent value="settled">
+            <SettledPositionsTab
+              positions={portfolio.settledPositions}
+              onOpenOutcomeDetail={(marketId, securityId, outcome) => {
+                const settled = portfolio.settledPositions.find(
+                  (p) => p.marketId === marketId && p.securityId === securityId,
+                );
+                const quantity = settled?.quantity ?? 0;
+                const costBasisCents = settled?.costBasisCents ?? 0;
+                const payoutCents = settled?.payoutCents ?? 0;
+                setSelectedOutcome({
+                  marketId,
+                  securityId,
+                  holding: {
+                    marketId,
+                    securityId,
+                    question: settled?.question || "",
+                    outcome,
+                    avgPriceCents: quantity > 0 ? costBasisCents / quantity : 0,
+                    quantity,
+                    markPriceCents: quantity > 0 ? payoutCents / quantity : 0,
+                    endDate: settled?.settlementDate || "",
+                    pnl: settled?.pnlCents ?? 0,
+                    category: settled?.category || "",
+                  },
+                });
+              }}
             />
           </TabsContent>
 

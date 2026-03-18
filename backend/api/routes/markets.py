@@ -10,6 +10,7 @@ from schemas.market import (
     MarketSettlement,
     MarketSettlementResponse,
     MarketMakerDashboard,
+    SettlementInfo,
 )
 from schemas.user import UserBase
 from services.markets import MarketService
@@ -51,6 +52,16 @@ def settle_market(
     _: UserBase = Depends(deps.get_current_admin),
 ) -> MarketSettlementResponse:
     return service.settle_market(payload)
+
+
+@router.get("/{market_id}/settlement-info", response_model=SettlementInfo)
+def get_settlement_info(
+    market_id: str,
+    service: MarketService = Depends(deps.get_market_service),
+    current_user: UserBase = Depends(deps.get_current_user),
+) -> SettlementInfo:
+    """Get settlement info for a resolved market including user's position."""
+    return service.get_settlement_info(market_id, current_user.id)
 
 
 @router.get("/maker/dashboard", response_model=MarketMakerDashboard)

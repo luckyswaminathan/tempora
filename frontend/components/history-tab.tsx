@@ -12,6 +12,8 @@ interface HistoryTabProps {
   setSearchQuery: (query: string) => void;
   /** Hide the search bar (e.g. when used on a single-market page) */
   hideSearch?: boolean;
+  /** Show trader UID (for market-maker market history only) */
+  showUserId?: boolean;
   /** Called when a history card is clicked */
   onOrderClick?: (order: OrderRecord) => void;
 }
@@ -22,6 +24,7 @@ export function HistoryTab({
   searchQuery,
   setSearchQuery,
   hideSearch = false,
+  showUserId = false,
   onOrderClick,
 }: HistoryTabProps) {
   // Filter orders by search query
@@ -193,6 +196,11 @@ export function HistoryTab({
                         .join(" · ")}
                       {outcomes.length > 3 && ` +${outcomes.length - 3} more`}
                     </p>
+                    {showUserId && (
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate leading-snug">
+                        Trader UID: {order.userId}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-semibold font-mono tabular-nums">

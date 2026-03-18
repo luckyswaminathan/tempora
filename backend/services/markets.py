@@ -19,8 +19,15 @@ from schemas.market import (
     OutcomeWithValue,
     MarketMakerMarket,
     MarketMakerDashboard,
+    SettlementInfo,
+    SettlementUserTotals,
 )
 from utils.pricing import calculate_market_quotes
+from utils.settlement import (
+    aggregate_position_metrics,
+    compute_settlement_totals,
+    summarize_market_settlement,
+)
 
 
 class MarketService:
@@ -145,22 +152,22 @@ class MarketService:
                 detail="Market cannot be settled",
             )
 
-        trades = security.trades
-
-        user_pnl = defaultdict(float)
-        for trade in trades:
-            user_pnl[trade.user_id] += 100 * trade.quantity
-
-        total_payout = sum(user_pnl.values())
-
-        # Calculate total revenue already collected by market maker for this market
+        # Load all market trades once, then derive both revenue and winner payouts.
         all_market_trades_stmt = (
             select(models.Trade)
             .join(models.Security)
             .where(models.Security.market_id == market.id)
         )
         all_market_trades = self.session.scalars(all_market_trades_stmt).all()
-        revenue = sum(t.price_cents for t in all_market_trades)
+
+        summary = summarize_market_settlement(
+            all_market_trades,
+            payload.winning_security_id,
+        )
+
+        user_pnl = summary.user_payouts_cents
+        total_payout = summary.total_payout_cents
+        revenue = summary.total_revenue_cents
 
         creator_profile = self.session.get(models.Profile, market.creator_id)
         if not creator_profile:
@@ -204,6 +211,19 @@ class MarketService:
             )
             self.session.execute(stmt)
 
+        # Cancel all outstanding unfilled limit orders for this market
+        cancel_stmt = (
+            update(models.Order)
+            .where(
+                models.Order.market_id == market.id,
+                models.Order.type == models.OrderType.LIMIT,
+                models.Order.filled.is_(False),
+                models.Order.canceled.is_(False),
+            )
+            .values(canceled=True)
+        )
+        self.session.execute(cancel_stmt)
+
         market.status = models.MarketStatus.RESOLVED
         market.winning_security_id = payload.winning_security_id
 
@@ -215,6 +235,116 @@ class MarketService:
                 "id": market.id,
                 "winning_outcome": security.outcome,
                 "net_payout": total_payout,
+            }
+        )
+
+    def get_settlement_info(
+        self, market_id: str, user_id: Optional[str] = None
+    ) -> SettlementInfo:
+        """Get settlement info for a resolved market, optionally including user position and payout distribution."""
+
+        market = self.session.get(models.Market, market_id)
+        if not market:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Market not found"
+            )
+
+        if market.status != models.MarketStatus.RESOLVED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Market is not resolved",
+            )
+
+        winning_security = self.session.get(models.Security, market.winning_security_id)
+        if not winning_security:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Winning security not found",
+            )
+
+        user_totals = None
+        if user_id:
+            # Get user's trades in this market
+            trades_stmt = (
+                select(models.Trade)
+                .join(models.Security)
+                .where(
+                    models.Trade.user_id == user_id,
+                    models.Security.market_id == market_id,
+                )
+            )
+            trades = self.session.scalars(trades_stmt).all()
+
+            if trades:
+                positions_by_security = aggregate_position_metrics(
+                    trades,
+                    lambda trade: trade.security_id,
+                )
+
+                position_count, total_cost_cents, total_payout_cents = (
+                    compute_settlement_totals(
+                        positions_by_security,
+                        market.winning_security_id,
+                    )
+                )
+
+                user_totals = SettlementUserTotals.model_validate(
+                    {
+                        "positionCount": position_count,
+                        "totalCostCents": total_cost_cents,
+                        "totalPayoutCents": total_payout_cents,
+                        "totalPnlCents": total_payout_cents - total_cost_cents,
+                    }
+                )
+
+        # Include payout distribution if requesting user is the market maker
+        payout_distribution = None
+        market_total_revenue_cents = None
+        market_total_payout_cents = None
+        market_net_pnl_cents = None
+        if user_id == market.creator_id:
+            all_market_trades_stmt = (
+                select(models.Trade)
+                .join(models.Security)
+                .where(models.Security.market_id == market.id)
+            )
+            all_market_trades = self.session.scalars(all_market_trades_stmt).all()
+
+            summary = summarize_market_settlement(
+                all_market_trades,
+                market.winning_security_id,
+            )
+
+            market_total_revenue_cents = summary.total_revenue_cents
+            market_total_payout_cents = summary.total_payout_cents
+            market_net_pnl_cents = (
+                summary.total_revenue_cents - summary.total_payout_cents
+            )
+
+            payout_distribution = [
+                {"userId": user_id, "payoutCents": payout_cents}
+                for user_id, payout_cents in sorted(
+                    (
+                        (uid, cents)
+                        for uid, cents in summary.user_payouts_cents.items()
+                        if cents != 0
+                    ),
+                    key=lambda x: x[1],
+                    reverse=True,
+                )
+            ]
+
+        return SettlementInfo.model_validate(
+            {
+                "market_id": market_id,
+                "winning_security_id": market.winning_security_id,
+                "winning_outcome": winning_security.outcome,
+                "settlement_date": market.updated_at,
+                "user_totals": user_totals,
+                "payout_distribution": payout_distribution,
+                "market_total_revenue_cents": market_total_revenue_cents,
+                "market_total_payout_cents": market_total_payout_cents,
+                "market_net_pnl_cents": market_net_pnl_cents,
             }
         )
 

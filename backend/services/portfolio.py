@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from core import models
 from schemas.portfolio import (
     Holding,
+    SettledPosition,
     PortfolioSnapshot,
     PortfolioSummary,
     CollateralBreakdown,
@@ -24,6 +25,7 @@ from utils.collateral import (
     get_limit_orders_data,
     get_market_maker_markets_data,
 )
+from utils.settlement import aggregate_position_metrics, compute_position_settlement
 
 
 class PortfolioService:
@@ -142,11 +144,70 @@ class PortfolioService:
         collateral_locked = get_user_collateral_locked(self.session, user_id)
         spendable_balance = max(0, profile.wallet - collateral_locked)
 
+        # Fetch settled positions
+        settled_stmt = (
+            select(models.Trade)
+            .join(models.Security)
+            .join(models.Market, models.Security.market_id == models.Market.id)
+            .where(
+                models.Trade.user_id == user_id,
+                models.Market.status == models.MarketStatus.RESOLVED,
+            )
+        )
+        settled_trades = self.session.scalars(settled_stmt).all()
+
+        settled_positions = []
+        settled_metrics = aggregate_position_metrics(
+            settled_trades,
+            lambda trade: (trade.security.market_id, trade.security_id),
+        )
+
+        for (market_id, security_id), metrics in settled_metrics.items():
+            quantity = metrics["quantity"]
+            if quantity == 0:
+                continue
+
+            market = self.market_service.get_market(market_id)
+            security = self.market_service.get_security(security_id)
+
+            position_settlement = compute_position_settlement(
+                quantity=quantity,
+                cost_basis_cents=metrics["cost_basis"],
+                is_winning_security=security_id == market.winning_security_id,
+            )
+
+            winning_outcome = "—"
+            if market.winning_security_id:
+                winning_security = self.session.get(
+                    models.Security, market.winning_security_id
+                )
+                if winning_security:
+                    winning_outcome = winning_security.outcome
+
+            settled_positions.append(
+                SettledPosition.model_validate(
+                    {
+                        "marketId": market.id,
+                        "question": market.question,
+                        "category": market.category,
+                        "securityId": security.id,
+                        "outcome": security.outcome,
+                        "quantity": position_settlement.quantity,
+                        "costBasisCents": position_settlement.cost_basis_cents,
+                        "payoutCents": position_settlement.payout_cents,
+                        "pnlCents": position_settlement.pnl_cents,
+                        "winningOutcome": winning_outcome,
+                        "settlementDate": market.updated_at,
+                    }
+                )
+            )
+
         return PortfolioSnapshot(
             wallet=profile.wallet,
             spendable_balance=spendable_balance,
             collateral_locked=collateral_locked,
             holdings=holdings,
+            settled_positions=settled_positions,
             summary=summary,
         )
 

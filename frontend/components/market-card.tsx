@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { TradeDialog } from "@/components/trade-dialog";
 import { AuthDialog } from "@/components/auth-dialog";
 import { SecurityPicker, getUITypeConfig } from "@/components/security-picker";
 import { AdminDialogsController } from "@/components/admin-dialogs";
-import { marketsApi, type Market } from "@/lib/api";
+import { marketsApi, type Market, type SettlementInfo } from "@/lib/api";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -33,6 +33,9 @@ type ViewMode = "individual" | "interval";
 export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
   const { user } = useAuth();
   const [market, setMarket] = useState(initialMarket);
+  const [settlementInfo, setSettlementInfo] = useState<SettlementInfo | null>(
+    null,
+  );
 
   // Get UI type configuration
   const uiConfig = getUITypeConfig(initialMarket.uiType);
@@ -48,6 +51,20 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSettleForm, setShowSettleForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+
+  // Fetch settlement info if market is resolved and user is authenticated
+  useEffect(() => {
+    if (market.status === "resolved" && user) {
+      marketsApi
+        .getSettlementInfo(market.id)
+        .catch(() => {
+          // Silently fail if info not available
+        })
+        .then((info) => {
+          if (info) setSettlementInfo(info);
+        });
+    }
+  }, [market.id, market.status, user]);
 
   const refreshMarket = async () => {
     setIsRefreshing(true);
@@ -109,6 +126,14 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
   }
 
   const [rangeStart, rangeEnd] = intervalRange;
+  const resolvedSelectedOutcome =
+    selectedOutcome && outcomes.some((o) => o.id === selectedOutcome)
+      ? (outcomes.find((o) => o.id === selectedOutcome) ?? null)
+      : rangeStart >= 0 && outcomes[rangeStart]
+        ? outcomes[rangeStart]
+        : market.winningSecurityId
+          ? (outcomes.find((o) => o.id === market.winningSecurityId) ?? null)
+          : (outcomes[0] ?? null);
   const selectedOutcomes =
     rangeStart >= 0 && rangeEnd >= 0
       ? outcomes.slice(rangeStart, rangeEnd + 1)
@@ -208,7 +233,25 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
                     ?.outcome
                 }
               </p>
-              <p className="text-xs text-green-700 mt-1">
+              {settlementInfo?.userTotals ? (
+                <div className="mt-3 pt-3 border-t border-green-200">
+                  <p className="text-xs text-green-700 mb-2">Your Position:</p>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-sm font-medium text-green-900">
+                      {`${settlementInfo.userTotals.positionCount} settled outcome${settlementInfo.userTotals.positionCount === 1 ? "" : "s"}`}
+                    </span>
+                    <span
+                      className={`text-sm font-bold ${settlementInfo.userTotals.totalPnlCents >= 0 ? "text-green-700" : "text-red-600"}`}
+                    >
+                      {settlementInfo.userTotals.totalPnlCents >= 0 ? "+" : ""}$
+                      {(settlementInfo.userTotals.totalPnlCents / 100).toFixed(
+                        2,
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+              <p className="text-xs text-green-700 mt-3">
                 This market has been settled and is no longer tradeable.
               </p>
             </div>
@@ -249,7 +292,7 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
           </div>
         )}
 
-        {market.status === "open" && (
+        {(market.status === "open" || market.status === "resolved") && (
           <div className="mb-4">
             <SecurityPicker
               outcomes={outcomes}
@@ -257,8 +300,20 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
               selectedRange={intervalRange}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
+              winningSecurityId={market.winningSecurityId ?? undefined}
+              readOnly={market.status === "resolved"}
               onRangeChange={(range) => {
+                if (market.status === "resolved") {
+                  setDialogOpen(true);
+                  return;
+                }
+
                 setIntervalRange(range);
+
+                if (range[0] === range[1] && range[0] >= 0) {
+                  const outcome = outcomes[range[0]];
+                  setSelectedOutcome(outcome.id);
+                }
 
                 // In individual mode, auto-open dialog when a single outcome is selected
                 if (
@@ -318,12 +373,18 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
           }
         }}
         market={market}
+        historyOnly={market.status === "resolved"}
+        defaultTab={market.status === "resolved" ? "history" : "trade"}
         selectedOutcomes={
-          viewMode === "interval"
-            ? selectedOutcomes
-            : selectedOutcome
-              ? [outcomes.find((o) => o.id === selectedOutcome)!]
+          market.status === "resolved"
+            ? resolvedSelectedOutcome
+              ? [resolvedSelectedOutcome]
               : []
+            : viewMode === "interval"
+              ? selectedOutcomes
+              : selectedOutcome
+                ? [outcomes.find((o) => o.id === selectedOutcome)!]
+                : []
         }
         onSuccess={handleTradeSuccess}
         onSignInClick={() => setAuthDialogOpen(true)}

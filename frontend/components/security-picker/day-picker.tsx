@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SecurityPickerProps, Pill, SecurityPickerOutcome } from "./types";
 import { MONTHS } from "@/lib/utils";
 
@@ -11,6 +11,8 @@ export function DayPicker({
   setHoveredIndex,
   hoveredIndex,
   isInRange,
+  winningSecurityId,
+  readOnly,
 }: SecurityPickerProps) {
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -41,6 +43,9 @@ export function DayPicker({
 
   // Open on the earliest non-elapsed date, falling back to the first date
   const dates = Array.from(dayMap.keys()).sort();
+  const winningDate = winningSecurityId
+    ? dates.find((date) => dayMap.get(date)?.outcome.id === winningSecurityId)
+    : undefined;
 
   // YYYY-MM strings bounding the navigable range
   const firstMonthKey = dates.length > 0 ? dates[0].slice(0, 7) : null;
@@ -49,10 +54,30 @@ export function DayPicker({
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     if (dates.length === 0) return new Date();
+    if (readOnly && winningDate) {
+      const winning = new Date(winningDate);
+      return new Date(winning.getFullYear(), winning.getMonth(), 1);
+    }
     const firstTradeable = dates.find((d) => !isElapsedDate(d)) ?? dates[0];
     const d = new Date(firstTradeable);
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
+
+  useEffect(() => {
+    if (!readOnly || !winningDate) return;
+
+    const winning = new Date(winningDate);
+    const targetMonth = new Date(winning.getFullYear(), winning.getMonth(), 1);
+    setCurrentMonth((prev) => {
+      if (
+        prev.getFullYear() === targetMonth.getFullYear() &&
+        prev.getMonth() === targetMonth.getMonth()
+      ) {
+        return prev;
+      }
+      return targetMonth;
+    });
+  }, [readOnly, winningDate]);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -150,21 +175,25 @@ export function DayPicker({
             }
 
             const elapsed = isElapsedDate(dayInfo.date);
+            const disabled = elapsed && !readOnly;
+            const isWinning = dayData.outcome.id === winningSecurityId;
             return (
               <button
                 key={dayInfo.date}
-                disabled={elapsed}
-                onClick={() => !elapsed && handleCellClick(dayData.index)}
-                onMouseEnter={() => !elapsed && setHoveredIndex(dayData.index)}
+                disabled={disabled}
+                onClick={() => !disabled && handleCellClick(dayData.index)}
+                onMouseEnter={() => !disabled && setHoveredIndex(dayData.index)}
                 onMouseLeave={() => setHoveredIndex(null)}
                 className={`aspect-square p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                  elapsed
+                  disabled
                     ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
                     : isInRange(dayData.index)
                       ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                      : hoveredIndex === dayData.index
-                        ? "border-blue-400 bg-blue-50"
-                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                      : isWinning
+                        ? "border-emerald-400 bg-emerald-50"
+                        : hoveredIndex === dayData.index
+                          ? "border-blue-400 bg-blue-50"
+                          : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                 }`}
               >
                 <div className="text-sm font-bold mb-1">{dayInfo.day}</div>
@@ -192,9 +221,11 @@ export function DayPicker({
                 className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[70px] ${
                   isInRange(index)
                     ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                    : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                    : outcome.id === winningSecurityId
+                      ? "border-emerald-400 bg-emerald-50"
+                      : hoveredIndex === index
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
                 }`}
               >
                 <div className="text-sm font-bold text-center mb-1 break-words w-full">
