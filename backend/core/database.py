@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
@@ -57,3 +57,16 @@ def init_db() -> None:
     from core import models  # Import models for metadata registration
 
     Base.metadata.create_all(bind=engine)
+
+    # Lightweight schema backfill for SQLite where create_all does not add columns.
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if "profiles" in inspector.get_table_names():
+            profile_columns = {col["name"] for col in inspector.get_columns("profiles")}
+            if "email_notifications_enabled" not in profile_columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE profiles "
+                        "ADD COLUMN email_notifications_enabled BOOLEAN NOT NULL DEFAULT 0"
+                    )
+                )

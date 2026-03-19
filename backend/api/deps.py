@@ -13,6 +13,7 @@ from services.portfolio import PortfolioService
 from services.leaderboard import LeaderboardService
 from services.tutorial import TutorialService
 from services.history import HistoryService
+from services.notifications import NotificationService
 
 
 def get_auth_service(session: Session = Depends(get_session)) -> AuthService:
@@ -43,6 +44,12 @@ def get_tutorial_service(session: Session = Depends(get_session)) -> TutorialSer
 
 def get_history_service(session: Session = Depends(get_session)) -> HistoryService:
     return HistoryService(session)
+
+
+def get_notification_service(
+    session: Session = Depends(get_session),
+) -> NotificationService:
+    return NotificationService(session)
 
 
 def get_current_user(

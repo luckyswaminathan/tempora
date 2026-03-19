@@ -328,6 +328,66 @@ export interface ProbabilityHistResponse {
   history: ProbabilityHistData[];
 }
 
+export type NotificationEventType =
+  | "limit_order_filled"
+  | "position_market_settled"
+  | "market_maker_market_settled"
+  | "market_maker_market_status_updated"
+  | "admin_market_overdue_closed";
+
+export interface NotificationItem {
+  id: string;
+  eventType: NotificationEventType;
+  title: string;
+  body: string;
+  payload: Record<string, unknown>;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationItem[];
+  count: number;
+  unreadCount: number;
+}
+
+export interface NotificationUnreadCountResponse {
+  unreadCount: number;
+}
+
+export const notificationsApi = {
+  async listNotifications(params?: {
+    unreadOnly?: boolean;
+    limit?: number;
+  }): Promise<NotificationListResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.unreadOnly) searchParams.set("unreadOnly", "true");
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+
+    const query = searchParams.toString();
+    return fetchWithAuth(`/notifications${query ? `?${query}` : ""}`);
+  },
+
+  async getUnreadCount(): Promise<NotificationUnreadCountResponse> {
+    return fetchWithAuth("/notifications/unread-count");
+  },
+
+  async markRead(
+    notificationId: string,
+  ): Promise<{ id: string; isRead: boolean }> {
+    return fetchWithAuth(`/notifications/${notificationId}/read`, {
+      method: "POST",
+    });
+  },
+
+  async markAllRead(): Promise<{ updated: number }> {
+    return fetchWithAuth("/notifications/read-all", {
+      method: "POST",
+    });
+  },
+};
+
 export const ordersApi = {
   async listOrders(params?: { marketId?: string }): Promise<OrderListResponse> {
     const searchParams = new URLSearchParams();
@@ -382,6 +442,7 @@ export interface UserProfile {
   joinedAt: string;
   lastSeenAt?: string;
   tutorialCompletions?: Record<string, boolean>;
+  emailNotificationsEnabled?: boolean;
 }
 
 // Admin types
@@ -540,6 +601,15 @@ export const usersApi = {
     return fetchWithAuth("/users/me/wallet/add-funds", {
       method: "POST",
       body: JSON.stringify({ amount }),
+    });
+  },
+
+  async updateEmailNotificationsPreference(
+    enabled: boolean,
+  ): Promise<UserProfile> {
+    return fetchWithAuth("/users/me/preferences/notifications/email", {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
     });
   },
 

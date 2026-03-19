@@ -118,6 +118,7 @@ class AuthService:
                 "joinedAt": profile.joined_at,
                 "lastSeenAt": profile.last_seen_at,
                 "tutorialCompletions": profile.tutorial_completions,
+                "emailNotificationsEnabled": profile.email_notifications_enabled,
             }
         )
 

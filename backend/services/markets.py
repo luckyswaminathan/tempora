@@ -28,11 +28,13 @@ from utils.settlement import (
     compute_settlement_totals,
     summarize_market_settlement,
 )
+from services.notifications import NotificationService
 
 
 class MarketService:
     def __init__(self, session: Session) -> None:
         self.session = session
+        self.notification_service = NotificationService(session)
 
     def list_markets(
         self, *, category: Optional[str] = None, status_filter: Optional[str] = None
@@ -110,6 +112,8 @@ class MarketService:
                 detail="Cannot update a resolved market",
             )
 
+        previous_status = str(market.status)
+
         if payload.question is not None:
             market.question = payload.question
         if payload.category is not None:
@@ -128,6 +132,13 @@ class MarketService:
                 security = self.session.get(models.Security, update.id)
                 if security:
                     security.outcome = update.outcome
+
+        if payload.status is not None and str(payload.status) != previous_status:
+            self.notification_service.notify_market_maker_market_status_updated(
+                market=market,
+                previous_status=previous_status,
+                new_status=str(payload.status),
+            )
 
         self.session.commit()
         self.session.refresh(market)
@@ -226,6 +237,19 @@ class MarketService:
 
         market.status = models.MarketStatus.RESOLVED
         market.winning_security_id = payload.winning_security_id
+
+        self.notification_service.notify_market_settlement_for_positions(
+            market=market,
+            winning_security=security,
+            trades=all_market_trades,
+        )
+
+        self.notification_service.notify_market_maker_market_settled(
+            market=market,
+            winning_security=security,
+            total_revenue_cents=revenue,
+            total_payout_cents=int(total_payout),
+        )
 
         self.session.commit()
         self.session.refresh(market)
@@ -553,3 +577,50 @@ class MarketService:
             totalLiabilityCents=total_liability,
             totalNetPnlCents=total_net_pnl,
         )
+
+    def close_overdue_markets_and_notify_admins(self) -> int:
+        """Close open markets past resolution date and notify admins to settle."""
+        now = datetime.now(timezone.utc)
+        overdue_stmt = select(models.Market).where(
+            models.Market.status == models.MarketStatus.OPEN,
+            models.Market.resolution_date <= now,
+        )
+        overdue_markets = self.session.scalars(overdue_stmt).all()
+        if not overdue_markets:
+            return 0
+
+        admin_stmt = select(models.User).where(
+            models.User.role == models.UserRole.ADMIN
+        )
+        admin_users = self.session.scalars(admin_stmt).all()
+        admin_ids = [admin.id for admin in admin_users]
+
+        for market in overdue_markets:
+            previous_status = str(market.status)
+            market.status = models.MarketStatus.CLOSED
+            market.updated_at = now
+
+            # Notify market maker of auto-closure
+            self.notification_service.notify_market_maker_market_status_updated(
+                market=market,
+                previous_status=previous_status,
+                new_status=str(models.MarketStatus.CLOSED),
+            )
+
+            if admin_ids:
+                self.notification_service.create_bulk_notifications(
+                    user_ids=admin_ids,
+                    event_type=models.NotificationType.ADMIN_MARKET_OVERDUE_CLOSED,
+                    title="Market closed after resolution deadline",
+                    body=f"{market.question} reached its resolution date and was closed automatically.",
+                    payload={
+                        "marketId": market.id,
+                        "marketQuestion": market.question,
+                        "resolutionDate": market.resolution_date.isoformat(),
+                        "status": market.status,
+                        "actionRequired": "Settle market",
+                    },
+                )
+
+        self.session.commit()
+        return len(overdue_markets)

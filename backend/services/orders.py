@@ -21,6 +21,7 @@ from schemas.order import (
     TradeRecord,
 )
 from services.markets import MarketService
+from services.notifications import NotificationService
 from utils.pricing import calculate_market_price_cents
 from utils.collateral import calculate_collateral_required, get_user_collateral_locked
 
@@ -29,6 +30,7 @@ class OrderService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.market_service = MarketService(session)
+        self.notification_service = NotificationService(session)
 
     def _price_trade(
         self,
@@ -287,6 +289,13 @@ class OrderService:
         # Route payment to market maker
         self._route_payment_to_market_maker(payload.market_id, total_cost)
 
+        if order_type == models.OrderType.LIMIT:
+            self.notification_service.notify_limit_order_filled(
+                order=order,
+                total_cost_cents=total_cost,
+                market_question=market.question,
+            )
+
         self.session.commit()
         self.session.refresh(order)
 
@@ -510,6 +519,12 @@ class OrderService:
 
             # Route payment to market maker
             self._route_payment_to_market_maker(market_id, total_cost)
+
+            self.notification_service.notify_limit_order_filled(
+                order=order,
+                total_cost_cents=total_cost,
+                market_question=market.question,
+            )
 
             filled_order_ids.append(order.id)
 

@@ -65,6 +65,14 @@ class OrderType(StrEnum):
     LIMIT = "limit"
 
 
+class NotificationType(StrEnum):
+    LIMIT_ORDER_FILLED = "limit_order_filled"
+    POSITION_MARKET_SETTLED = "position_market_settled"
+    MARKET_MAKER_MARKET_SETTLED = "market_maker_market_settled"
+    MARKET_MAKER_MARKET_STATUS_UPDATED = "market_maker_market_status_updated"
+    ADMIN_MARKET_OVERDUE_CLOSED = "admin_market_overdue_closed"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -106,6 +114,9 @@ class Profile(Base):
         MutableDict.as_mutable(JSON),
         default=dict,
         nullable=False,
+    )
+    email_notifications_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -255,3 +266,31 @@ class Trade(Base):
     order: Mapped[Order] = relationship(back_populates="trades")
     user: Mapped[User] = relationship()
     security: Mapped[Security] = relationship(back_populates="trades")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event_type: Mapped[str] = mapped_column(
+        Enum(NotificationType), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict] = mapped_column(
+        MutableDict.as_mutable(JSON),
+        default=dict,
+        nullable=False,
+    )
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    read_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    user: Mapped[User] = relationship()
