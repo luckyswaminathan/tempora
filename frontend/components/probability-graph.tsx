@@ -68,7 +68,7 @@ export function ProbabilityGraph({
 
   if (data.length === 0) {
     return (
-      <Card className="p-4 text-center text-sm text-muted-foreground">
+      <Card className="dialog-neumorphic p-4 text-center text-sm text-muted-foreground">
         No probability history available yet
       </Card>
     );
@@ -80,7 +80,7 @@ export function ProbabilityGraph({
   const probChange = currentProb - (data[0]?.probability || 0);
 
   return (
-    <Card className="p-4 space-y-3 border border-border bg-card">
+    <Card className="dialog-neumorphic p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h3 className="text-sm font-semibold">{outcome}</h3>
@@ -162,7 +162,7 @@ export function ProbabilityGraph({
                   format(new Date(timestamp), "MMM d, h:mm a")
                 }
                 contentStyle={{
-                  backgroundColor: "var(--card)",
+                  backgroundColor: "var(--popover)",
                   border: "1px solid var(--border)",
                   borderRadius: "4px",
                   padding: "8px",
@@ -171,9 +171,9 @@ export function ProbabilityGraph({
               <Area
                 type="linear"
                 dataKey="probability"
-                stroke="var(--primary)"
+                stroke="var(--chart-3)"
                 strokeWidth={1.5}
-                fill="var(--primary)"
+                fill="var(--chart-3)"
                 fillOpacity={0.15}
                 isAnimationActive={false}
               />

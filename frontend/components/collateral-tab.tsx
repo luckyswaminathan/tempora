@@ -91,7 +91,7 @@ export function CollateralTab({
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">Error: {error}</p>
+        <p className="text-destructive">Error: {error}</p>
       </div>
     );
   }
@@ -129,10 +129,10 @@ export function CollateralTab({
           {collateralBreakdown.totalShortCollateral > 0 && (
             <div className="flex justify-between items-center py-2">
               <span className="text-muted-foreground flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-red-500" />
+                <ShieldAlert className="w-4 h-4 text-destructive" />
                 Short Positions
               </span>
-              <span className="font-semibold text-red-600">
+              <span className="font-semibold text-destructive">
                 ${(collateralBreakdown.totalShortCollateral / 100).toFixed(2)}
               </span>
             </div>
@@ -140,10 +140,10 @@ export function CollateralTab({
           {collateralBreakdown.totalLimitOrderCollateral > 0 && (
             <div className="flex justify-between items-center py-2">
               <span className="text-muted-foreground flex items-center gap-2">
-                <Clock className="w-4 h-4 text-purple-500" />
+                <Clock className="w-4 h-4 text-secondary" />
                 Limit Orders
               </span>
-              <span className="font-semibold text-purple-600">
+              <span className="font-semibold text-secondary">
                 $
                 {(collateralBreakdown.totalLimitOrderCollateral / 100).toFixed(
                   2,
@@ -154,10 +154,10 @@ export function CollateralTab({
           {collateralBreakdown.totalMarketMakerCollateral > 0 && (
             <div className="flex justify-between items-center py-2">
               <span className="text-muted-foreground flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-blue-500" />
+                <Wallet className="w-4 h-4 text-primary" />
                 Market Making
               </span>
-              <span className="font-semibold text-blue-600">
+              <span className="font-semibold text-primary">
                 $
                 {(collateralBreakdown.totalMarketMakerCollateral / 100).toFixed(
                   2,
@@ -172,7 +172,7 @@ export function CollateralTab({
       {collateralBreakdown.shortMarkets.length > 0 && (
         <div>
           <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-red-500" />
+            <ShieldAlert className="w-5 h-5 text-destructive" />
             Short Position Collateral
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
@@ -213,7 +213,7 @@ export function CollateralTab({
                       <div className="text-xs text-muted-foreground">
                         Max Liability
                       </div>
-                      <div className="font-semibold text-red-600">
+                      <div className="font-semibold text-destructive">
                         ${(market.collateralCents / 100).toFixed(2)}
                       </div>
                     </div>
@@ -239,7 +239,7 @@ export function CollateralTab({
                           >
                             <Badge
                               variant="outline"
-                              className="text-red-600 border-red-300"
+                              className="text-destructive border-destructive/40"
                             >
                               {pos.outcome}
                             </Badge>
@@ -255,7 +255,7 @@ export function CollateralTab({
                           >
                             <Badge
                               variant="outline"
-                              className="text-red-600 border-red-300"
+                              className="text-destructive border-destructive/40"
                             >
                               {pos.outcome}
                             </Badge>
@@ -278,7 +278,7 @@ export function CollateralTab({
       {collateralBreakdown.limitOrders.length > 0 && (
         <div>
           <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-purple-500" />
+            <Clock className="w-5 h-5 text-secondary" />
             Limit Order Collateral
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
@@ -318,7 +318,7 @@ export function CollateralTab({
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Badge
                           variant="outline"
-                          className="text-purple-600 border-purple-300"
+                          className="text-secondary border-secondary/40"
                         >
                           LIMIT ORDER
                         </Badge>
@@ -352,7 +352,7 @@ export function CollateralTab({
       {collateralBreakdown.marketMakerMarkets.length > 0 && (
         <div>
           <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-blue-500" />
+            <Wallet className="w-5 h-5 text-primary" />
             Market Making Collateral
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
@@ -374,7 +374,7 @@ export function CollateralTab({
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge
                         variant="outline"
-                        className="text-blue-600 border-blue-300"
+                        className="text-primary border-primary/40"
                       >
                         MARKET MAKER
                       </Badge>
@@ -397,13 +397,13 @@ export function CollateralTab({
                 <div className="grid grid-cols-3 gap-2 pt-2 border-t text-xs">
                   <div>
                     <p className="text-muted-foreground">Initial funding</p>
-                    <p className="font-medium text-blue-600">
+                    <p className="font-medium text-primary">
                       ${(market.initialFundingCents / 100).toFixed(2)}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Revenue received</p>
-                    <p className="font-medium text-emerald-600">
+                    <p className="font-medium text-accent-foreground">
                       ${(market.revenueCents / 100).toFixed(2)}
                     </p>
                   </div>
@@ -421,14 +421,12 @@ export function CollateralTab({
       )}
 
       {/* Info Card */}
-      <Card className="p-4 bg-slate-50 dark:bg-slate-950/20 border-slate-200 dark:border-slate-800">
+      <Card className="p-4 bg-muted/35 border-border/70">
         <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-slate-600 shrink-0 mt-0.5" />
+          <AlertCircle className="w-5 h-5 text-secondary shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="font-medium text-slate-800 dark:text-slate-200">
-              How collateral works
-            </p>
-            <p className="text-slate-700 dark:text-slate-300 mt-1">
+            <p className="font-medium text-foreground">How collateral works</p>
+            <p className="text-muted-foreground mt-1">
               Collateral ensures you can cover potential losses. For short
               positions, $1.00 per share is locked (max payout if that outcome
               wins). Limit orders lock funds to cover the order and any

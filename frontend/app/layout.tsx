@@ -40,7 +40,11 @@ export default function RootLayout({
             <Header />
             {children}
           </div>
-          <Toaster />
+          <Toaster
+            toastOptions={{
+              className: "glass-toast",
+            }}
+          />
         </AuthProvider>
       </body>
     </html>

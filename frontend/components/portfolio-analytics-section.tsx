@@ -75,7 +75,7 @@ export function PortfolioAnalyticsSection({
   return (
     <div className="mb-6 space-y-4">
       {/* A — Merged top row: portfolio metrics + activity stats */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-2 gap-4 mb-4 animate-stagger">
         {/* Left: portfolio metrics */}
         <Card className="p-5 gap-0">
           <div className="grid grid-cols-2 gap-4">
@@ -142,7 +142,7 @@ export function PortfolioAnalyticsSection({
 
       {/* B + C — Category chart & Probability profile */}
       {longPositions.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-stagger">
           {/* B — Portfolio by Category */}
           <Card className="p-4 gap-0">
             <h3 className="text-sm font-semibold mb-3">

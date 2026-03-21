@@ -117,8 +117,8 @@ function AdminSettleDialog({
               onClick={() => setSelectedOutcome(outcome.id)}
               className={`w-full p-3 rounded-lg border-2 text-left transition ${
                 selectedOutcome === outcome.id
-                  ? "border-green-500 bg-green-50"
-                  : "border-gray-200 hover:border-gray-300"
+                  ? "border-primary bg-primary/12"
+                  : "border-border/70 bg-muted/35 hover:border-primary/35"
               }`}
             >
               <div className="font-medium">{outcome.outcome}</div>
@@ -138,7 +138,7 @@ function AdminSettleDialog({
           <Button
             onClick={handleSettle}
             disabled={loading || !selectedOutcome}
-            className="flex-1 bg-green-600 hover:bg-green-700"
+            className="flex-1"
           >
             {loading ? "Settling..." : "Settle"}
           </Button>

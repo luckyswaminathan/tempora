@@ -152,7 +152,7 @@ class NotificationService:
             user_id=order.user_id,
             event_type=models.NotificationType.LIMIT_ORDER_FILLED,
             title="Your limit order was filled",
-            body=f"{market_question}: {gross_shares} shares executed across {leg_count} leg(s).",
+            body=f"{market_question}: {gross_shares} share(s) executed across {leg_count} leg(s).",
             payload={
                 "orderId": order.id,
                 "marketId": order.market_id,

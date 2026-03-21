@@ -72,11 +72,11 @@ export function Header() {
 
   return (
     <>
-      <header className="border-b bg-card">
+      <header className="header-elevated sticky top-0 z-30 border-b border-border/55">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/85">
                 <svg
                   viewBox="1 0.5 30 27"
                   className="w-6 h-6"
@@ -260,7 +260,7 @@ export function Header() {
                     </button>
 
                     {profileMenuOpen && (
-                      <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-xl border border-border bg-card shadow-xl overflow-hidden">
+                      <div className="glass-popover absolute right-0 top-full mt-2 z-40 w-56 rounded-xl overflow-hidden">
                         <div className="px-3.5 py-3 border-b bg-gradient-to-br from-muted/55 via-muted/30 to-card">
                           <p className="text-sm font-semibold text-foreground truncate">
                             {profile.displayName

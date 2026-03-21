@@ -166,7 +166,9 @@ export function OutcomeDetailSheet({
                             <Badge
                               variant={isBuy ? "default" : "secondary"}
                               className={
-                                isBuy ? "bg-green-600" : "bg-red-600 text-white"
+                                isBuy
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-destructive text-destructive-foreground"
                               }
                             >
                               {isBuy ? "BUY" : "SELL"}
@@ -175,8 +177,8 @@ export function OutcomeDetailSheet({
                               variant="outline"
                               className={
                                 isLimit
-                                  ? "text-purple-600 border-purple-300"
-                                  : "text-blue-600 border-blue-300"
+                                  ? "text-accent-foreground border-accent/45 bg-accent/12"
+                                  : "text-foreground border-border/70 bg-muted/45"
                               }
                             >
                               {isLimit ? "LIMIT" : "MARKET"}

@@ -407,10 +407,13 @@ export function TradeDialog({
         showCloseButton={false}
       >
         {/* Fixed header with close button */}
-        <div className="sticky top-0 z-10 bg-background border-b px-6 pt-6 pb-4">
+        <div className="sticky top-0 z-10 surface-panel px-6 pt-6 pb-4">
           <button
-            onClick={() => onOpenChange(false)}
-            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            onClick={(e) => {
+              onOpenChange(false);
+              e.currentTarget.blur();
+            }}
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -445,7 +448,7 @@ export function TradeDialog({
             onValueChange={(v) => setActiveTab(v as "trade" | "history")}
           >
             {!historyOnly && (
-              <TabsList className="grid w-full grid-cols-2 mt-4">
+              <TabsList className="grid w-full grid-cols-2 mt-4 dialog-neumorphic p-1">
                 <TabsTrigger value="trade">Trade</TabsTrigger>
                 <TabsTrigger value="history">Probability</TabsTrigger>
               </TabsList>
@@ -455,15 +458,15 @@ export function TradeDialog({
               <TabsContent value="trade" className="space-y-4 py-4">
                 {/* Balance display */}
                 {user && portfolio && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
+                  <div className="animate-fadeInUp dialog-neumorphic flex items-center justify-between p-3 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <Wallet className="w-4 h-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-800">
+                      <Wallet className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium text-foreground">
                         Spendable Balance
                       </span>
                     </div>
                     <div className="text-right">
-                      <div className="font-mono font-bold text-green-700">
+                      <div className="font-mono font-bold text-primary">
                         ${spendableBalanceDollars.toFixed(2)}
                       </div>
                     </div>
@@ -472,7 +475,7 @@ export function TradeDialog({
 
                 {/* Header card */}
                 {isInterval ? (
-                  <div className="p-4 rounded-lg bg-muted">
+                  <div className="dialog-neumorphic p-4">
                     <div className="text-sm text-muted-foreground mb-1">
                       Trading interval
                     </div>
@@ -497,7 +500,7 @@ export function TradeDialog({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
+                  <div className="dialog-neumorphic flex items-center justify-between p-4">
                     <div>
                       <div className="text-sm text-muted-foreground mb-1">
                         Trading
@@ -532,7 +535,7 @@ export function TradeDialog({
                   }}
                   className="w-full"
                 >
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-2 dialog-neumorphic p-1">
                     <TabsTrigger value="market">Market Order</TabsTrigger>
                     <TabsTrigger value="limit">Limit Order</TabsTrigger>
                   </TabsList>
@@ -620,13 +623,13 @@ export function TradeDialog({
                           step="0.01"
                           className={`pl-7 ${
                             limitPriceSignMismatch
-                              ? "border-red-500 focus-visible:ring-red-500"
+                              ? "border-destructive focus-visible:ring-destructive"
                               : ""
                           }`}
                         />
                       </div>
                       {limitPriceSignMismatch ? (
-                        <p className="text-xs text-red-600 font-medium">
+                        <p className="text-xs text-destructive font-medium">
                           {shares > 0
                             ? "Buying requires a positive limit price."
                             : "Selling requires a negative limit price."}
@@ -636,7 +639,7 @@ export function TradeDialog({
                           Total maximum price you're willing to trade at. Use a
                           negative value when selling.
                           {suggestedMarketPrice && shares !== 0 && (
-                            <span className="block mt-1 text-blue-600 font-medium">
+                            <span className="block mt-1 text-accent-foreground font-medium">
                               Current market quote: $
                               {(suggestedMarketPrice / 100).toFixed(2)}
                             </span>
@@ -646,10 +649,10 @@ export function TradeDialog({
                     </div>
 
                     {/* Limit order info card */}
-                    <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <div className="surface-panel p-3 rounded-lg border border-accent/45">
                       <div className="flex items-start gap-2">
-                        <Settings2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                        <div className="text-xs text-blue-700">
+                        <Settings2 className="w-4 h-4 text-accent-foreground flex-shrink-0 mt-0.5" />
+                        <div className="text-xs text-foreground/90">
                           <span className="font-medium">
                             How limit orders work:
                           </span>{" "}
@@ -663,7 +666,7 @@ export function TradeDialog({
                 </Tabs>
 
                 {/* Price display */}
-                <div className="relative space-y-2 p-4 rounded-lg bg-muted/50">
+                <div className="surface-panel relative space-y-2 p-4 rounded-lg border border-border/60">
                   {/* Spinner overlay — shown during re-fetches so height never changes */}
                   {fetchingPrice && committedPrice !== null && (
                     <div className="absolute top-3 right-3">
@@ -704,7 +707,7 @@ export function TradeDialog({
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Action</span>
                         <span
-                          className={`font-mono font-medium ${committedIsBuy ? "text-green-600" : "text-red-600"}`}
+                          className={`font-mono font-medium ${committedIsBuy ? "text-primary" : "text-destructive"}`}
                         >
                           {committedIsBuy ? "BUY" : "SELL"}{" "}
                           {Math.abs(committedShares)}
@@ -753,7 +756,7 @@ export function TradeDialog({
                                 ? "If ANY outcome wins"
                                 : "If outcome wins"}
                             </span>
-                            <span className="font-mono font-medium text-green-600">
+                            <span className="font-mono font-medium text-primary">
                               ${committedReturn.toFixed(2)}
                             </span>
                           </div>
@@ -762,7 +765,7 @@ export function TradeDialog({
                               Potential profit
                             </span>
                             <span
-                              className={`font-mono font-medium ${committedProfit > 0 ? "text-green-600" : "text-red-600"}`}
+                              className={`font-mono font-medium ${committedProfit > 0 ? "text-primary" : "text-destructive"}`}
                             >
                               {committedProfit > 0 ? "+" : ""}$
                               {committedProfit.toFixed(2)}
@@ -775,7 +778,7 @@ export function TradeDialog({
                           <span className="text-muted-foreground">
                             Profit if sold
                           </span>
-                          <span className="font-mono font-medium text-green-600">
+                          <span className="font-mono font-medium text-primary">
                             +${committedProfit.toFixed(2)}
                           </span>
                         </div>
@@ -814,9 +817,9 @@ export function TradeDialog({
 
                 {/* Insufficient balance warning */}
                 {hasInsufficientBalance && user && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
-                    <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                    <div className="text-sm text-red-700">
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                    <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
+                    <div className="text-sm text-destructive/90">
                       <span className="font-medium">Insufficient balance.</span>{" "}
                       You need ${committedCostDollars.toFixed(2)} but only have
                       ${spendableBalanceDollars.toFixed(2)} available to spend.

@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Bell } from "lucide-react";
 
 function formatCurrency(cents: unknown): string {
   if (typeof cents !== "number") return "-";
@@ -220,7 +221,7 @@ export default function NotificationsPage() {
             isAnimatingRead
               ? "opacity-0 -translate-y-1 scale-[0.98]"
               : "opacity-100"
-          } ${item.isRead ? "bg-card" : "bg-accent/10 border-accent/40"}`}
+          }`}
         >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -285,24 +286,22 @@ export default function NotificationsPage() {
 
   return (
     <main className="container mx-auto px-4 py-8">
-      <div className="rounded-2xl border bg-gradient-to-br from-card via-card to-muted/30 p-5 md:p-7">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Notifications
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Activity from orders, settlements, and admin actions.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={markAllRead}
-            disabled={markingAll || items.length === 0}
-          >
-            {markingAll ? "Marking..." : "Mark all read"}
-          </Button>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-balance flex items-center gap-2">
+            <Bell className="w-7 h-7" /> Notifications
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Activity from orders, settlements, and admin actions.
+          </p>
         </div>
+        <Button
+          variant="outline"
+          onClick={markAllRead}
+          disabled={markingAll || items.length === 0}
+        >
+          {markingAll ? "Marking..." : "Mark all read"}
+        </Button>
       </div>
 
       <section className="mt-5 space-y-3">

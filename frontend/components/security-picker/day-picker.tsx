@@ -111,11 +111,11 @@ export function DayPicker({
   return (
     <div className="space-y-6">
       {errors.length > 0 && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-red-900 mb-2">
+        <div className="bg-destructive/10 border-2 border-destructive/30 rounded-lg p-4">
+          <p className="text-sm font-medium text-destructive mb-2">
             Validation Errors:
           </p>
-          <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+          <ul className="text-sm text-destructive/90 list-disc list-inside space-y-1">
             {errors.map((error, idx) => (
               <li key={idx}>{error}</li>
             ))}
@@ -127,7 +127,7 @@ export function DayPicker({
           <button
             onClick={previousMonth}
             disabled={!canGoPrev}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 hover:bg-muted/70 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Previous month"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -138,7 +138,7 @@ export function DayPicker({
           <button
             onClick={nextMonth}
             disabled={!canGoNext}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 hover:bg-muted/70 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Next month"
           >
             <ChevronRight className="w-5 h-5" />
@@ -167,7 +167,7 @@ export function DayPicker({
               return (
                 <div
                   key={dayInfo.date}
-                  className="aspect-square p-2 rounded-lg border border-gray-100 flex items-center justify-center text-sm text-muted-foreground"
+                  className="aspect-square p-2 rounded-lg border-2 calendar-date-surface flex items-center justify-center text-sm text-muted-foreground"
                 >
                   {dayInfo.day}
                 </div>
@@ -186,14 +186,14 @@ export function DayPicker({
                 onMouseLeave={() => setHoveredIndex(null)}
                 className={`aspect-square p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
                   disabled
-                    ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                    ? "border-border/70 bg-muted/45 opacity-55 cursor-not-allowed"
                     : isInRange(dayData.index)
                       ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
                       : isWinning
-                        ? "border-primary bg-primary/15"
+                        ? "border-accent/70 bg-accent/30"
                         : hoveredIndex === dayData.index
-                          ? "border-blue-400 bg-blue-50"
-                          : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                          ? "border-secondary/70 bg-muted/75"
+                          : "calendar-date-surface hover:border-secondary/65 hover:bg-muted/65"
                 }`}
               >
                 <div className="text-sm font-bold mb-1">{dayInfo.day}</div>
@@ -222,10 +222,10 @@ export function DayPicker({
                   isInRange(index)
                     ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
                     : outcome.id === winningSecurityId
-                      ? "border-primary bg-primary/15"
+                      ? "border-accent/70 bg-accent/30"
                       : hoveredIndex === index
-                        ? "border-blue-400 bg-blue-50"
-                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                        ? "border-secondary/70 bg-muted/75"
+                        : "calendar-date-surface hover:border-secondary/65 hover:bg-muted/65"
                 }`}
               >
                 <div className="text-sm font-bold text-center mb-1 break-words w-full">

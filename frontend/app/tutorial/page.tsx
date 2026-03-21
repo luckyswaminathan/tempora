@@ -21,7 +21,7 @@ const TUTORIAL_SECTIONS = [
     id: 1,
     title: "Getting Started",
     icon: BookOpen,
-    color: "text-blue-500",
+    color: "text-primary",
     lessons: [
       {
         title: "Platform Overview",
@@ -53,7 +53,7 @@ const TUTORIAL_SECTIONS = [
     id: 2,
     title: "Trading Basics",
     icon: TrendingUp,
-    color: "text-green-500",
+    color: "text-secondary",
     lessons: [
       {
         title: "Market Orders vs Limit Orders",
@@ -85,7 +85,7 @@ const TUTORIAL_SECTIONS = [
     id: 3,
     title: "Risk Management",
     icon: Shield,
-    color: "text-yellow-500",
+    color: "text-success",
     lessons: [
       {
         title: "Setting Stop Losses",
@@ -117,7 +117,7 @@ const TUTORIAL_SECTIONS = [
     id: 4,
     title: "Community & Social",
     icon: Users,
-    color: "text-cyan-500",
+    color: "text-accent",
     lessons: [
       {
         title: "Following Top Traders",
@@ -211,7 +211,7 @@ export default function TutorialPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <BookOpen className="w-7 h-7 text-blue-500" /> Trading Tutorials
+              <BookOpen className="w-7 h-7 text-primary" /> Trading Tutorials
             </h1>
             <p className="text-muted-foreground mt-1">
               Master trading from basics to advanced strategies
@@ -222,20 +222,20 @@ export default function TutorialPage() {
           </div>
         </div>
 
-        <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-blue-200 dark:border-blue-800">
+        <Card className="p-6 bg-gradient-to-r from-primary/14 via-primary/8 to-secondary/14 border-border/70">
           <div className="flex items-center justify-between mb-2">
             <div className="font-medium">Your Progress</div>
             <div className="text-sm text-muted-foreground">
               {completedLessons} of {totalLessons} lessons
             </div>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+          <div className="w-full bg-muted/80 rounded-full h-3">
             <div
-              className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-primary to-secondary h-3 rounded-full transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <div className="text-right mt-1 text-sm font-semibold text-blue-600 dark:text-blue-400">
+          <div className="text-right mt-1 text-sm font-semibold text-primary">
             {progressPercent}% Complete
           </div>
         </Card>
@@ -250,14 +250,11 @@ export default function TutorialPage() {
           const sectionTotal = section.lessons.length;
 
           return (
-            <Card
-              key={section.id}
-              className="p-6 hover:shadow-lg transition-shadow"
-            >
+            <Card key={section.id} className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`p-3 rounded-lg bg-gray-100 dark:bg-gray-800 ${section.color}`}
+                    className={`p-3 rounded-lg bg-muted/70 ${section.color}`}
                   >
                     <Icon className="w-6 h-6" />
                   </div>
@@ -269,7 +266,7 @@ export default function TutorialPage() {
                   </div>
                 </div>
                 {sectionCompleted === sectionTotal && (
-                  <Badge className="bg-green-500">
+                  <Badge className="bg-primary text-primary-foreground">
                     <CheckCircle2 className="w-3 h-3 mr-1" /> Completed
                   </Badge>
                 )}
@@ -281,22 +278,22 @@ export default function TutorialPage() {
                   return (
                     <div
                       key={idx}
-                      className={`p-4 rounded-lg border transition-all ${
+                      className={`p-4 rounded-lg transition-colors duration-200 ${
                         isCompleted
-                          ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
-                          : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-blue-300 dark:hover:border-blue-700"
+                          ? "bg-primary/10 hover:bg-primary/14"
+                          : "bg-muted/50 hover:bg-muted/70"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           {isCompleted ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                            <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
                           ) : (
-                            <div className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 flex-shrink-0" />
+                            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/35 flex-shrink-0" />
                           )}
                           <div>
                             <div
-                              className={`font-medium ${isCompleted ? "text-green-700 dark:text-green-400" : ""}`}
+                              className={`font-medium ${isCompleted ? "text-primary" : ""}`}
                             >
                               {lesson.title}
                             </div>
@@ -306,7 +303,7 @@ export default function TutorialPage() {
                           </div>
                         </div>
                         <button
-                          className="px-4 py-1.5 text-sm font-medium rounded-md bg-blue-500 text-white cursor-pointer hover:bg-blue-600 transition-colors"
+                          className="px-4 py-1.5 text-sm font-medium rounded-md bg-primary text-primary-foreground cursor-pointer"
                           onClick={() => {
                             if (lesson.isInteractive) {
                               const key = lesson.lessonKey as Parameters<

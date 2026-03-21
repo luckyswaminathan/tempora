@@ -12,7 +12,6 @@ import {
   Users,
   Calendar,
   Wallet,
-  Clock,
   History,
   X,
   TrendingDown,
@@ -32,7 +31,6 @@ import { SecurityPicker, getUITypeConfig } from "@/components/security-picker";
 import { TradeDialog } from "@/components/trade-dialog";
 import { AuthDialog } from "@/components/auth-dialog";
 import { OrderDetailSheet } from "@/components/order-detail-sheet";
-import { OpenOrdersTab } from "@/components/open-orders-tab";
 import { HistoryTab } from "@/components/history-tab";
 import { HoldingsTab } from "@/components/holdings-tab";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
@@ -94,6 +92,7 @@ export default function MarketPage({
   const [loadingHistory, setLoadingHistory] = useState<Set<string>>(new Set());
   const [marketTab, setMarketTab] = useState(() => {
     const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl === "orders") return "history";
     if (tabFromUrl) return tabFromUrl;
     // Default to position tab
     return "position";
@@ -137,10 +136,6 @@ export default function MarketPage({
         const data = await marketsApi.getMarket(id);
         setMarket(data);
         setViewMode(getUITypeConfig(data.uiType).defaultViewMode);
-        // If market is resolved and current tab is orders, switch to position
-        if (data.status === "resolved") {
-          setMarketTab((prev) => (prev === "orders" ? "position" : prev));
-        }
       } catch (err) {
         setMarketError(
           err instanceof Error ? err.message : "Failed to load market",
@@ -173,12 +168,8 @@ export default function MarketPage({
     try {
       const data = await marketsApi.getMarket(id);
       setMarket(data);
-      // If market is resolved and we're on orders tab, switch to position
-      if (data.status === "resolved" && marketTab === "orders") {
-        setMarketTab("position");
-      }
     } catch {}
-  }, [id, marketTab]);
+  }, [id]);
 
   // Fetch user-specific data
   const fetchUserData = useCallback(async () => {
@@ -395,16 +386,9 @@ export default function MarketPage({
     );
   }
 
-  const statusBadgeClass: Record<string, string> = {
-    open: "bg-green-600 text-white",
-    closed: "bg-amber-600 text-white",
-    resolved: "bg-blue-600 text-white",
-    suspended: "bg-red-600 text-white",
-  };
-
   return (
     <>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-4xl animate-stagger">
         {/* Back */}
         <div className="mb-5">
           <Button
@@ -421,9 +405,6 @@ export default function MarketPage({
         {/* Market header */}
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <Badge className={statusBadgeClass[market.status] ?? ""}>
-              {market.status}
-            </Badge>
             <Badge
               variant="secondary"
               className="text-white"
@@ -462,7 +443,7 @@ export default function MarketPage({
 
         {/* Status banners for non-open markets */}
         {market.status === "resolved" && market.winningSecurityId && (
-          <Card className="p-4 mb-6 border-green-200 bg-green-50 dark:bg-green-950">
+          <Card className="p-4 mb-6 bg-primary/12 border border-primary/30">
             <div
               className={
                 hasUserSettlementDetails ||
@@ -473,8 +454,10 @@ export default function MarketPage({
               }
             >
               <div className="flex items-center gap-2">
-                <Badge className="bg-green-600 text-white">Resolved</Badge>
-                <span className="text-sm font-medium">
+                <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  Resolved
+                </span>
+                <span className="text-sm font-medium text-foreground">
                   Winning outcome:{" "}
                   {outcomes.find((o) => o.id === market.winningSecurityId)
                     ?.outcome ?? "—"}
@@ -482,14 +465,16 @@ export default function MarketPage({
               </div>
             </div>
             {hasUserSettlementDetails && (
-              <div className="border-t border-green-200 pt-4">
-                <h4 className="text-sm font-semibold text-green-900 mb-3">
+              <div className="pt-4">
+                <h4 className="text-sm font-semibold text-foreground mb-3">
                   Your Settlement
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <p className="text-green-700 text-xs mb-1">Your Position</p>
-                    <p className="font-medium text-green-900">
+                    <p className="text-muted-foreground text-xs mb-1">
+                      Your Position
+                    </p>
+                    <p className="font-medium text-foreground">
                       {settlementInfo?.userTotals ? (
                         <>
                           {settlementInfo.userTotals.positionCount} settled
@@ -509,8 +494,10 @@ export default function MarketPage({
                     </p>
                   </div>
                   <div>
-                    <p className="text-green-700 text-xs mb-1">Cost Basis</p>
-                    <p className="font-medium text-green-900">
+                    <p className="text-muted-foreground text-xs mb-1">
+                      Cost Basis
+                    </p>
+                    <p className="font-medium text-foreground">
                       $
                       {(
                         (settlementInfo?.userTotals
@@ -522,8 +509,8 @@ export default function MarketPage({
                     </p>
                   </div>
                   <div>
-                    <p className="text-green-700 text-xs mb-1">Payout</p>
-                    <p className="font-medium text-green-900">
+                    <p className="text-muted-foreground text-xs mb-1">Payout</p>
+                    <p className="font-medium text-foreground">
                       $
                       {(
                         (settlementInfo?.userTotals
@@ -535,7 +522,7 @@ export default function MarketPage({
                     </p>
                   </div>
                   <div>
-                    <p className="text-green-700 text-xs mb-1">P&L</p>
+                    <p className="text-muted-foreground text-xs mb-1">P&L</p>
                     <p
                       className={`font-medium ${
                         (settlementInfo?.userTotals
@@ -543,8 +530,8 @@ export default function MarketPage({
                           : mySettledPositions.length > 0
                             ? settledTotalPnl
                             : 0) > 0
-                          ? "text-green-700"
-                          : "text-red-600"
+                          ? "text-primary"
+                          : "text-destructive"
                       }`}
                     >
                       {(settlementInfo?.userTotals
@@ -568,16 +555,16 @@ export default function MarketPage({
               </div>
             )}
             {hasMakerSettlementSummary && (
-              <div
-                className={`border-t border-green-200 pt-4 ${hasUserSettlementDetails ? "mt-4" : ""}`}
-              >
-                <h4 className="text-sm font-semibold text-green-900 mb-3">
+              <div className={`pt-4 ${hasUserSettlementDetails ? "mt-4" : ""}`}>
+                <h4 className="text-sm font-semibold text-foreground mb-3">
                   Market Maker Settlement
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                   <div>
-                    <p className="text-green-700 text-xs mb-1">Revenue</p>
-                    <p className="font-medium text-green-900">
+                    <p className="text-muted-foreground text-xs mb-1">
+                      Revenue
+                    </p>
+                    <p className="font-medium text-foreground">
                       $
                       {(
                         (settlementInfo?.marketTotalRevenueCents ?? 0) / 100
@@ -585,8 +572,10 @@ export default function MarketPage({
                     </p>
                   </div>
                   <div>
-                    <p className="text-green-700 text-xs mb-1">Net Transfer</p>
-                    <p className="font-medium text-green-900">
+                    <p className="text-muted-foreground text-xs mb-1">
+                      Net Transfer
+                    </p>
+                    <p className="font-medium text-foreground">
                       $
                       {(
                         (settlementInfo?.marketTotalPayoutCents ?? 0) / 100
@@ -594,9 +583,11 @@ export default function MarketPage({
                     </p>
                   </div>
                   <div>
-                    <p className="text-green-700 text-xs mb-1">Net P&amp;L</p>
+                    <p className="text-muted-foreground text-xs mb-1">
+                      Net P&amp;L
+                    </p>
                     <p
-                      className={`font-medium ${(settlementInfo?.marketNetPnlCents ?? 0) >= 0 ? "text-green-700" : "text-red-600"}`}
+                      className={`font-medium ${(settlementInfo?.marketNetPnlCents ?? 0) >= 0 ? "text-primary" : "text-destructive"}`}
                     >
                       {(settlementInfo?.marketNetPnlCents ?? 0) >= 0 ? "+" : ""}
                       $
@@ -606,8 +597,10 @@ export default function MarketPage({
                     </p>
                   </div>
                   <div>
-                    <p className="text-green-700 text-xs mb-1">Users Settled</p>
-                    <p className="font-medium text-green-900">
+                    <p className="text-muted-foreground text-xs mb-1">
+                      Users Settled
+                    </p>
+                    <p className="font-medium text-foreground">
                       {payoutDistribution.length}
                     </p>
                   </div>
@@ -617,20 +610,24 @@ export default function MarketPage({
           </Card>
         )}
         {market.status === "closed" && (
-          <Card className="p-4 mb-6 border-amber-200 bg-amber-50 dark:bg-amber-950">
+          <Card className="p-4 mb-6 bg-accent/25 border border-accent/40">
             <div className="flex items-center gap-2">
-              <Badge className="bg-amber-600 text-white">Closed</Badge>
-              <span className="text-sm font-medium">
+              <span className="text-xs font-semibold uppercase tracking-wide text-secondary">
+                Closed
+              </span>
+              <span className="text-sm font-medium text-foreground">
                 Trading closed — positions remain until resolution.
               </span>
             </div>
           </Card>
         )}
         {market.status === "suspended" && (
-          <Card className="p-4 mb-6 border-red-200 bg-red-50 dark:bg-red-950">
+          <Card className="p-4 mb-6 bg-destructive/10 border border-destructive/30">
             <div className="flex items-center gap-2">
-              <Badge className="bg-red-600 text-white">Suspended</Badge>
-              <span className="text-sm font-medium">
+              <span className="text-xs font-semibold uppercase tracking-wide text-destructive">
+                Suspended
+              </span>
+              <span className="text-sm font-medium text-foreground">
                 Trading is temporarily halted.
               </span>
             </div>
@@ -698,7 +695,7 @@ export default function MarketPage({
 
         {/* User sections */}
         {user ? (
-          <div ref={tabsRef}>
+          <div ref={tabsRef} className="scroll-mt-24">
             <Tabs
               value={marketTab}
               onValueChange={handleMarketTabChange}
@@ -718,22 +715,14 @@ export default function MarketPage({
                     </Badge>
                   )}
                 </TabsTrigger>
-                {market.status !== "resolved" && (
-                  <>
-                    <TabsTrigger value="orders" className="gap-2">
-                      <Clock className="w-4 h-4" />
-                      Open Orders
-                      {pendingOrders.length > 0 && (
-                        <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                          {pendingOrders.length}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                  </>
-                )}
                 <TabsTrigger value="history" className="gap-2">
                   <History className="w-4 h-4" />
                   My History
+                  {pendingOrders.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                      {pendingOrders.length} open
+                    </Badge>
+                  )}
                 </TabsTrigger>
                 {isMarketMakerView && (
                   <TabsTrigger value="market-history" className="gap-2">
@@ -755,11 +744,13 @@ export default function MarketPage({
                   <div className="animate-pulse h-20 bg-muted rounded" />
                 ) : market.status === "resolved" ? (
                   resolvedHoldings.length === 0 ? (
-                    <p className="text-muted-foreground text-sm py-8 text-center">
-                      No settled positions in this market.
-                    </p>
+                    <div className="animate-fadeInUp">
+                      <p className="text-muted-foreground text-sm py-8 text-center">
+                        No settled positions in this market.
+                      </p>
+                    </div>
                   ) : (
-                    <>
+                    <div className="animate-fadeInUp">
                       <HoldingsTab
                         filteredMarkets={[
                           {
@@ -805,14 +796,16 @@ export default function MarketPage({
                           {(settledTotalPnl / 100).toFixed(2)}
                         </span>
                       </div>
-                    </>
+                    </div>
                   )
                 ) : myHoldings.length === 0 ? (
-                  <p className="text-muted-foreground text-sm py-8 text-center">
-                    No positions in this market yet.
-                  </p>
+                  <div className="animate-fadeInUp">
+                    <p className="text-muted-foreground text-sm py-8 text-center">
+                      No positions in this market yet.
+                    </p>
+                  </div>
                 ) : (
-                  <>
+                  <div className="animate-fadeInUp">
                     <HoldingsTab
                       filteredMarkets={[
                         {
@@ -855,27 +848,9 @@ export default function MarketPage({
                         {totalPnl >= 0 ? "+" : ""}${(totalPnl / 100).toFixed(2)}
                       </span>
                     </div>
-                  </>
+                  </div>
                 )}
               </TabsContent>
-
-              {/* Open Orders */}
-              {market.status !== "resolved" && (
-                <TabsContent value="orders">
-                  {loadingUserData ? (
-                    <div className="animate-pulse h-20 bg-muted rounded" />
-                  ) : (
-                    <OpenOrdersTab
-                      pendingOrders={pendingOrders}
-                      loadingOrders={false}
-                      onOrderCancelled={fetchUserData}
-                      hideSearch
-                      hideMarketLinks
-                      listMode
-                    />
-                  )}
-                </TabsContent>
-              )}
 
               {/* My History */}
               <TabsContent value="history">
@@ -888,6 +863,11 @@ export default function MarketPage({
                     searchQuery=""
                     setSearchQuery={() => {}}
                     hideSearch
+                    showOrderStateFilter
+                    defaultOrderStateFilter={
+                      searchParams.get("tab") === "orders" ? "open" : "all"
+                    }
+                    disableMarketLink
                     onOrderClick={(order) => setSelectedOrder(order)}
                   />
                 )}
@@ -905,6 +885,7 @@ export default function MarketPage({
                       setSearchQuery={() => {}}
                       hideSearch
                       showUserId
+                      disableMarketLink
                       onOrderClick={(order) => setSelectedOrder(order)}
                     />
                   )}

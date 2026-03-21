@@ -84,7 +84,9 @@ export function OrderDetailSheet({
                 <Badge
                   variant={isBuy ? "default" : "secondary"}
                   className={`font-mono text-lg ${
-                    isBuy ? "bg-green-600" : "bg-red-600 text-white"
+                    isBuy
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-destructive text-destructive-foreground"
                   }`}
                 >
                   {isBuy ? "BUY" : "SELL"}
@@ -93,8 +95,8 @@ export function OrderDetailSheet({
                   variant="outline"
                   className={
                     isLimit
-                      ? "text-purple-600 border-purple-300"
-                      : "text-blue-600 border-blue-300"
+                      ? "text-accent-foreground border-accent/45 bg-accent/12"
+                      : "text-foreground border-border/70 bg-muted/45"
                   }
                 >
                   {isLimit ? "LIMIT" : "MARKET"}
@@ -102,21 +104,21 @@ export function OrderDetailSheet({
                 {order.filled ? (
                   <Badge
                     variant="outline"
-                    className="text-green-600 border-green-300"
+                    className="text-primary border-primary/45 bg-primary/10"
                   >
                     FILLED
                   </Badge>
                 ) : order.canceled ? (
                   <Badge
                     variant="outline"
-                    className="text-red-600 border-red-300"
+                    className="text-destructive border-destructive/45 bg-destructive/10"
                   >
                     CANCELED
                   </Badge>
                 ) : (
                   <Badge
                     variant="outline"
-                    className="text-amber-600 border-amber-300"
+                    className="text-secondary border-secondary/45 bg-secondary/12"
                   >
                     PENDING
                   </Badge>
@@ -206,28 +208,6 @@ export function OrderDetailSheet({
             </Card>
           </div>
 
-          {/* Securities Breakdown */}
-          <div className="mb-6">
-            <h4 className="text-sm font-medium mb-3">Securities</h4>
-            <div className="space-y-2">
-              {order.legs.map((leg, idx) => (
-                <Card key={`${leg.securityId}-${idx}`} className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="font-mono">
-                        {leg.outcome}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {leg.quantity > 0 ? "+" : ""}
-                        {leg.quantity} shares
-                      </span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-
           {/* Cancel Button for pending orders */}
           {!order.filled && !order.canceled && (
             <div className="mb-6">
@@ -251,6 +231,28 @@ export function OrderDetailSheet({
               </Button>
             </div>
           )}
+
+          {/* Securities Breakdown */}
+          <div className="mb-6">
+            <h4 className="text-sm font-medium mb-3">Securities</h4>
+            <div className="space-y-2">
+              {order.legs.map((leg, idx) => (
+                <Card key={`${leg.securityId}-${idx}`} className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="font-mono">
+                        {leg.outcome}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {leg.quantity > 0 ? "+" : ""}
+                        {leg.quantity} shares
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
         </SheetContent>
       </Sheet>
 

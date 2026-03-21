@@ -4,77 +4,77 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f4f8f7;
+  --background: #e7ebf0;
   --foreground: #374151;
-  --card: #ffffff;
+  --card: #f7f9fc;
   --card-foreground: #374151;
-  --popover: #ffffff;
+  --popover: #f3f6fa;
   --popover-foreground: #374151;
   --primary: #2fae8f;
   --primary-foreground: #f8fffc;
   --secondary: #6b7280;
   --secondary-foreground: #f9fafb;
-  --muted: #eaf1ef;
+  --muted: #dde2e7;
   --muted-foreground: #6b7280;
-  --accent: #8adbc7;
-  --accent-foreground: #0f3f34;
+  --accent: #8c969f;
+  --accent-foreground: #223047;
   --success: #21a67f;
   --success-foreground: #f8fffc;
   --destructive: #dc5c5c;
   --destructive-foreground: #fff5f5;
-  --border: #d4dde3;
-  --input: #d4dde3;
+  --border: #c1c9d1;
+  --input: #c1c9d1;
   --ring: #2fae8f;
   --chart-1: #2fae8f;
   --chart-2: #6b7280;
-  --chart-3: #4a7c8c;
-  --chart-4: #90a68a;
-  --chart-5: #c4975b;
+  --chart-3: #5f738c;
+  --chart-4: #7f9488;
+  --chart-5: #9a8470;
   --radius: 0.5rem;
-  --sidebar: #ecf4f2;
+  --sidebar: #dde2e8;
   --sidebar-foreground: #374151;
   --sidebar-primary: #2fae8f;
   --sidebar-primary-foreground: #f8fffc;
-  --sidebar-accent: #dcebe7;
-  --sidebar-accent-foreground: #0f3f34;
-  --sidebar-border: #d4dde3;
+  --sidebar-accent: #d2d8df;
+  --sidebar-accent-foreground: #223047;
+  --sidebar-border: #bdc8d5;
   --sidebar-ring: #2fae8f;
 }
 
 .dark {
-  --background: #0f1e1b;
-  --foreground: #e5ecea;
-  --card: #142723;
-  --card-foreground: #e5ecea;
-  --popover: #142723;
-  --popover-foreground: #e5ecea;
+  --background: #0f1319;
+  --foreground: #d8e1ec;
+  --card: #161c24;
+  --card-foreground: #d8e1ec;
+  --popover: #161c24;
+  --popover-foreground: #d8e1ec;
   --primary: #2fae8f;
   --primary-foreground: #06251e;
   --secondary: #6b7280;
   --secondary-foreground: #f3f4f6;
-  --muted: #1b2f2a;
-  --muted-foreground: #9ca3af;
-  --accent: #45c3a4;
-  --accent-foreground: #06251e;
+  --muted: #242b33;
+  --muted-foreground: #95a1b2;
+  --accent: #5f6975;
+  --accent-foreground: #e7edf5;
   --success: #2fae8f;
   --success-foreground: #06251e;
   --destructive: #f06f6f;
   --destructive-foreground: #2d1010;
-  --border: #2f4543;
-  --input: #2f4543;
+  --border: #343f4b;
+  --input: #343f4b;
   --ring: #2fae8f;
   --chart-1: #2fae8f;
-  --chart-2: #9ca3af;
-  --chart-3: #7ba5b6;
-  --chart-4: #9db08f;
-  --chart-5: #d7b27b;
-  --sidebar: #132522;
-  --sidebar-foreground: #e5ecea;
+  --chart-2: #98a3b0;
+  --chart-3: #7b90a8;
+  --chart-4: #89a193;
+  --chart-5: #a48e77;
+  --sidebar: #1a2028;
+  --sidebar-foreground: #d8e1ec;
   --sidebar-primary: #2fae8f;
   --sidebar-primary-foreground: #06251e;
-  --sidebar-accent: #1c3430;
-  --sidebar-accent-foreground: #d5dfdc;
-  --sidebar-border: #2f4543;
+  --sidebar-accent: #29303a;
+  --sidebar-accent-foreground: #d8e1ec;
+  --sidebar-border: #314051;
   --sidebar-ring: #2fae8f;
 }
 
@@ -128,5 +128,260 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(47, 174, 143, 0.1), transparent 33%),
+      radial-gradient(circle at 84% 12%, rgba(107, 114, 128, 0.1), transparent 35%),
+      linear-gradient(180deg, #edf1f3 0%, var(--background) 56%, #d9e0e5 100%);
+    background-attachment: fixed;
   }
 }
+
+@layer components {
+  .surface-panel {
+    background: linear-gradient(180deg, rgba(232, 238, 244, 0.9) 0%, rgba(223, 230, 237, 0.88) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba(120, 134, 149, 0.12),
+      0 0 0 1px rgba(195, 206, 217, 0.3);
+  }
+
+  .dark .surface-panel {
+    background: linear-gradient(180deg, rgba(37, 43, 49, 0.9) 0%, rgba(30, 35, 41, 0.88) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(209, 223, 240, 0.07),
+      inset 0 -1px 0 rgba(8, 12, 18, 0.4),
+      0 0 0 1px rgba(78, 93, 109, 0.28);
+  }
+
+  .glass-card {
+    background: var(--background);
+    border-color: transparent;
+    box-shadow:
+      -3px -3px 7px rgba(255, 255, 255, 0.36),
+      3px 3px 7px rgba(126, 141, 158, 0.2),
+      inset 1px 1px 2px rgba(255, 255, 255, 0.18),
+      inset -1px -1px 2px rgba(122, 136, 151, 0.12);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      inset 0 -1px 0 rgba(121, 135, 150, 0.05);
+  }
+
+  .glass-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    display: none;
+  }
+
+  .dark .glass-card {
+    background: var(--background);
+    border-color: transparent;
+    box-shadow:
+      -3px -3px 8px rgba(80, 94, 110, 0.14),
+      3px 3px 8px rgba(6, 10, 14, 0.5),
+      inset 1px 1px 2px rgba(212, 225, 241, 0.08),
+      inset -1px -1px 2px rgba(8, 12, 18, 0.28);
+  }
+
+  .dark .glass-card::before {
+    box-shadow:
+      inset 0 1px 0 rgba(209, 222, 238, 0.05),
+      inset 0 -1px 0 rgba(10, 14, 19, 0.28);
+  }
+
+  .dark .glass-card::after {
+    background: radial-gradient(circle at 50% 50%, rgba(204, 219, 236, 0.04), transparent 65%);
+  }
+
+  .glass-popover {
+    background: linear-gradient(170deg, #eef3f8 0%, #e5ecf3 100%);
+    box-shadow:
+      0 14px 28px rgba(77, 93, 112, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -1px 0 rgba(120, 134, 149, 0.18);
+    border: 1px solid rgba(191, 201, 212, 0.6);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .dark .glass-popover {
+    background: linear-gradient(170deg, #2a323c 0%, #212833 100%);
+    box-shadow:
+      0 14px 30px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(210, 223, 240, 0.1),
+      inset 0 -1px 0 rgba(8, 12, 18, 0.44);
+    border: 1px solid rgba(78, 94, 109, 0.56);
+  }
+
+  .glass-toast {
+    background: var(--popover) !important;
+    border: 1px solid rgba(191, 201, 212, 0.6) !important;
+    box-shadow:
+      0 12px 26px rgba(77, 93, 112, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.34),
+      inset 0 -1px 0 rgba(120, 134, 149, 0.16) !important;
+    color: var(--foreground) !important;
+  }
+
+  .dark .glass-toast {
+    background: var(--popover) !important;
+    border: 1px solid rgba(78, 94, 109, 0.56) !important;
+    box-shadow:
+      0 14px 30px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(210, 223, 240, 0.08),
+      inset 0 -1px 0 rgba(8, 12, 18, 0.4) !important;
+    color: var(--foreground) !important;
+  }
+
+  .calendar-date-surface {
+    background: rgba(236, 239, 242, 0.9);
+    border-color: rgba(193, 199, 206, 0.8);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba(120, 134, 149, 0.08);
+  }
+
+  .dark .calendar-date-surface {
+    background: rgba(39, 44, 50, 0.88);
+    border-color: rgba(76, 87, 99, 0.72);
+    box-shadow:
+      inset 0 1px 0 rgba(209, 223, 240, 0.06),
+      inset 0 -1px 0 rgba(8, 12, 18, 0.3);
+  }
+}
+
+/* Themed scrollbars for panels and long holdings lists */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107, 114, 128, 0.55) rgba(214, 223, 231, 0.55);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(214, 223, 231, 0.55);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(47, 174, 143, 0.75) 0%, rgba(107, 114, 128, 0.75) 100%);
+  border-radius: 999px;
+  border: 2px solid rgba(214, 223, 231, 0.7);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(47, 174, 143, 0.9) 0%, rgba(107, 114, 128, 0.9) 100%);
+}
+
+.dark * {
+  scrollbar-color: rgba(107, 114, 128, 0.7) rgba(44, 54, 66, 0.65);
+}
+
+.dark *::-webkit-scrollbar-track {
+  background: rgba(44, 54, 66, 0.65);
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  border-color: rgba(44, 54, 66, 0.75);
+}
+
+/* Header elevation styling */
+.header-elevated {
+  background: linear-gradient(180deg, rgba(231, 234, 237, 0.98) 0%, rgba(220, 225, 230, 0.98) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(120, 134, 149, 0.12),
+    0 0 0 1px rgba(195, 206, 217, 0.28),
+    0 6px 18px rgba(77, 93, 112, 0.18);
+}
+
+.dark .header-elevated {
+  background: linear-gradient(180deg, rgba(37, 41, 46, 0.98) 0%, rgba(30, 34, 39, 0.98) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(209, 223, 240, 0.08),
+    inset 0 -1px 0 rgba(8, 12, 18, 0.42),
+    0 0 0 1px rgba(78, 93, 109, 0.3),
+    0 8px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* Dialog content sections with neumorphic styling */
+.dialog-neumorphic {
+  background: linear-gradient(180deg, rgba(232, 238, 244, 0.7) 0%, rgba(223, 230, 237, 0.68) 100%);
+  border: 1px solid rgba(193, 203, 214, 0.48);
+  box-shadow:
+    -2px -2px 5px rgba(255, 255, 255, 0.28),
+    2px 2px 5px rgba(126, 141, 158, 0.14),
+    inset 0.5px 0.5px 1px rgba(255, 255, 255, 0.12),
+    inset -0.5px -0.5px 1px rgba(122, 136, 151, 0.08);
+  border-radius: 0.5rem;
+}
+
+.dark .dialog-neumorphic {
+  background: linear-gradient(180deg, rgba(37, 43, 49, 0.7) 0%, rgba(30, 35, 41, 0.68) 100%);
+  border: 1px solid rgba(78, 93, 109, 0.36);
+  box-shadow:
+    -2px -2px 5px rgba(80, 94, 110, 0.08),
+    2px 2px 5px rgba(6, 10, 14, 0.35),
+    inset 0.5px 0.5px 1px rgba(212, 225, 241, 0.04),
+    inset -0.5px -0.5px 1px rgba(8, 12, 18, 0.2);
+}
+
+/* Entry animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.35s ease-out forwards;
+}
+
+/* Staggered animations for lists */
+.animate-stagger > * {
+  opacity: 0;
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.animate-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.animate-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.animate-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.animate-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.animate-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.animate-stagger > *:nth-child(n+6) { animation-delay: 250ms; }

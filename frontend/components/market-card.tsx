@@ -148,7 +148,7 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
   return (
     <>
       <Card
-        className={`p-6 hover:shadow-lg transition-shadow relative ${
+        className={`p-6 relative overflow-visible animate-fadeInUp ${
           isRefreshing ? "opacity-70" : ""
         }`}
       >
@@ -222,11 +222,13 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
 
         {market.status === "resolved" && market.winningSecurityId && (
           <div className="mb-4">
-            <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+            <div className="bg-primary/12 border border-primary/30 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Badge className="bg-green-600 text-white">Resolved</Badge>
+                <Badge className="bg-primary text-primary-foreground">
+                  Resolved
+                </Badge>
               </div>
-              <p className="text-sm font-medium text-green-900">
+              <p className="text-sm font-medium text-foreground">
                 Winning Outcome:{" "}
                 {
                   outcomes.find((o) => o.id === market.winningSecurityId)
@@ -234,14 +236,16 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
                 }
               </p>
               {settlementInfo?.userTotals ? (
-                <div className="mt-3 pt-3 border-t border-green-200">
-                  <p className="text-xs text-green-700 mb-2">Your Position:</p>
+                <div className="mt-3 pt-3 border-t border-primary/25">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Your Position:
+                  </p>
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-sm font-medium text-green-900">
+                    <span className="text-sm font-medium text-foreground">
                       {`${settlementInfo.userTotals.positionCount} settled outcome${settlementInfo.userTotals.positionCount === 1 ? "" : "s"}`}
                     </span>
                     <span
-                      className={`text-sm font-bold ${settlementInfo.userTotals.totalPnlCents >= 0 ? "text-green-700" : "text-red-600"}`}
+                      className={`text-sm font-bold ${settlementInfo.userTotals.totalPnlCents >= 0 ? "text-primary" : "text-destructive"}`}
                     >
                       {settlementInfo.userTotals.totalPnlCents >= 0 ? "+" : ""}$
                       {(settlementInfo.userTotals.totalPnlCents / 100).toFixed(
@@ -251,7 +255,7 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
                   </div>
                 </div>
               ) : null}
-              <p className="text-xs text-green-700 mt-3">
+              <p className="text-xs text-muted-foreground mt-3">
                 This market has been settled and is no longer tradeable.
               </p>
             </div>
@@ -260,14 +264,16 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
 
         {market.status === "closed" && (
           <div className="mb-4">
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+            <div className="bg-accent/25 border border-accent/40 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Badge className="bg-amber-600 text-white">Closed</Badge>
+                <Badge className="bg-secondary text-secondary-foreground">
+                  Closed
+                </Badge>
               </div>
-              <p className="text-sm font-medium text-amber-900">
+              <p className="text-sm font-medium text-foreground">
                 Trading Closed
               </p>
-              <p className="text-xs text-amber-700 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 No new trades can be placed. Existing positions remain until
                 market is resolved.
               </p>
@@ -277,14 +283,16 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
 
         {market.status === "suspended" && (
           <div className="mb-4">
-            <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Badge className="bg-red-600 text-white">Suspended</Badge>
+                <Badge className="bg-destructive text-destructive-foreground">
+                  Suspended
+                </Badge>
               </div>
-              <p className="text-sm font-medium text-red-900">
+              <p className="text-sm font-medium text-destructive">
                 Trading Suspended
               </p>
-              <p className="text-xs text-red-700 mt-1">
+              <p className="text-xs text-destructive/85 mt-1">
                 Trading is temporarily halted due to administrative review or
                 technical issues.
               </p>
