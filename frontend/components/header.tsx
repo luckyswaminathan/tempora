@@ -76,7 +76,7 @@ export function Header() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-foreground">
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary">
                 <svg
                   viewBox="1 0.5 30 27"
                   className="w-6 h-6"
@@ -168,7 +168,7 @@ export function Header() {
               <a
                 id="logo-tempora"
                 href="/"
-                className="text-xl font-bold hover:opacity-90"
+                className="text-xl font-bold text-foreground hover:text-foreground/90 transition-colors"
               >
                 tempora
               </a>

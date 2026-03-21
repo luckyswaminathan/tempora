@@ -155,7 +155,7 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
         {/* Floating interval selection overlay - stick to top of this card */}
         {viewMode === "interval" && rangeStart >= 0 && (
           <div className="absolute -top-3 left-4 right-4 z-10 animate-in slide-in-from-top-2 duration-300">
-            <div className="bg-gradient-to-r from-green-500 to-green-400 text-white px-4 py-3 rounded-lg shadow-lg border-2 border-green-400">
+            <div className="bg-primary text-primary-foreground px-4 py-3 rounded-lg shadow-lg border-2 border-primary">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold mb-1 truncate">
@@ -170,7 +170,7 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
                   <Button
                     size="sm"
                     onClick={handleOpenIntervalDialog}
-                    className="h-9 bg-white text-green-600 hover:bg-green-50"
+                    className="h-9 bg-white text-primary hover:bg-white/90"
                   >
                     Trade
                   </Button>
@@ -178,7 +178,7 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
                     size="sm"
                     variant="ghost"
                     onClick={handleResetInterval}
-                    className="h-9 w-9 p-0 text-white hover:bg-green-700"
+                    className="h-9 w-9 p-0 text-primary-foreground hover:bg-primary/80"
                   >
                     <X className="h-4 w-4" />
                   </Button>

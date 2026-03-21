@@ -149,10 +149,10 @@ export function IntervalPicker({
                       key={outcome.id}
                       fill={
                         isSelected
-                          ? "#22c55e"
+                          ? "var(--primary)"
                           : isWinning
-                            ? "#6ee7b7"
-                            : "#93c5fd"
+                            ? "var(--accent)"
+                            : "var(--secondary)"
                       }
                       style={{ cursor: "pointer" }}
                       onClick={() => handleCellClick(regularIndex)}
@@ -207,7 +207,7 @@ export function IntervalPicker({
             onClick={handleCatchAllClick}
             className={`min-w-[200px] ${
               catchAllOutcome.id === winningSecurityId
-                ? "border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+                ? "border-primary bg-primary/15 text-primary hover:bg-primary/20"
                 : ""
             }`}
           >

@@ -1,16 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <!-- Dark background -->
-  <rect width="32" height="32" rx="6" fill="#0f0f0f"/>
-  <!-- Baseline -->
-  <line x1="2" y1="27.5" x2="30" y2="27.5" stroke="white" stroke-width="0.5" opacity="0.25"/>
+  <rect width="32" height="32" rx="6" fill="#2FAE8F"/>
+  <line x1="2" y1="27.5" x2="30" y2="27.5" stroke="#6B7280" stroke-width="0.5" opacity="0.45"/>
   <!-- Distribution bars (bell-curve heights: 3,6,10,16,22,16,10,6,3) -->
-  <rect x="2.35"  y="24.5" width="2.5" height="3"  rx="1" fill="white" opacity="0.55"/>
-  <rect x="5.45"  y="21.5" width="2.5" height="6"  rx="1" fill="white" opacity="0.65"/>
-  <rect x="8.55"  y="17.5" width="2.5" height="10" rx="1" fill="white" opacity="0.75"/>
-  <rect x="11.65" y="11.5" width="2.5" height="16" rx="1" fill="white" opacity="0.88"/>
-  <rect x="14.75" y="5.5"  width="2.5" height="22" rx="1" fill="white" opacity="1"/>
-  <rect x="17.85" y="11.5" width="2.5" height="16" rx="1" fill="white" opacity="0.88"/>
-  <rect x="20.95" y="17.5" width="2.5" height="10" rx="1" fill="white" opacity="0.75"/>
-  <rect x="24.05" y="21.5" width="2.5" height="6"  rx="1" fill="white" opacity="0.65"/>
-  <rect x="27.15" y="24.5" width="2.5" height="3"  rx="1" fill="white" opacity="0.55"/>
+  <rect x="2.35"  y="24.5" width="2.5" height="3"  rx="1" fill="#F8FFFC" opacity="0.6"/>
+  <rect x="5.45"  y="21.5" width="2.5" height="6"  rx="1" fill="#F8FFFC" opacity="0.7"/>
+  <rect x="8.55"  y="17.5" width="2.5" height="10" rx="1" fill="#F8FFFC" opacity="0.8"/>
+  <rect x="11.65" y="11.5" width="2.5" height="16" rx="1" fill="#F8FFFC" opacity="0.9"/>
+  <rect x="14.75" y="5.5"  width="2.5" height="22" rx="1" fill="#F8FFFC" opacity="1"/>
+  <rect x="17.85" y="11.5" width="2.5" height="16" rx="1" fill="#F8FFFC" opacity="0.9"/>
+  <rect x="20.95" y="17.5" width="2.5" height="10" rx="1" fill="#F8FFFC" opacity="0.8"/>
+  <rect x="24.05" y="21.5" width="2.5" height="6"  rx="1" fill="#F8FFFC" opacity="0.7"/>
+  <rect x="27.15" y="24.5" width="2.5" height="3"  rx="1" fill="#F8FFFC" opacity="0.6"/>
 </svg>

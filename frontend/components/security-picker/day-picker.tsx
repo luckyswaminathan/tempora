@@ -188,9 +188,9 @@ export function DayPicker({
                   disabled
                     ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
                     : isInRange(dayData.index)
-                      ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
+                      ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
                       : isWinning
-                        ? "border-emerald-400 bg-emerald-50"
+                        ? "border-primary bg-primary/15"
                         : hoveredIndex === dayData.index
                           ? "border-blue-400 bg-blue-50"
                           : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
@@ -220,9 +220,9 @@ export function DayPicker({
                 onMouseLeave={() => setHoveredIndex(null)}
                 className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[70px] ${
                   isInRange(index)
-                    ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
+                    ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
                     : outcome.id === winningSecurityId
-                      ? "border-emerald-400 bg-emerald-50"
+                      ? "border-primary bg-primary/15"
                       : hoveredIndex === index
                         ? "border-blue-400 bg-blue-50"
                         : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"

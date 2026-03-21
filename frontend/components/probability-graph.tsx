@@ -131,7 +131,7 @@ export function ProbabilityGraph({
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#e5e7eb"
+                stroke="var(--border)"
                 vertical={false}
               />
               <XAxis
@@ -139,17 +139,17 @@ export function ProbabilityGraph({
                 type="number"
                 scale="time"
                 domain={["dataMin", "dataMax"]}
-                tick={{ fontSize: 11, fill: "#6b7280" }}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                 tickFormatter={(timestamp) =>
                   format(new Date(timestamp), "MMM d")
                 }
-                stroke="#9ca3af"
+                stroke="var(--muted-foreground)"
                 tickCount={5}
               />
               <YAxis
                 dataKey="probability"
-                tick={{ fontSize: 8, fill: "#6b7280" }}
-                stroke="#9ca3af"
+                tick={{ fontSize: 8, fill: "var(--muted-foreground)" }}
+                stroke="var(--muted-foreground)"
                 domain={[(dataMin: number) => Math.max(0, dataMin), "auto"]}
                 tickFormatter={(value) => `${(value * 100).toFixed(2)}%`}
               />
@@ -162,8 +162,8 @@ export function ProbabilityGraph({
                   format(new Date(timestamp), "MMM d, h:mm a")
                 }
                 contentStyle={{
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #e5e7eb",
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
                   borderRadius: "4px",
                   padding: "8px",
                 }}
@@ -171,9 +171,9 @@ export function ProbabilityGraph({
               <Area
                 type="linear"
                 dataKey="probability"
-                stroke="#3b82f6"
+                stroke="var(--primary)"
                 strokeWidth={1.5}
-                fill="#3b82f6"
+                fill="var(--primary)"
                 fillOpacity={0.15}
                 isAnimationActive={false}
               />

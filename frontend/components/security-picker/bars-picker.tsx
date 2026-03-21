@@ -28,19 +28,19 @@ export function BarsPicker({
             onMouseLeave={() => setHoveredIndex(null)}
             className={`w-full h-12 rounded-lg relative overflow-visible transition ring-offset-2 ${
               isSelected
-                ? "ring-2 ring-green-500"
+                ? "ring-2 ring-primary"
                 : isWinning
-                  ? "ring-2 ring-emerald-400"
-                  : "hover:ring-2 hover:ring-primary"
+                  ? "ring-2 ring-accent"
+                  : "hover:ring-2 hover:ring-secondary"
             }`}
           >
             <div
               className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${
                 isSelected
-                  ? "bg-green-200"
+                  ? "bg-primary"
                   : isWinning
-                    ? "bg-emerald-200"
-                    : "bg-blue-200"
+                    ? "bg-accent"
+                    : "bg-secondary"
               }`}
               style={{ width: `${widthPercent}%` }}
             />
