@@ -21,6 +21,7 @@ from schemas.order import (
     TradeRecord,
 )
 from services.markets import MarketService
+from services.history import HistoryService
 from services.notifications import NotificationService
 from utils.pricing import calculate_market_price_cents
 from utils.collateral import calculate_collateral_required, get_user_collateral_locked
@@ -30,6 +31,7 @@ class OrderService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.market_service = MarketService(session)
+        self.history_service = HistoryService(session)
         self.notification_service = NotificationService(session)
 
     def _price_trade(
@@ -280,8 +282,16 @@ class OrderService:
         self.session.flush()  # Get the order ID
 
         # Execute trades for each leg
+        executed_at = datetime.now(timezone.utc)
         self._execute_trades_for_legs(
             order, payload.legs, total_cost, market, simulated_quantities
+        )
+        self.history_service.record_market_probability_snapshot(
+            market_id=payload.market_id,
+            order_id=order.id,
+            quantities_map=simulated_quantities,
+            liquidity_parameter=market.liquidity_parameter,
+            captured_at=executed_at,
         )
 
         profile.wallet -= total_cost
@@ -508,8 +518,16 @@ class OrderService:
                 continue
 
             # Execute the trades
+            executed_at = datetime.now(timezone.utc)
             self._execute_trades_for_legs(
                 order, legs, total_cost, market, simulated_quantities
+            )
+            self.history_service.record_market_probability_snapshot(
+                market_id=market_id,
+                order_id=order.id,
+                quantities_map=simulated_quantities,
+                liquidity_parameter=market.liquidity_parameter,
+                captured_at=executed_at,
             )
 
             # Update wallet and order status

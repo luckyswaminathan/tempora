@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   AreaChart,
   XAxis,
@@ -19,20 +19,26 @@ import { format, parseISO } from "date-fns";
 interface ProbabiltiyGraphProps {
   securityId: string;
   outcome: string;
+  isLive?: boolean;
+  pollIntervalMs?: number;
 }
 
 export function ProbabilityGraph({
   securityId,
   outcome,
+  isLive = false,
+  pollIntervalMs = 5000,
 }: ProbabiltiyGraphProps) {
   const [data, setData] = useState<
     Array<ProbabilityHistData & { dateFormatted: string; timestamp: number }>
   >([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      setLoading(true);
+  const fetchHistory = useCallback(
+    async (showLoadingState: boolean) => {
+      if (showLoadingState) {
+        setLoading(true);
+      }
       try {
         const response = await historyApi.getProbabilityHistory(securityId);
         const formattedData = response.history.map((item) => ({
@@ -42,18 +48,39 @@ export function ProbabilityGraph({
         }));
         setData(formattedData);
       } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to load probability history",
-        );
+        if (showLoadingState) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to load probability history",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (showLoadingState) {
+          setLoading(false);
+        }
+      }
+    },
+    [securityId],
+  );
+
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    void fetchHistory(true);
+
+    if (isLive) {
+      intervalId = setInterval(() => {
+        void fetchHistory(false);
+      }, pollIntervalMs);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
       }
     };
-
-    fetchHistory();
-  }, [securityId]);
+  }, [fetchHistory, isLive, pollIntervalMs]);
 
   if (loading) {
     return (
@@ -84,7 +111,15 @@ export function ProbabilityGraph({
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h3 className="text-sm font-semibold">{outcome}</h3>
-          <p className="text-xs text-muted-foreground">History</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">History</p>
+            {isLive && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Live
+              </span>
+            )}
+          </div>
         </div>
         <div className="text-right space-y-1">
           <div className="text-sm font-mono font-semibold">
@@ -169,7 +204,7 @@ export function ProbabilityGraph({
                 }}
               />
               <Area
-                type="linear"
+                type="stepAfter"
                 dataKey="probability"
                 stroke="var(--chart-3)"
                 strokeWidth={1.5}

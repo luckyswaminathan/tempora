@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,10 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
 
   // Fetch settlement info if market is resolved and user is authenticated
   useEffect(() => {
+    setMarket(initialMarket);
+  }, [initialMarket]);
+
+  useEffect(() => {
     if (market.status === "resolved" && user) {
       marketsApi
         .getSettlementInfo(market.id)
@@ -68,17 +72,36 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
     }
   }, [market.id, market.status, user]);
 
-  const refreshMarket = async () => {
-    setIsRefreshing(true);
-    try {
-      const updated = await marketsApi.getMarket(market.id);
-      setMarket(updated);
-    } catch (error) {
-      console.error("Failed to refresh market:", error);
-    } finally {
-      setIsRefreshing(false);
+  const refreshMarket = useCallback(
+    async (showRefreshingState: boolean = true) => {
+      if (showRefreshingState) {
+        setIsRefreshing(true);
+      }
+      try {
+        const updated = await marketsApi.getMarket(market.id);
+        setMarket(updated);
+      } catch (error) {
+        console.error("Failed to refresh market:", error);
+      } finally {
+        if (showRefreshingState) {
+          setIsRefreshing(false);
+        }
+      }
+    },
+    [market.id],
+  );
+
+  useEffect(() => {
+    if (market.status !== "open") {
+      return;
     }
-  };
+
+    const intervalId = setInterval(() => {
+      void refreshMarket(false);
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [market.status, refreshMarket]);
 
   const outcomes = useMemo(() => {
     if (!market?.securities || !market?.quotes) return [];
@@ -111,11 +134,11 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
   const handleTradeSuccess = () => {
     setDialogOpen(false);
     setIntervalRange([-1, -1]);
-    refreshMarket();
+    void refreshMarket();
   };
 
   const handleMarketUpdated = () => {
-    refreshMarket();
+    void refreshMarket();
     onMarketUpdate?.();
   };
 

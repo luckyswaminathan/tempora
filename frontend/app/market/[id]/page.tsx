@@ -176,6 +176,18 @@ export default function MarketPage({
     } catch {}
   }, [id]);
 
+  useEffect(() => {
+    if (market?.status !== "open") {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      void refreshMarket();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [market?.status, refreshMarket]);
+
   // Fetch user-specific data
   const fetchUserData = useCallback(async () => {
     if (!user) return;

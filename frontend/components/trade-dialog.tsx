@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,7 @@ export function TradeDialog({
   defaultTab = "trade",
 }: TradeDialogProps) {
   const { user } = useAuth();
+  const isLiveMarket = market.status === "open";
   const isInterval = selectedOutcomes.length > 1;
   const isSingle = selectedOutcomes.length === 1;
 
@@ -84,10 +85,30 @@ export function TradeDialog({
     }
   }, [open, user]);
 
-  // Reset history index when outcomes change (e.g. switching interval → single)
+  const selectedOutcomeIds = useMemo(
+    () => selectedOutcomes.map((outcome) => outcome.id).join("|"),
+    [selectedOutcomes],
+  );
+  const previousOutcomeIdsRef = useRef("");
+
+  // Keep selected history outcome stable across polling updates. Only react
+  // when the actual selected outcomes change (not object identity churn).
   useEffect(() => {
-    setSelectedHistoryIndex(0);
-  }, [selectedOutcomes]);
+    const previousIds = previousOutcomeIdsRef.current;
+    previousOutcomeIdsRef.current = selectedOutcomeIds;
+
+    // Initial mount for this dialog lifecycle.
+    if (!previousIds) {
+      return;
+    }
+
+    if (previousIds !== selectedOutcomeIds) {
+      setSelectedHistoryIndex((prev) => {
+        if (selectedOutcomes.length === 0) return 0;
+        return Math.min(prev, selectedOutcomes.length - 1);
+      });
+    }
+  }, [selectedOutcomeIds, selectedOutcomes.length]);
 
   useEffect(() => {
     if (open) {
@@ -394,7 +415,11 @@ export function TradeDialog({
             display: idx === selectedHistoryIndex ? "block" : "none",
           }}
         >
-          <ProbabilityGraph securityId={outcome.id} outcome={outcome.outcome} />
+          <ProbabilityGraph
+            securityId={outcome.id}
+            outcome={outcome.outcome}
+            isLive={isLiveMarket}
+          />
         </div>
       ))}
     </>

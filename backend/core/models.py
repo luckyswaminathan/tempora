@@ -268,6 +268,38 @@ class Trade(Base):
     security: Mapped[Security] = relationship(back_populates="trades")
 
 
+class ProbabilityHistory(Base):
+    __tablename__ = "probability_history"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    market_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("markets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    security_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("securities.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    order_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("orders.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    probability: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    market: Mapped[Market] = relationship()
+    security: Mapped[Security] = relationship()
+    order: Mapped[Order] = relationship()
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 

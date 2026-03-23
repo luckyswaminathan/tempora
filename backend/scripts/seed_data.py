@@ -6,7 +6,7 @@ Seed the SQLite database with sample markets and securities.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from math import log as math_log, exp as math_exp, sin as math_sin, pi as math_pi
 from pathlib import Path
 
@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core import models  # noqa: E402
 from core.database import SessionLocal, init_db  # noqa: E402
+from services.history import HistoryService  # noqa: E402
 from utils.pricing import _lmsr_price_cents  # noqa: E402
 
 
@@ -28,6 +29,8 @@ def _compute_initial_funding_cents(liquidity_parameter: float, n_outcomes: int) 
 def seed_markets() -> None:
     session = SessionLocal()
     try:
+        history_service = HistoryService(session)
+
         markets = [
             # ------------------------------------------------------------------
             # Ordered categorical markets
@@ -446,6 +449,8 @@ def seed_markets() -> None:
         seeded_db_markets: list[models.Market] = []
 
         for market in markets:
+            market_created_at = datetime.now(timezone.utc) - timedelta(hours=6)
+
             # Parse outcomes first so we know n (needed for funding collateral).
             parsed_outcomes: list[dict] = []
             for outcome in market["securities"]:
@@ -484,6 +489,8 @@ def seed_markets() -> None:
                 # is locked adaptively against their wallet via get_user_collateral_locked().
                 creator_id=mm_user.id,
                 initial_funding_cents=initial_funding_cents,
+                created_at=market_created_at,
+                updated_at=market_created_at,
             )
             session.add(m)
             session.flush()
@@ -496,7 +503,7 @@ def seed_markets() -> None:
                     outcome=outcome_data["outcome"],
                     value=outcome_data["value"],
                     is_catch_all=outcome_data.get("is_catch_all", False),
-                    created_at=datetime.now(timezone.utc),
+                    created_at=market_created_at,
                 )
                 session.add(sec)
                 securities.append(sec)
@@ -662,13 +669,15 @@ def seed_markets() -> None:
             if not trader_legs:
                 continue
 
+            # Market/securities are backdated by 6 hours so this lands around now.
+            executed_at = datetime.now(timezone.utc)
             trader_order = models.Order(
                 user_id=trader_user.id,
                 market_id=db_market.id,
                 type=models.OrderType.MARKET,
                 legs=[{"security_id": s.id, "quantity": q} for s, q in trader_legs],
                 filled=True,
-                created_at=datetime.now(timezone.utc),
+                created_at=executed_at,
             )
             session.add(trader_order)
             session.flush()
@@ -684,11 +693,19 @@ def seed_markets() -> None:
                         security_id=sec.id,
                         quantity=qty,
                         price_cents=price,
-                        created_at=datetime.now(timezone.utc),
+                        created_at=executed_at,
                     )
                 )
                 current_qtys[sec.id] += float(qty)
                 order_total += price
+
+            history_service.record_market_probability_snapshot(
+                market_id=db_market.id,
+                order_id=trader_order.id,
+                quantities_map=current_qtys,
+                liquidity_parameter=b,
+                captured_at=executed_at,
+            )
 
             trader_profile.wallet -= order_total
             mm_profile.wallet += order_total
