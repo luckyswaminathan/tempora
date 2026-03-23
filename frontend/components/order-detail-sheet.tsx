@@ -177,6 +177,39 @@ export function OrderDetailSheet({
                   </div>
                 )}
 
+                {order.type === "limit" && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      Expiry
+                    </span>
+                    {order.expiresAt ? (
+                      <div className="text-right">
+                        <div className="text-sm font-medium">
+                          {new Date(order.expiresAt).toLocaleDateString(
+                            undefined,
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            },
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(order.expiresAt).toLocaleTimeString(
+                            undefined,
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-medium">Never</span>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center pt-2 border-t">
                   <span className="text-sm text-muted-foreground">
                     Total Shares

@@ -70,6 +70,7 @@ def place_order(
         marketId=payload.market_id,
         orderType=payload.order_type,
         limitPriceCents=payload.limit_price_cents,
+        expirationMinutes=payload.expiration_minutes,
         legs=payload.legs,
     )
     return order_service.place_order(order_data)

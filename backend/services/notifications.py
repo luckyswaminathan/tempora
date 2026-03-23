@@ -259,3 +259,31 @@ class NotificationService:
                 "newStatus": new_status,
             },
         )
+
+    def notify_limit_order_expired(
+        self,
+        *,
+        order: models.Order,
+        market_question: str,
+    ) -> None:
+        """Notify user when their limit order expires without being filled."""
+        legs = order.legs or []
+        gross_shares = sum(abs(int(leg.get("quantity", 0))) for leg in legs)
+        leg_count = len(legs)
+
+        self.create_notification(
+            user_id=order.user_id,
+            event_type=models.NotificationType.LIMIT_ORDER_EXPIRED,
+            title="Your limit order has expired",
+            body=(
+                f"{market_question}: Your order for {gross_shares} share(s) "
+                f"across {leg_count} leg(s) was not filled and has expired."
+            ),
+            payload={
+                "orderId": order.id,
+                "marketId": order.market_id,
+                "marketQuestion": market_question,
+                "grossShares": gross_shares,
+                "legCount": leg_count,
+            },
+        )

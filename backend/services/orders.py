@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from core import models
@@ -15,6 +15,7 @@ from schemas.order import (
     MarketOrderRecord,
     OrderCreate,
     OrderCreateRequest,
+    OrderRecord,
     OrderPriceResponse,
     OrderListResponse,
     OrderPlaceResponse,
@@ -205,6 +206,19 @@ class OrderService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Limit orders must specify limitPriceCents",
             )
+        if (
+            order_type == models.OrderType.MARKET
+            and payload.expiration_minutes is not None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="expirationMinutes is only supported for limit orders",
+            )
+        if payload.expiration_minutes is not None and payload.expiration_minutes <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="expirationMinutes must be a positive integer",
+            )
 
         # Calculate total quoted cost needed to execute trade
         total_cost = self._price_trade(market, payload.legs)
@@ -237,6 +251,13 @@ class OrderService:
                     detail=f"Insufficient balance for limit order collateral. Required: ${collateral_to_lock/100:.2f}, Available: ${spendable_balance/100:.2f}",
                 )
 
+            # Calculate expiration time if provided
+            expires_at = None
+            if payload.expiration_minutes and payload.expiration_minutes > 0:
+                expires_at = datetime.now(timezone.utc) + timedelta(
+                    minutes=payload.expiration_minutes
+                )
+
             order = models.Order(
                 type=order_type,
                 user_id=payload.user_id,
@@ -245,6 +266,7 @@ class OrderService:
                 limit_price_cents=payload.limit_price_cents,
                 collateral_locked_cents=collateral_to_lock,
                 created_at=datetime.now(timezone.utc),
+                expires_at=expires_at,
                 filled=False,
             )
             self.session.add(order)
@@ -371,6 +393,7 @@ class OrderService:
                 "question": market.question,
                 "collateralLockedCents": order.collateral_locked_cents,
                 "createdAt": order.created_at,
+                "expiresAt": order.expires_at,
                 "filled": order.filled,
                 "canceled": order.canceled,
                 "legs": legs_with_outcomes,
@@ -443,6 +466,7 @@ class OrderService:
             "question": market.question,
             "collateralLockedCents": order.collateral_locked_cents,
             "createdAt": order.created_at,
+            "expiresAt": order.expires_at,
             "filled": order.filled,
             "canceled": order.canceled,
             "legs": legs_with_outcomes,
@@ -456,6 +480,52 @@ class OrderService:
         model_cls = LimitOrderRecord if order.type == "limit" else MarketOrderRecord
 
         return model_cls.model_validate(cancel_data)
+
+    def auto_cancel_expired_orders(self) -> List[str]:
+        """
+        Auto-cancel all expired, unfilled limit orders.
+        Called by background worker.
+        Returns list of cancelled order IDs.
+        """
+        now = datetime.now(timezone.utc)
+
+        # Find all unfilled, non-canceled limit orders that have expired
+        expired_orders = (
+            self.session.query(models.Order)
+            .filter(
+                models.Order.type == models.OrderType.LIMIT,
+                models.Order.filled == False,
+                models.Order.canceled == False,
+                models.Order.expires_at.isnot(None),
+                models.Order.expires_at <= now,
+            )
+            .all()
+        )
+
+        cancelled_order_ids = []
+
+        for order in expired_orders:
+            order.canceled = True
+            cancelled_order_ids.append(order.id)
+
+        if cancelled_order_ids:
+            self.session.commit()
+
+        # Send notifications to users for auto-cancelled orders
+        for order in expired_orders:
+            try:
+                market = self.market_service.get_market(order.market_id)
+                self.notification_service.notify_limit_order_expired(
+                    order=order,
+                    market_question=market.question,
+                )
+            except Exception as e:
+                # Log error but don't fail the entire operation
+                print(
+                    f"Error notifying user {order.user_id} for expired order {order.id}: {e}"
+                )
+
+        return cancelled_order_ids
 
     def process_limit_orders(self, market_id: str) -> List[str]:
         """
@@ -477,6 +547,10 @@ class OrderService:
                 models.Order.filled == False,
                 models.Order.canceled == False,
                 models.Order.type == models.OrderType.LIMIT,
+                or_(
+                    models.Order.expires_at.is_(None),
+                    models.Order.expires_at > datetime.now(timezone.utc),
+                ),
             )
             .order_by(models.Order.created_at)
         )

@@ -56,6 +56,9 @@ export function TradeDialog({
   const [suggestedMarketPrice, setSuggestedMarketPrice] = useState<
     number | null
   >(null);
+  const [expirationMinutes, setExpirationMinutes] = useState<number | null>(
+    1440,
+  );
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(0);
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("market");
@@ -345,6 +348,8 @@ export function TradeDialog({
           orderType === "limit" && limitPrice
             ? Math.round(parseFloat(limitPrice) * 100)
             : undefined,
+        expirationMinutes:
+          orderType === "limit" ? (expirationMinutes ?? undefined) : undefined,
       };
 
       const result = await ordersApi.placeOrder(tradeRequest);
@@ -378,6 +383,7 @@ export function TradeDialog({
       setCommittedCollateralCents(null);
       setSuggestedMarketPrice(null);
       setLimitPrice("");
+      setExpirationMinutes(1440);
       setOrderType("market");
       onSuccess?.();
     } catch (error) {
@@ -677,6 +683,35 @@ export function TradeDialog({
                       )}
                     </div>
 
+                    <div className="space-y-2">
+                      <Label>Order Expiration</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { label: "1 Hour", minutes: 60 },
+                          { label: "6 Hours", minutes: 360 },
+                          { label: "24 Hours", minutes: 1440 },
+                          { label: "No Expiration", minutes: null },
+                        ].map((option) => (
+                          <button
+                            key={option.label}
+                            type="button"
+                            onClick={() => setExpirationMinutes(option.minutes)}
+                            className={`p-2 text-sm rounded border transition-colors ${
+                              expirationMinutes === option.minutes
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "border-border/60 hover:border-border text-foreground hover:bg-accent/40"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Unfilled limit orders are auto-cancelled after this
+                        period.
+                      </p>
+                    </div>
+
                     {/* Limit order info card */}
                     <div className="surface-panel p-3 rounded-lg border border-accent/45">
                       <div className="flex items-start gap-2">
@@ -686,8 +721,8 @@ export function TradeDialog({
                             How limit orders work:
                           </span>{" "}
                           Your order will execute when the market price reaches
-                          your limit. Orders are good-til-canceled (GTC) and
-                          remain active until filled or manually cancelled.
+                          your limit. It remains active until filled, manually
+                          cancelled, or auto-cancelled at expiration.
                         </div>
                       </div>
                     </div>

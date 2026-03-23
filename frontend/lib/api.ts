@@ -261,6 +261,8 @@ export interface OrderCreateRequest {
   orderType?: OrderType;
   // Max avg price for limit orders
   limitPriceCents?: number;
+  // Optional limit order TTL in minutes before auto-cancel
+  expirationMinutes?: number;
 }
 
 export interface TradeRecord {
@@ -279,6 +281,7 @@ interface _BaseOrderFields {
   question: string;
   collateralLockedCents?: number;
   createdAt: string;
+  expiresAt?: string;
   filled: boolean;
   canceled: boolean;
   legs: [LegWithOutcome, ...LegWithOutcome[]];
@@ -330,6 +333,7 @@ export interface ProbabilityHistResponse {
 
 export type NotificationEventType =
   | "limit_order_filled"
+  | "limit_order_expired"
   | "position_market_settled"
   | "market_maker_market_settled"
   | "market_maker_market_status_updated"

@@ -8,7 +8,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #e8e8e8;
+    background: #E7EBF0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -17,10 +17,10 @@
     font-family: 'Inter', sans-serif;
   }
   .poster {
-    width: 1800px;
+    width: 1620px;
     height: 870px;
-    background: #fafaf8;
-    border: 2px solid #d8d8d0;
+    background: transparent;
+    border: none;
     overflow: hidden;
   }
   svg { width: 100%; height: 100%; display: block; }
@@ -28,168 +28,165 @@
 </head>
 <body>
 <div class="poster">
-<svg viewBox="0 0 1700 960" xmlns="http://www.w3.org/2000/svg">
+<!-- viewBox width scaled to 90% of 1700 = 1530, height unchanged -->
+<svg viewBox="0 0 1530 900" xmlns="http://www.w3.org/2000/svg">
 <defs>
   <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
-    <path d="M1 2L8 5L1 8" fill="none" stroke="#9090a8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </marker>
-  <marker id="arr-pink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
-    <path d="M1 2L8 5L1 8" fill="none" stroke="#d090b0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M1 2L8 5L1 8" fill="none" stroke="#8896aa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </marker>
 </defs>
 
-<rect width="1700" height="960" fill="#fafaf8"/>
+<rect width="1530" height="900" fill="none"/>
 
 <!-- TITLE -->
-<text x="60" y="52" font-family="'Inter',sans-serif" font-size="36" font-weight="700" fill="#1a1a2e" letter-spacing="-0.5">Tempora</text>
-<text x="60" y="78" font-family="'Inter',sans-serif" font-size="18" font-weight="400" fill="#9090a8">Prediction Markets · System Architecture</text>
-<line x1="60" y1="92" x2="1640" y2="92" stroke="#d8d8d0" stroke-width="1.5"/>
+<text x="60" y="52" font-family="'Inter',sans-serif" font-size="36" font-weight="700" fill="#1a2333" letter-spacing="-0.5">Tempora</text>
+<text x="60" y="78" font-family="'Inter',sans-serif" font-size="18" font-weight="400" fill="#6b7a90">Prediction Markets · System Architecture</text>
+<line x1="60" y1="92" x2="1470" y2="92" stroke="#c4cdd8" stroke-width="1.5"/>
 
 <!-- SPINE LABELS -->
-<text x="38" y="153" font-family="'Inter',sans-serif" font-size="18" font-weight="600" fill="#c0c0cc" text-anchor="middle" transform="rotate(-90,38,153)" letter-spacing="2">CLIENT</text>
-<text x="38" y="364" font-family="'Inter',sans-serif" font-size="18" font-weight="600" fill="#c0c0cc" text-anchor="middle" transform="rotate(-90,38,364)" letter-spacing="2">API</text>
-<text x="38" y="640" font-family="'Inter',sans-serif" font-size="18" font-weight="600" fill="#c0c0cc" text-anchor="middle" transform="rotate(-90,38,640)" letter-spacing="2">SERVICES</text>
-<text x="38" y="860" font-family="'Inter',sans-serif" font-size="18" font-weight="600" fill="#c0c0cc" text-anchor="middle" transform="rotate(-90,38,860)" letter-spacing="2">DATA</text>
-<line x1="52" y1="100" x2="52" y2="940" stroke="#e4e4dc" stroke-width="1"/>
+<text x="38" y="153" font-family="'Inter',sans-serif" font-size="18" font-weight="600" fill="#a0aab8" text-anchor="middle" transform="rotate(-90,38,153)" letter-spacing="2">CLIENT</text>
+<text x="38" y="364" font-family="'Inter',sans-serif" font-size="18" font-weight="600" fill="#a0aab8" text-anchor="middle" transform="rotate(-90,38,364)" letter-spacing="2">API</text>
+<text x="38" y="630" font-family="'Inter',sans-serif" font-size="18" font-weight="600" fill="#a0aab8" text-anchor="middle" transform="rotate(-90,38,630)" letter-spacing="2">SERVICES</text>
+<text x="38" y="840" font-family="'Inter',sans-serif" font-size="18" font-weight="600" fill="#a0aab8" text-anchor="middle" transform="rotate(-90,38,840)" letter-spacing="2">DATA</text>
+<line x1="52" y1="100" x2="52" y2="880" stroke="#c8d0da" stroke-width="1"/>
 
-<!-- LAYER 1 — FRONTEND  y=102–202 -->
-<rect x="60" y="102" width="1580" height="100" rx="14" fill="#eef0fb" stroke="#c4c8ee" stroke-width="2"/>
-<rect x="78" y="114" width="190" height="30" rx="6" fill="#c8ccee"/>
-<text x="173" y="134" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#3a4090">Next.js Frontend</text>
+<!-- ══ LAYER 1 — FRONTEND  x=60 w=1410 ══ -->
+<rect x="60" y="102" width="1410" height="100" rx="14" fill="#ffffff" stroke="#c4cdd8" stroke-width="1.5"/>
+<rect x="78" y="114" width="190" height="30" rx="6" fill="#dde3f5"/>
+<text x="173" y="134" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#2a3878">Next.js Frontend</text>
 
-<!-- 6 page boxes: Market, Portfolio, Admin, Market Maker, Tutorial, Notifications -->
-<!-- Spread across x=78..~1070, each ~156px wide, 14px gap -->
-<rect x="78"  y="154" width="156" height="40" rx="9" fill="#fff" stroke="#c4c8ee" stroke-width="1.5"/>
-<text x="156" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#3a4090">Market</text>
+<!-- 6 page boxes spread across ~x=78..1060, ~w=148 each, gap=12 -->
+<rect x="78"  y="154" width="148" height="40" rx="9" fill="#f0f3ff" stroke="#b8c2ee" stroke-width="1.5"/>
+<text x="152" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#2a3878">Market</text>
 
-<rect x="248" y="154" width="156" height="40" rx="9" fill="#fff" stroke="#c4c8ee" stroke-width="1.5"/>
-<text x="326" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#3a4090">Portfolio</text>
+<rect x="238" y="154" width="148" height="40" rx="9" fill="#f0f3ff" stroke="#b8c2ee" stroke-width="1.5"/>
+<text x="312" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#2a3878">Portfolio</text>
 
-<rect x="418" y="154" width="156" height="40" rx="9" fill="#fff" stroke="#c4c8ee" stroke-width="1.5"/>
-<text x="496" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#3a4090">Admin</text>
+<rect x="398" y="154" width="148" height="40" rx="9" fill="#f0f3ff" stroke="#b8c2ee" stroke-width="1.5"/>
+<text x="472" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#2a3878">Admin</text>
 
-<rect x="588" y="154" width="190" height="40" rx="9" fill="#fff" stroke="#c4c8ee" stroke-width="1.5"/>
-<text x="683" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#3a4090">Market Maker</text>
+<rect x="558" y="154" width="182" height="40" rx="9" fill="#f0f3ff" stroke="#b8c2ee" stroke-width="1.5"/>
+<text x="649" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#2a3878">Market Maker</text>
 
-<rect x="792" y="154" width="156" height="40" rx="9" fill="#fff" stroke="#c4c8ee" stroke-width="1.5"/>
-<text x="870" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#3a4090">Tutorial</text>
+<rect x="752" y="154" width="148" height="40" rx="9" fill="#f0f3ff" stroke="#b8c2ee" stroke-width="1.5"/>
+<text x="826" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#2a3878">Tutorial</text>
 
-<rect x="962" y="154" width="192" height="40" rx="9" fill="#fff" stroke="#c4c8ee" stroke-width="1.5"/>
-<text x="1058" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#3a4090">Notifications</text>
+<rect x="912" y="154" width="180" height="40" rx="9" fill="#f0f3ff" stroke="#b8c2ee" stroke-width="1.5"/>
+<text x="1002" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#2a3878">Notifications</text>
 
 <!-- Divider -->
-<line x1="1172" y1="116" x2="1172" y2="192" stroke="#d0d4ee" stroke-width="1" stroke-dasharray="4 3"/>
+<line x1="1108" y1="116" x2="1108" y2="192" stroke="#b8c2ee" stroke-width="1" stroke-dasharray="4 3"/>
 
 <!-- AuthContext + REST -->
-<rect x="1188" y="154" width="178" height="40" rx="9" fill="#fff" stroke="#c4c8ee" stroke-width="1.5"/>
-<text x="1277" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#3a4090">AuthContext</text>
+<rect x="1122" y="154" width="170" height="40" rx="9" fill="#f0f3ff" stroke="#b8c2ee" stroke-width="1.5"/>
+<text x="1207" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#2a3878">AuthContext</text>
 
-<rect x="1378" y="154" width="90" height="40" rx="9" fill="#dde0f8" stroke="#b0b4e8" stroke-width="1.5"/>
-<text x="1423" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#3a4090">REST</text>
+<rect x="1304" y="154" width="90" height="40" rx="9" fill="#dde3f5" stroke="#a0aed8" stroke-width="1.5"/>
+<text x="1349" y="180" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="600" fill="#2a3878">REST</text>
 
-<!-- ARROW: Frontend → Middleware top -->
-<line x1="200" y1="202" x2="200" y2="243" stroke="#b0b0c8" stroke-width="2.5"/>
-<rect x="128" y="211" width="144" height="20" rx="5" fill="#fafaf8"/>
-<text x="200" y="225" text-anchor="middle" font-family="'Inter',sans-serif" font-size="14" font-weight="500" fill="#9090a8">HTTP · JWT Bearer</text>
+<!-- ARROW: Frontend → Middleware -->
+<line x1="190" y1="202" x2="190" y2="243" stroke="#8896aa" stroke-width="2.5"/>
+<rect x="118" y="211" width="144" height="20" rx="5" fill="#E7EBF0"/>
+<text x="190" y="225" text-anchor="middle" font-family="'Inter',sans-serif" font-size="14" font-weight="500" fill="#6b7a90">HTTP · JWT Bearer</text>
 
-<!-- LAYER 2 — MIDDLEWARE + API  y=244–484 -->
+<!-- ══ LAYER 2 — MIDDLEWARE + API  y=244–484 ══ -->
 
-<!-- Middleware: x=60, w=280 -->
-<rect x="60" y="244" width="280" height="240" rx="14" fill="#f2eefa" stroke="#d0b8ec" stroke-width="2"/>
-<rect x="78" y="258" width="158" height="30" rx="6" fill="#d8c0ee"/>
-<text x="157" y="278" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#6030a0">Middleware</text>
+<!-- Middleware x=60 w=260 -->
+<rect x="60" y="244" width="260" height="240" rx="14" fill="#f5f0ff" stroke="#b8a8e8" stroke-width="1.5"/>
+<rect x="78" y="258" width="150" height="30" rx="6" fill="#c8b8e8"/>
+<text x="153" y="278" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#3a1880">Middleware</text>
 
-<rect x="78" y="304" width="244" height="72" rx="9" fill="#fff" stroke="#d0b8ec" stroke-width="1.5"/>
-<text x="200" y="347" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#5028a0">CORS</text>
+<rect x="78" y="304" width="224" height="72" rx="9" fill="#ffffff" stroke="#b8a8e8" stroke-width="1.5"/>
+<text x="190" y="347" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#3a1880">CORS</text>
 
-<rect x="78" y="390" width="244" height="72" rx="9" fill="#fff" stroke="#d0b8ec" stroke-width="1.5"/>
-<text x="200" y="433" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#5028a0">JWT Auth</text>
+<rect x="78" y="390" width="224" height="72" rx="9" fill="#ffffff" stroke="#b8a8e8" stroke-width="1.5"/>
+<text x="190" y="433" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#3a1880">JWT Auth</text>
 
-<!-- Arrow: Middleware → API Routes -->
-<line x1="340" y1="370" x2="364" y2="370" stroke="#b0b0c8" stroke-width="2.5" marker-end="url(#arr)"/>
+<line x1="320" y1="370" x2="344" y2="370" stroke="#8896aa" stroke-width="2.5" marker-end="url(#arr)"/>
 
-<!-- API Routes: x=368, w=1272 -->
-<rect x="368" y="244" width="1272" height="240" rx="14" fill="#eaf6f2" stroke="#b0ddd0" stroke-width="2"/>
-<rect x="386" y="258" width="168" height="30" rx="6" fill="#b8ddd4"/>
-<text x="470" y="278" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#1a6050">FastAPI Routes</text>
+<!-- FastAPI Routes x=348 w=1122 -->
+<rect x="348" y="244" width="1122" height="240" rx="14" fill="#edfaf5" stroke="#8ed4bc" stroke-width="1.5"/>
+<rect x="366" y="258" width="168" height="30" rx="6" fill="#90d4be"/>
+<text x="450" y="278" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#0c4a38">FastAPI Routes</text>
 
-<rect x="386"  y="304" width="154" height="72" rx="9" fill="#fff" stroke="#b0ddd0" stroke-width="1.5"/>
-<text x="463"  y="347" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#1a6050">/markets</text>
+<rect x="366"  y="304" width="136" height="72" rx="9" fill="#ffffff" stroke="#8ed4bc" stroke-width="1.5"/>
+<text x="434"  y="350" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#0c4a38">/markets</text>
 
-<rect x="556"  y="304" width="154" height="72" rx="9" fill="#fff" stroke="#b0ddd0" stroke-width="1.5"/>
-<text x="633"  y="347" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#1a6050">/orders</text>
+<rect x="514"  y="304" width="130" height="72" rx="9" fill="#ffffff" stroke="#8ed4bc" stroke-width="1.5"/>
+<text x="579"  y="350" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#0c4a38">/orders</text>
 
-<rect x="726"  y="304" width="130" height="72" rx="9" fill="#fff" stroke="#b0ddd0" stroke-width="1.5"/>
-<text x="791"  y="347" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#1a6050">/auth</text>
+<rect x="656"  y="304" width="110" height="72" rx="9" fill="#ffffff" stroke="#8ed4bc" stroke-width="1.5"/>
+<text x="711"  y="350" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#0c4a38">/auth</text>
 
-<rect x="872"  y="304" width="220" height="72" rx="9" fill="#fff" stroke="#b0ddd0" stroke-width="1.5"/>
-<text x="982"  y="347" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#1a6050">/notifications</text>
+<rect x="778"  y="304" width="210" height="72" rx="9" fill="#ffffff" stroke="#8ed4bc" stroke-width="1.5"/>
+<text x="883"  y="350" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#0c4a38">/notifications</text>
 
-<rect x="1108" y="304" width="178" height="72" rx="9" fill="#fff" stroke="#b0ddd0" stroke-width="1.5"/>
-<text x="1197" y="347" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#1a6050">/proposals</text>
+<rect x="1000" y="304" width="160" height="72" rx="9" fill="#ffffff" stroke="#8ed4bc" stroke-width="1.5"/>
+<text x="1080" y="350" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#0c4a38">/proposals</text>
 
-<rect x="1302" y="304" width="138" height="72" rx="9" fill="#fff" stroke="#b0ddd0" stroke-width="1.5"/>
-<text x="1371" y="347" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#1a6050">/users</text>
+<rect x="1172" y="304" width="120" height="72" rx="9" fill="#ffffff" stroke="#8ed4bc" stroke-width="1.5"/>
+<text x="1232" y="350" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#0c4a38">/users</text>
 
-<rect x="1456" y="304" width="162" height="72" rx="9" fill="#fff" stroke="#b0ddd0" stroke-width="1.5"/>
-<text x="1537" y="347" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#1a6050">/history</text>
+<rect x="1304" y="304" width="144" height="72" rx="9" fill="#ffffff" stroke="#8ed4bc" stroke-width="1.5"/>
+<text x="1376" y="350" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#0c4a38">/history</text>
 
-<rect x="386" y="392" width="1252" height="46" rx="8" fill="#d4ede6" stroke="#b0ddd0" stroke-width="1"/>
-<text x="1012" y="421" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="500" fill="#1a6050">User Role Authentication · Pydantic Schemas · SQLAlchemy ORM · Uvicorn</text>
+<!-- Tech strip: height tightened to match text snugly -->
+<rect x="366" y="392" width="1084" height="52" rx="8" fill="#c8ede3" stroke="#8ed4bc" stroke-width="1"/>
+<text x="917" y="426" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="500" fill="#0c4a38">User Role Authentication · Pydantic Schemas · SQLAlchemy ORM · Uvicorn</text>
 
-<!-- ARROW: FastAPI Routes center bottom → Services -->
-<line x1="1004" y1="484" x2="1004" y2="522" stroke="#b0b0c8" stroke-width="2.5" marker-end="url(#arr)"/>
+<!-- ARROW: FastAPI → Services -->
+<line x1="909" y1="484" x2="909" y2="522" stroke="#8896aa" stroke-width="2.5" marker-end="url(#arr)"/>
 
-<!-- LAYER 3 — SERVICES  y=528–752 -->
+<!-- ══ LAYER 3 — SERVICES  y=528–752 ══ -->
 
-<!-- Business Logic -->
-<rect x="60" y="528" width="1236" height="224" rx="14" fill="#fdf4e3" stroke="#e8d090" stroke-width="2"/>
-<rect x="78" y="542" width="170" height="30" rx="6" fill="#f0d880"/>
-<text x="163" y="562" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#7a5800">Business Logic</text>
+<!-- Business Logic x=60 w=1106 -->
+<rect x="60" y="528" width="1106" height="224" rx="14" fill="#fffbf0" stroke="#e0c870" stroke-width="1.5"/>
+<rect x="78" y="542" width="170" height="30" rx="6" fill="#f0d060"/>
+<text x="163" y="562" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#5a3c00">Business Logic</text>
 
-<rect x="78"  y="590" width="216" height="72" rx="9" fill="#fff" stroke="#e8d090" stroke-width="1.5"/>
-<text x="186" y="633" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#7a5000">MarketService</text>
+<rect x="78"  y="590" width="196" height="52" rx="9" fill="#ffffff" stroke="#e0c870" stroke-width="1.5"/>
+<text x="176" y="624" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#5a3c00">MarketService</text>
 
-<rect x="310" y="590" width="204" height="72" rx="9" fill="#fff" stroke="#e8d090" stroke-width="1.5"/>
-<text x="412" y="633" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#7a5000">OrderService</text>
+<rect x="286" y="590" width="184" height="52" rx="9" fill="#ffffff" stroke="#e0c870" stroke-width="1.5"/>
+<text x="378" y="624" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#5a3c00">OrderService</text>
 
-<rect x="530" y="590" width="190" height="72" rx="9" fill="#fff" stroke="#e8d090" stroke-width="1.5"/>
-<text x="625" y="633" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#7a5000">AuthService</text>
+<rect x="482" y="590" width="172" height="52" rx="9" fill="#ffffff" stroke="#e0c870" stroke-width="1.5"/>
+<text x="568" y="624" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#5a3c00">AuthService</text>
 
-<rect x="736" y="590" width="200" height="72" rx="9" fill="#fff" stroke="#e8d090" stroke-width="1.5"/>
-<text x="836" y="633" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#7a5000">NotifService</text>
+<rect x="666" y="590" width="180" height="52" rx="9" fill="#ffffff" stroke="#e0c870" stroke-width="1.5"/>
+<text x="756" y="624" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#5a3c00">NotifService</text>
 
-<rect x="952" y="590" width="200" height="72" rx="9" fill="#fff" stroke="#e8d090" stroke-width="1.5"/>
-<text x="1052" y="633" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#7a5000">PortfolioService</text>
+<rect x="858" y="590" width="216" height="52" rx="9" fill="#ffffff" stroke="#e0c870" stroke-width="1.5"/>
+<text x="964" y="624" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="600" fill="#5a3c00">PortfolioService</text>
 
-<rect x="78" y="676" width="1206" height="46" rx="8" fill="#f5e8c0" stroke="#e8d090" stroke-width="1"/>
-<text x="681" y="706" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="500" fill="#8a6010">LMSR Pricing · Order Book · Settlement · Collateral · Portfolio Analytics </text>
+<rect x="78" y="658" width="1072" height="52" rx="8" fill="#f5e8b0" stroke="#e0c870" stroke-width="1"/>
+<text x="616" y="692" text-anchor="middle" font-family="'Inter',sans-serif" font-size="25" font-weight="500" fill="#6a4800">LMSR Pricing · Order Book · Settlement · Collateral · Portfolio Analytics</text>
 
-<!-- Background Worker — shifted right to create gap for arrow -->
-<!-- Gap between Business Logic (right edge x=1296) and Worker (left edge x=1360) = 64px -->
-<rect x="1360" y="528" width="280" height="224" rx="14" fill="#fdeef4" stroke="#e8b0c8" stroke-width="2"/>
-<rect x="1378" y="542" width="168" height="30" rx="6" fill="#f0b8d0"/>
-<text x="1462" y="562" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#8a2050">Background</text>
+<!-- Background Worker x=1230 w=240 -->
+<rect x="1230" y="528" width="240" height="224" rx="14" fill="#fff4f8" stroke="#e8a0c0" stroke-width="1.5"/>
+<rect x="1248" y="542" width="150" height="30" rx="6" fill="#f0b0d0"/>
+<text x="1323" y="562" text-anchor="middle" font-family="'Inter',sans-serif" font-size="17" font-weight="600" fill="#6a0838">Background</text>
 
-<rect x="1378" y="590" width="244" height="100" rx="9" fill="#fff" stroke="#e8b0c8" stroke-width="1.5"/>
-<text x="1500" y="634" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="600" fill="#9a2060">MarketWatcher</text>
-<text x="1500" y="668" text-anchor="middle" font-family="'Inter',sans-serif" font-size="18" fill="#c06090">close overdue markets</text>
+<rect x="1248" y="590" width="204" height="52" rx="9" fill="#ffffff" stroke="#e8a0c0" stroke-width="1.5"/>
+<text x="1350" y="622" text-anchor="middle" font-family="'Inter',sans-serif" font-size="24" font-weight="600" fill="#7a1040">MarketWatcher</text>
 
-<!-- Arrow: MarketWatcher → Business Logic, routes through the gap -->
-<!-- Exits left edge of Background at x=1360, y=640 → travels left to x=1310 → arrowhead points left into Business Logic right edge x=1296 -->
-<polyline points="1360,640 1310,640 1310,640 1298,640" stroke="#b0b0c8" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="1248" y="656" width="204" height="52" rx="9" fill="#ffffff" stroke="#e8a0c0" stroke-width="1.5"/>
+<text x="1350" y="688" text-anchor="middle" font-family="'Inter',sans-serif" font-size="24" font-weight="600" fill="#7a1040">OrderWatcher</text>
+
+<!-- Arrow: Background → Business Logic through gap (gap: x=1166..1230 = 64px) -->
+<polyline points="1230,636 1180,636 1168,636" fill="none" stroke="#8896aa" stroke-width="2.5" marker-end="url(#arr)"/>
 
 <!-- ARROWS: Services → Data -->
-<line x1="340" y1="752" x2="340" y2="808" stroke="#b0b0c8" stroke-width="2.5" marker-end="url(#arr)"/>
-<line x1="858" y1="752" x2="858" y2="808" stroke="#b0b0c8" stroke-width="2.5" marker-end="url(#arr)"/>
+<line x1="310" y1="752" x2="310" y2="790" stroke="#8896aa" stroke-width="2.5" marker-end="url(#arr)"/>
+<line x1="770" y1="752" x2="770" y2="790" stroke="#8896aa" stroke-width="2.5" marker-end="url(#arr)"/>
 
-<!-- LAYER 4 — DATA  y=814–878 -->
-<rect x="60"  y="814" width="540" height="60" rx="10" fill="#fce8e8" stroke="#e8b0b0" stroke-width="2"/>
-<text x="330" y="851" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="700" fill="#a02020">SQLite</text>
+<!-- ══ LAYER 4 — DATA  y=796 ══ -->
+<rect x="60"  y="796" width="490" height="60" rx="10" fill="#fff0f0" stroke="#e8a8a8" stroke-width="1.5"/>
+<text x="305" y="833" text-anchor="middle" font-family="'Inter',sans-serif" font-size="26" font-weight="700" fill="#7a1010">SQLite</text>
 
-<rect x="618" y="814" width="480" height="60" rx="10" fill="#e8f0fd" stroke="#b0c4ee" stroke-width="2"/>
-<text x="858" y="844" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="700" fill="#1a3a80">Messaging</text>
-<text x="858" y="865" text-anchor="middle" font-family="'Inter',sans-serif" font-size="16" font-weight="400" fill="#4a6aaa">SMTP · Email Notifications</text>
+<rect x="568" y="796" width="430" height="60" rx="10" fill="#eef5ff" stroke="#90b8ee" stroke-width="1.5"/>
+<text x="783" y="826" text-anchor="middle" font-family="'Inter',sans-serif" font-size="20" font-weight="700" fill="#0c2e70">Messaging</text>
+<text x="783" y="847" text-anchor="middle" font-family="'Inter',sans-serif" font-size="16" font-weight="400" fill="#2a5090">SMTP · Email Notifications</text>
 
 </svg>
 </div>

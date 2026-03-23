@@ -67,6 +67,7 @@ class OrderType(StrEnum):
 
 class NotificationType(StrEnum):
     LIMIT_ORDER_FILLED = "limit_order_filled"
+    LIMIT_ORDER_EXPIRED = "limit_order_expired"
     POSITION_MARKET_SETTLED = "position_market_settled"
     MARKET_MAKER_MARKET_SETTLED = "market_maker_market_settled"
     MARKET_MAKER_MARKET_STATUS_UPDATED = "market_maker_market_status_updated"
@@ -234,6 +235,9 @@ class Order(Base):
     )
     filled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     canceled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None, nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now

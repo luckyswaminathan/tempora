@@ -70,3 +70,7 @@ def init_db() -> None:
                         "ADD COLUMN email_notifications_enabled BOOLEAN NOT NULL DEFAULT 0"
                     )
                 )
+        if "orders" in inspector.get_table_names():
+            order_columns = {col["name"] for col in inspector.get_columns("orders")}
+            if "expires_at" not in order_columns:
+                conn.execute(text("ALTER TABLE orders ADD COLUMN expires_at DATETIME"))
