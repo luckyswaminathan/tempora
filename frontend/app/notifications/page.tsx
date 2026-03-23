@@ -177,10 +177,34 @@ export default function NotificationsPage() {
   };
 
   const markAllRead = async () => {
+    const unreadIds = items
+      .filter((item) => !item.isRead)
+      .map((item) => item.id);
+    if (unreadIds.length === 0) return;
+
+    setAnimatingReadIds((prev) => {
+      const next = new Set(prev);
+      unreadIds.forEach((id) => next.add(id));
+      return next;
+    });
+
     setMarkingAll(true);
     try {
       await notificationsApi.markAllRead();
-      setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
+      window.setTimeout(() => {
+        setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
+        setAnimatingReadIds((prev) => {
+          const next = new Set(prev);
+          unreadIds.forEach((id) => next.delete(id));
+          return next;
+        });
+      }, 280);
+    } catch {
+      setAnimatingReadIds((prev) => {
+        const next = new Set(prev);
+        unreadIds.forEach((id) => next.delete(id));
+        return next;
+      });
     } finally {
       setMarkingAll(false);
     }

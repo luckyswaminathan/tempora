@@ -433,7 +433,11 @@ export function TradeDialog({
           </button>
           <DialogHeader className="pr-8">
             <DialogTitle className="text-balance">
-              {isInterval ? "Trade Interval" : "Place Your Trade"}
+              {historyOnly
+                ? "Probability History"
+                : isInterval
+                  ? "Trade Interval"
+                  : "Place Your Trade"}
             </DialogTitle>
             <DialogDescription className="text-balance">
               {market.question}

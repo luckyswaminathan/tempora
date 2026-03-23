@@ -144,14 +144,15 @@ export function IntervalPicker({
                   );
                   const isSelected = isInRange(regularIndex);
                   const isWinning = outcome.id === winningSecurityId;
+                  const shouldShowSelected = isSelected && !readOnly;
                   return (
                     <Cell
                       key={outcome.id}
                       fill={
-                        isSelected
+                        shouldShowSelected
                           ? "var(--primary)"
                           : isWinning
-                            ? "var(--accent)"
+                            ? "var(--primary)"
                             : "var(--secondary)"
                       }
                       style={{ cursor: "pointer" }}

@@ -177,6 +177,7 @@ export function DayPicker({
             const elapsed = isElapsedDate(dayInfo.date);
             const disabled = elapsed && !readOnly;
             const isWinning = dayData.outcome.id === winningSecurityId;
+            const shouldShowSelected = isInRange(dayData.index) && !readOnly;
             return (
               <button
                 key={dayInfo.date}
@@ -187,10 +188,10 @@ export function DayPicker({
                 className={`aspect-square p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
                   disabled
                     ? "border-border/70 bg-muted/45 opacity-55 cursor-not-allowed"
-                    : isInRange(dayData.index)
+                    : shouldShowSelected
                       ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
                       : isWinning
-                        ? "border-accent/70 bg-accent/30"
+                        ? "border-primary/70 bg-primary/20"
                         : hoveredIndex === dayData.index
                           ? "border-secondary/70 bg-muted/75"
                           : "calendar-date-surface hover:border-secondary/65 hover:bg-muted/65"
@@ -212,30 +213,36 @@ export function DayPicker({
             Other
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {others.map(({ index, outcome }) => (
-              <button
-                key={outcome.id}
-                onClick={() => handleCellClick(index)}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
-                className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[70px] ${
-                  isInRange(index)
-                    ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
-                    : outcome.id === winningSecurityId
-                      ? "border-accent/70 bg-accent/30"
-                      : hoveredIndex === index
-                        ? "border-secondary/70 bg-muted/75"
-                        : "calendar-date-surface hover:border-secondary/65 hover:bg-muted/65"
-                }`}
-              >
-                <div className="text-sm font-bold text-center mb-1 break-words w-full">
-                  {outcome.outcome}
-                </div>
-                <div className="text-center">
-                  <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
-                </div>
-              </button>
-            ))}
+            {others.map(({ index, outcome }) =>
+              (() => {
+                const shouldShowSelected = isInRange(index) && !readOnly;
+                const isWinning = outcome.id === winningSecurityId;
+                return (
+                  <button
+                    key={outcome.id}
+                    onClick={() => handleCellClick(index)}
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                    className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[70px] ${
+                      shouldShowSelected
+                        ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
+                        : isWinning
+                          ? "border-primary/70 bg-primary/20"
+                          : hoveredIndex === index
+                            ? "border-secondary/70 bg-muted/75"
+                            : "calendar-date-surface hover:border-secondary/65 hover:bg-muted/65"
+                    }`}
+                  >
+                    <div className="text-sm font-bold text-center mb-1 break-words w-full">
+                      {outcome.outcome}
+                    </div>
+                    <div className="text-center">
+                      <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
+                    </div>
+                  </button>
+                );
+              })(),
+            )}
           </div>
         </div>
       )}

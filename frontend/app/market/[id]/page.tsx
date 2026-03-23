@@ -16,6 +16,8 @@ import {
   X,
   TrendingDown,
   CheckCircle2,
+  Pen,
+  Gavel,
 } from "lucide-react";
 import {
   marketsApi,
@@ -34,6 +36,7 @@ import { OrderDetailSheet } from "@/components/order-detail-sheet";
 import { HistoryTab } from "@/components/history-tab";
 import { HoldingsTab } from "@/components/holdings-tab";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
+import { AdminDialogsController } from "@/components/admin-dialogs";
 import { format } from "date-fns";
 import { categoryColor } from "@/lib/utils";
 
@@ -66,6 +69,8 @@ export default function MarketPage({
   // Trade UI state (same pattern as MarketCard)
   const [dialogOpen, setDialogOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [showSettleForm, setShowSettleForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [intervalRange, setIntervalRange] = useState<[number, number]>([
     -1, -1,
   ]);
@@ -208,7 +213,20 @@ export default function MarketPage({
   }, [market?.securities, market?.quotes]);
 
   useEffect(() => {
-    if (market?.status !== "resolved" || outcomes.length === 0) return;
+    if (
+      (market?.status !== "resolved" && market?.status !== "closed") ||
+      outcomes.length === 0
+    ) {
+      return;
+    }
+
+    if (viewMode !== "individual") {
+      setViewMode("individual");
+    }
+
+    if (market?.status === "closed") {
+      return;
+    }
 
     const winningIndex = market.winningSecurityId
       ? outcomes.findIndex((o) => o.id === market.winningSecurityId)
@@ -231,7 +249,15 @@ export default function MarketPage({
     outcomes,
     intervalRange,
     selectedOutcomeId,
+    viewMode,
   ]);
+
+  useEffect(() => {
+    if (market?.status === "closed") {
+      setIntervalRange([-1, -1]);
+      setSelectedOutcomeId(null);
+    }
+  }, [id, market?.status]);
 
   // Holdings for this market only
   const myHoldings = useMemo(
@@ -412,6 +438,29 @@ export default function MarketPage({
             >
               {market.category}
             </Badge>
+            {user?.role === "admin" &&
+              (market.status === "open" ||
+                market.status === "closed" ||
+                market.status === "suspended") && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowEditForm(true)}
+                    className="h-8 px-2"
+                  >
+                    <Pen className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowSettleForm(true)}
+                    className="h-8 px-2"
+                  >
+                    <Gavel className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
             <span className="text-xs text-muted-foreground flex items-center gap-1 ml-auto">
               <Calendar className="w-3 h-3" />
               Resolves{" "}
@@ -634,8 +683,10 @@ export default function MarketPage({
           </Card>
         )}
 
-        {/* Outcome selector (open trading + resolved history view) */}
-        {(market.status === "open" || market.status === "resolved") && (
+        {/* Outcome selector (open trading + resolved/closed history view) */}
+        {(market.status === "open" ||
+          market.status === "resolved" ||
+          market.status === "closed") && (
           <Card className="p-4 mb-6">
             <SecurityPicker
               outcomes={outcomes}
@@ -644,10 +695,16 @@ export default function MarketPage({
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               winningSecurityId={market.winningSecurityId ?? undefined}
-              readOnly={market.status === "resolved"}
+              readOnly={
+                market.status === "resolved" || market.status === "closed"
+              }
               onRangeChange={(range) => {
-                if (market.status === "resolved") {
+                if (
+                  market.status === "resolved" ||
+                  market.status === "closed"
+                ) {
                   if (range[0] >= 0 && range[0] === range[1]) {
+                    setSelectedOutcomeId(outcomes[range[0]].id);
                     setDialogOpen(true);
                   }
                   return;
@@ -955,11 +1012,22 @@ export default function MarketPage({
         open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open);
-          if (!open && viewMode === "individual") setIntervalRange([-1, -1]);
+          if (
+            !open &&
+            viewMode === "individual" &&
+            market.status !== "resolved" &&
+            market.status !== "closed"
+          ) {
+            setIntervalRange([-1, -1]);
+          }
         }}
         market={market}
-        historyOnly={market.status === "resolved"}
-        defaultTab={market.status === "resolved" ? "history" : "trade"}
+        historyOnly={market.status === "resolved" || market.status === "closed"}
+        defaultTab={
+          market.status === "resolved" || market.status === "closed"
+            ? "history"
+            : "trade"
+        }
         selectedOutcomes={dialogOutcomes}
         onSuccess={() => {
           setDialogOpen(false);
@@ -971,6 +1039,18 @@ export default function MarketPage({
       />
 
       <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
+
+      <AdminDialogsController
+        market={market}
+        showSettleForm={showSettleForm}
+        setShowSettleForm={setShowSettleForm}
+        showEditForm={showEditForm}
+        setShowEditForm={setShowEditForm}
+        onSuccess={async () => {
+          await refreshMarket();
+          await fetchUserData();
+        }}
+      />
 
       <OrderDetailSheet
         order={selectedOrder}

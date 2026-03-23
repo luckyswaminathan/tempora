@@ -111,7 +111,7 @@ export function SecurityPicker({
     if (start === -1 || end === -1) return false;
 
     // Show preview range when hovering
-    if (hoveredIndex !== null && start === end) {
+    if (!readOnly && hoveredIndex !== null && start === end) {
       const previewStart = Math.min(start, hoveredIndex);
       const previewEnd = Math.max(start, hoveredIndex);
       return index >= previewStart && index <= previewEnd;

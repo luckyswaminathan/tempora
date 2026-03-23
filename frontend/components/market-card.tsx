@@ -51,6 +51,8 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSettleForm, setShowSettleForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const isReadOnlyHistoryMode =
+    market.status === "resolved" || market.status === "closed";
 
   // Fetch settlement info if market is resolved and user is authenticated
   useEffect(() => {
@@ -153,40 +155,42 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
         }`}
       >
         {/* Floating interval selection overlay - stick to top of this card */}
-        {viewMode === "interval" && rangeStart >= 0 && (
-          <div className="absolute -top-3 left-4 right-4 z-10 animate-in slide-in-from-top-2 duration-300">
-            <div className="bg-primary text-primary-foreground px-4 py-3 rounded-lg shadow-lg border-2 border-primary">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold mb-1 truncate">
-                    {intervalText}
+        {!isReadOnlyHistoryMode &&
+          viewMode === "interval" &&
+          rangeStart >= 0 && (
+            <div className="absolute -top-3 left-4 right-4 z-10 animate-in slide-in-from-top-2 duration-300">
+              <div className="bg-primary text-primary-foreground px-4 py-3 rounded-lg shadow-lg border-2 border-primary">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold mb-1 truncate">
+                      {intervalText}
+                    </div>
+                    <div className="text-xs opacity-90">
+                      {selectedOutcomes.length} outcome
+                      {selectedOutcomes.length !== 1 ? "s" : ""} selected
+                    </div>
                   </div>
-                  <div className="text-xs opacity-90">
-                    {selectedOutcomes.length} outcome
-                    {selectedOutcomes.length !== 1 ? "s" : ""} selected
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={handleOpenIntervalDialog}
+                      className="h-9 bg-white text-primary hover:bg-white/90"
+                    >
+                      Trade
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleResetInterval}
+                      className="h-9 w-9 p-0 text-primary-foreground hover:bg-primary/80"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <Button
-                    size="sm"
-                    onClick={handleOpenIntervalDialog}
-                    className="h-9 bg-white text-primary hover:bg-white/90"
-                  >
-                    Trade
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleResetInterval}
-                    className="h-9 w-9 p-0 text-primary-foreground hover:bg-primary/80"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         <div className="flex items-start justify-between mb-4">
           <Badge
@@ -300,7 +304,7 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
           </div>
         )}
 
-        {(market.status === "open" || market.status === "resolved") && (
+        {(market.status === "open" || isReadOnlyHistoryMode) && (
           <div className="mb-4">
             <SecurityPicker
               outcomes={outcomes}
@@ -309,10 +313,17 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               winningSecurityId={market.winningSecurityId ?? undefined}
-              readOnly={market.status === "resolved"}
+              readOnly={isReadOnlyHistoryMode}
               onRangeChange={(range) => {
-                if (market.status === "resolved") {
-                  setDialogOpen(true);
+                if (isReadOnlyHistoryMode) {
+                  if (range[0] >= 0 && range[0] === range[1]) {
+                    const outcome = outcomes[range[0]];
+                    if (outcome) {
+                      setSelectedOutcome(outcome.id);
+                    }
+                    setIntervalRange(range);
+                    setDialogOpen(true);
+                  }
                   return;
                 }
 
@@ -344,7 +355,9 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
             <span>${(market.totalVolume / 100).toFixed(0)} volume</span>
           </div>
           {user?.role === "admin" &&
-            (market.status === "open" || market.status === "closed") && (
+            (market.status === "open" ||
+              market.status === "closed" ||
+              market.status === "suspended") && (
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
@@ -376,15 +389,15 @@ export function MarketCard({ initialMarket, onMarketUpdate }: MarketCardProps) {
         onOpenChange={(open) => {
           setDialogOpen(open);
           // In individual mode, reset lastSelected when dialog closes
-          if (!open && viewMode === "individual") {
+          if (!open && viewMode === "individual" && !isReadOnlyHistoryMode) {
             setIntervalRange([-1, -1]);
           }
         }}
         market={market}
-        historyOnly={market.status === "resolved"}
-        defaultTab={market.status === "resolved" ? "history" : "trade"}
+        historyOnly={isReadOnlyHistoryMode}
+        defaultTab={isReadOnlyHistoryMode ? "history" : "trade"}
         selectedOutcomes={
-          market.status === "resolved"
+          isReadOnlyHistoryMode
             ? resolvedSelectedOutcome
               ? [resolvedSelectedOutcome]
               : []
