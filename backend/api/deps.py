@@ -14,6 +14,7 @@ from services.leaderboard import LeaderboardService
 from services.tutorial import TutorialService
 from services.history import HistoryService
 from services.notifications import NotificationService
+from services.comments import CommentService
 
 
 def get_auth_service(session: Session = Depends(get_session)) -> AuthService:
@@ -52,6 +53,10 @@ def get_notification_service(
     return NotificationService(session)
 
 
+def get_comment_service(session: Session = Depends(get_session)) -> CommentService:
+    return CommentService(session)
+
+
 def get_current_user(
     authorization: Optional[str] = Header(default=None, alias="Authorization"),
     auth_service: AuthService = Depends(get_auth_service),
@@ -74,6 +79,24 @@ def get_current_user(
             detail="Unsupported authorization scheme",
         )
     return auth_service.get_user_from_token(token)
+
+
+def get_optional_current_user(
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> Optional[UserBase]:
+    if not authorization:
+        return None
+    try:
+        scheme, token = authorization.split()
+    except ValueError:
+        return None
+    if scheme.lower() != "bearer":
+        return None
+    try:
+        return auth_service.get_user_from_token(token)
+    except HTTPException:
+        return None
 
 
 def get_current_admin(

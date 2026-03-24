@@ -155,6 +155,47 @@ export interface MarketListResponse {
   count: number;
 }
 
+export interface CommentAuthor {
+  id: string;
+  displayName?: string;
+  email: string;
+}
+
+export interface CommentReactionCount {
+  reaction: string;
+  count: number;
+}
+
+export interface MarketComment {
+  id: string;
+  marketId: string;
+  userId: string;
+  parentCommentId?: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  author: CommentAuthor;
+  reactions: CommentReactionCount[];
+  myReactions: string[];
+  replies: MarketComment[];
+}
+
+export interface MarketCommentListResponse {
+  items: MarketComment[];
+  count: number;
+}
+
+export interface CreateCommentRequest {
+  content: string;
+  parentCommentId?: string;
+}
+
+export interface CommentReactionResponse {
+  commentId: string;
+  reaction: string;
+  active: boolean;
+}
+
 export interface SecurityUpdate {
   id: string;
   outcome: string;
@@ -237,6 +278,36 @@ export const marketsApi = {
         winningSecurityId: winningSecurityId,
       }),
     });
+  },
+};
+
+export const commentsApi = {
+  async listComments(marketId: string): Promise<MarketCommentListResponse> {
+    return fetchWithAuth(`/markets/${marketId}/comments`);
+  },
+
+  async createComment(
+    marketId: string,
+    data: CreateCommentRequest,
+  ): Promise<MarketComment> {
+    return fetchWithAuth(`/markets/${marketId}/comments`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async toggleReaction(
+    marketId: string,
+    commentId: string,
+    reaction: string,
+  ): Promise<CommentReactionResponse> {
+    return fetchWithAuth(
+      `/markets/${marketId}/comments/${commentId}/reactions`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reaction }),
+      },
+    );
   },
 };
 

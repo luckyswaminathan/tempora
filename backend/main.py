@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.routes import (
     admin,
     auth,
+    comments,
     history,
     markets,
     notifications,
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(users.router)
     app.include_router(markets.router)
+    app.include_router(comments.router)
     app.include_router(proposals.router)
     app.include_router(orders.router)
     app.include_router(history.router)

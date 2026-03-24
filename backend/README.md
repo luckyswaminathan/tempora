@@ -55,4 +55,5 @@ pytest -vv
 
 - Create tables: `python scripts/setup_database.py`
 - Seed sample data: `python scripts/seed_data.py`
+- Override seeded admin password: `SEED_ADMIN_PASSWORD=your-password python scripts/seed_data.py`
 - Inspect counts: `python scripts/check_tables.py`

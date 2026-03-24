@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Pen,
   Gavel,
+  MessageSquare,
 } from "lucide-react";
 import {
   marketsApi,
@@ -37,6 +38,7 @@ import { HistoryTab } from "@/components/history-tab";
 import { HoldingsTab } from "@/components/holdings-tab";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
 import { AdminDialogsController } from "@/components/admin-dialogs";
+import { MarketComments } from "@/components/market-comments";
 import { format } from "date-fns";
 import { categoryColor } from "@/lib/utils";
 
@@ -99,8 +101,7 @@ export default function MarketPage({
     const tabFromUrl = searchParams.get("tab");
     if (tabFromUrl === "orders") return "history";
     if (tabFromUrl) return tabFromUrl;
-    // Default to position tab
-    return "position";
+    return "comments";
   });
   const tabsRef = useRef<HTMLDivElement>(null);
 
@@ -329,12 +330,15 @@ export default function MarketPage({
 
   useEffect(() => {
     if (marketTab === "maker-settlement" && !isMarketMakerView) {
-      setMarketTab("position");
+      setMarketTab(user ? "position" : "comments");
     }
     if (marketTab === "market-history" && !isMarketMakerView) {
-      setMarketTab("position");
+      setMarketTab(user ? "position" : "comments");
     }
-  }, [marketTab, isMarketMakerView]);
+    if (!user && marketTab !== "comments") {
+      setMarketTab("comments");
+    }
+  }, [marketTab, isMarketMakerView, user]);
 
   useEffect(() => {
     if (!user || !isMarketMakerView) {
@@ -762,15 +766,18 @@ export default function MarketPage({
           </Card>
         )}
 
-        {/* User sections */}
-        {user ? (
-          <div ref={tabsRef} className="scroll-mt-24">
-            <Tabs
-              value={marketTab}
-              onValueChange={handleMarketTabChange}
-              className="w-full"
-            >
-              <TabsList className="mb-4">
+        <div ref={tabsRef} className="scroll-mt-24">
+          <Tabs
+            value={marketTab}
+            onValueChange={handleMarketTabChange}
+            className="w-full"
+          >
+            <TabsList className="mb-4">
+              <TabsTrigger value="comments" className="gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Comments
+              </TabsTrigger>
+              {user && (
                 <TabsTrigger value="position" className="gap-2">
                   <Wallet className="w-4 h-4" />
                   My Position
@@ -784,6 +791,8 @@ export default function MarketPage({
                     </Badge>
                   )}
                 </TabsTrigger>
+              )}
+              {user && (
                 <TabsTrigger value="history" className="gap-2">
                   <History className="w-4 h-4" />
                   My History
@@ -793,29 +802,95 @@ export default function MarketPage({
                     </Badge>
                   )}
                 </TabsTrigger>
-                {isMarketMakerView && (
-                  <TabsTrigger value="market-history" className="gap-2">
-                    <History className="w-4 h-4" />
-                    Market History
-                  </TabsTrigger>
-                )}
-                {market.status === "resolved" && isMarketMakerView && (
-                  <TabsTrigger value="maker-settlement" className="gap-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Maker Settlement
-                  </TabsTrigger>
-                )}
-              </TabsList>
+              )}
+              {isMarketMakerView && (
+                <TabsTrigger value="market-history" className="gap-2">
+                  <History className="w-4 h-4" />
+                  Market History
+                </TabsTrigger>
+              )}
+              {market.status === "resolved" && isMarketMakerView && (
+                <TabsTrigger value="maker-settlement" className="gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Maker Settlement
+                </TabsTrigger>
+              )}
+            </TabsList>
 
-              {/* My Position */}
-              <TabsContent value="position">
-                {loadingUserData ? (
-                  <div className="animate-pulse h-20 bg-muted rounded" />
-                ) : market.status === "resolved" ? (
-                  resolvedHoldings.length === 0 ? (
+            <TabsContent value="comments">
+              <MarketComments
+                marketId={id}
+                isSignedIn={!!user}
+                onRequireAuth={() => setAuthDialogOpen(true)}
+              />
+            </TabsContent>
+
+            {user ? (
+              <>
+                {/* My Position */}
+                <TabsContent value="position">
+                  {loadingUserData ? (
+                    <div className="animate-pulse h-20 bg-muted rounded" />
+                  ) : market.status === "resolved" ? (
+                    resolvedHoldings.length === 0 ? (
+                      <div className="animate-fadeInUp">
+                        <p className="text-muted-foreground text-sm py-8 text-center">
+                          No settled positions in this market.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="animate-fadeInUp">
+                        <HoldingsTab
+                          filteredMarkets={[
+                            {
+                              marketId: id,
+                              question: market.question,
+                              endDate: market.resolutionDate,
+                              holdings: resolvedHoldings,
+                              totalPnl: settledTotalPnl,
+                              totalCost: settledTotalCost,
+                              totalValue: settledTotalPayout,
+                            },
+                          ]}
+                          searchQuery=""
+                          setSearchQuery={() => {}}
+                          openOutcomeDetail={(h) =>
+                            setSelectedOutcome({
+                              marketId: id,
+                              securityId: h.securityId,
+                              holding: h,
+                            })
+                          }
+                          hideSearch
+                          hideMarketLinks
+                          listMode
+                        />
+                        <div className="flex justify-between items-center px-1 pt-2 text-sm border-t mt-2">
+                          <span className="text-muted-foreground">
+                            Final P&amp;L
+                          </span>
+                          <span
+                            className={`font-semibold flex items-center gap-1 ${
+                              settledTotalPnl >= 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {settledTotalPnl >= 0 ? (
+                              <TrendingUp className="w-3.5 h-3.5" />
+                            ) : (
+                              <TrendingDown className="w-3.5 h-3.5" />
+                            )}
+                            {settledTotalPnl >= 0 ? "+" : ""}$
+                            {(settledTotalPnl / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  ) : myHoldings.length === 0 ? (
                     <div className="animate-fadeInUp">
                       <p className="text-muted-foreground text-sm py-8 text-center">
-                        No settled positions in this market.
+                        No positions in this market yet.
                       </p>
                     </div>
                   ) : (
@@ -826,10 +901,10 @@ export default function MarketPage({
                             marketId: id,
                             question: market.question,
                             endDate: market.resolutionDate,
-                            holdings: resolvedHoldings,
-                            totalPnl: settledTotalPnl,
-                            totalCost: settledTotalCost,
-                            totalValue: settledTotalPayout,
+                            holdings: myHoldings,
+                            totalPnl,
+                            totalCost: 0,
+                            totalValue: 0,
                           },
                         ]}
                         searchQuery=""
@@ -847,177 +922,120 @@ export default function MarketPage({
                       />
                       <div className="flex justify-between items-center px-1 pt-2 text-sm border-t mt-2">
                         <span className="text-muted-foreground">
-                          Final P&amp;L
+                          Total P&amp;L
                         </span>
                         <span
                           className={`font-semibold flex items-center gap-1 ${
-                            settledTotalPnl >= 0
-                              ? "text-green-600"
-                              : "text-red-600"
+                            totalPnl >= 0 ? "text-green-600" : "text-red-600"
                           }`}
                         >
-                          {settledTotalPnl >= 0 ? (
+                          {totalPnl >= 0 ? (
                             <TrendingUp className="w-3.5 h-3.5" />
                           ) : (
                             <TrendingDown className="w-3.5 h-3.5" />
                           )}
-                          {settledTotalPnl >= 0 ? "+" : ""}$
-                          {(settledTotalPnl / 100).toFixed(2)}
+                          {totalPnl >= 0 ? "+" : ""}$
+                          {(totalPnl / 100).toFixed(2)}
                         </span>
                       </div>
                     </div>
-                  )
-                ) : myHoldings.length === 0 ? (
-                  <div className="animate-fadeInUp">
-                    <p className="text-muted-foreground text-sm py-8 text-center">
-                      No positions in this market yet.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="animate-fadeInUp">
-                    <HoldingsTab
-                      filteredMarkets={[
-                        {
-                          marketId: id,
-                          question: market.question,
-                          endDate: market.resolutionDate,
-                          holdings: myHoldings,
-                          totalPnl,
-                          totalCost: 0,
-                          totalValue: 0,
-                        },
-                      ]}
-                      searchQuery=""
-                      setSearchQuery={() => {}}
-                      openOutcomeDetail={(h) =>
-                        setSelectedOutcome({
-                          marketId: id,
-                          securityId: h.securityId,
-                          holding: h,
-                        })
-                      }
-                      hideSearch
-                      hideMarketLinks
-                      listMode
-                    />
-                    <div className="flex justify-between items-center px-1 pt-2 text-sm border-t mt-2">
-                      <span className="text-muted-foreground">
-                        Total P&amp;L
-                      </span>
-                      <span
-                        className={`font-semibold flex items-center gap-1 ${
-                          totalPnl >= 0 ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {totalPnl >= 0 ? (
-                          <TrendingUp className="w-3.5 h-3.5" />
-                        ) : (
-                          <TrendingDown className="w-3.5 h-3.5" />
-                        )}
-                        {totalPnl >= 0 ? "+" : ""}${(totalPnl / 100).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
+                  )}
+                </TabsContent>
 
-              {/* My History */}
-              <TabsContent value="history">
-                {loadingUserData ? (
-                  <div className="animate-pulse h-20 bg-muted rounded" />
-                ) : (
-                  <HistoryTab
-                    orders={historyOrders}
-                    loading={false}
-                    searchQuery=""
-                    setSearchQuery={() => {}}
-                    hideSearch
-                    showOrderStateFilter
-                    defaultOrderStateFilter={
-                      searchParams.get("tab") === "orders" ? "open" : "all"
-                    }
-                    disableMarketLink
-                    onOrderClick={(order) => setSelectedOrder(order)}
-                  />
-                )}
-              </TabsContent>
-
-              {isMarketMakerView && (
-                <TabsContent value="market-history">
-                  {loadingMarketOrders ? (
+                {/* My History */}
+                <TabsContent value="history">
+                  {loadingUserData ? (
                     <div className="animate-pulse h-20 bg-muted rounded" />
                   ) : (
                     <HistoryTab
-                      orders={marketOrders}
+                      orders={historyOrders}
                       loading={false}
                       searchQuery=""
                       setSearchQuery={() => {}}
                       hideSearch
-                      showUserId
+                      showOrderStateFilter
+                      defaultOrderStateFilter={
+                        searchParams.get("tab") === "orders" ? "open" : "all"
+                      }
                       disableMarketLink
                       onOrderClick={(order) => setSelectedOrder(order)}
                     />
                   )}
                 </TabsContent>
-              )}
 
-              {market.status === "resolved" && isMarketMakerView && (
-                <TabsContent value="maker-settlement">
-                  {!hasPayoutDistribution ? (
-                    <p className="text-muted-foreground text-sm py-8 text-center">
-                      No non-zero settlement transfers for this market.
-                    </p>
-                  ) : (
-                    <Card className="p-4">
-                      <h4 className="text-sm font-semibold mb-3">
-                        User Settlement Transfers
-                      </h4>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Positive values were paid out by the market maker.
-                        Negative values were collected back from traders.
+                {isMarketMakerView && (
+                  <TabsContent value="market-history">
+                    {loadingMarketOrders ? (
+                      <div className="animate-pulse h-20 bg-muted rounded" />
+                    ) : (
+                      <HistoryTab
+                        orders={marketOrders}
+                        loading={false}
+                        searchQuery=""
+                        setSearchQuery={() => {}}
+                        hideSearch
+                        showUserId
+                        disableMarketLink
+                        onOrderClick={(order) => setSelectedOrder(order)}
+                      />
+                    )}
+                  </TabsContent>
+                )}
+
+                {market.status === "resolved" && isMarketMakerView && (
+                  <TabsContent value="maker-settlement">
+                    {!hasPayoutDistribution ? (
+                      <p className="text-muted-foreground text-sm py-8 text-center">
+                        No non-zero settlement transfers for this market.
                       </p>
-                      <div className="space-y-2 max-h-80 overflow-y-auto">
-                        {payoutDistribution.map((entry) => {
-                          const label =
-                            entry.userId === user?.id
-                              ? "You"
-                              : `Trader ${entry.userId.slice(0, 8)}`;
-                          const isPositive = entry.payoutCents >= 0;
+                    ) : (
+                      <Card className="p-4">
+                        <h4 className="text-sm font-semibold mb-3">
+                          User Settlement Transfers
+                        </h4>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Positive values were paid out by the market maker.
+                          Negative values were collected back from traders.
+                        </p>
+                        <div className="space-y-2 max-h-80 overflow-y-auto">
+                          {payoutDistribution.map((entry) => {
+                            const label =
+                              entry.userId === user?.id
+                                ? "You"
+                                : `Trader ${entry.userId.slice(0, 8)}`;
+                            const isPositive = entry.payoutCents >= 0;
 
-                          return (
-                            <div
-                              key={entry.userId}
-                              className="flex justify-between items-center px-3 py-2 rounded border bg-background text-sm"
-                            >
-                              <div className="flex flex-col">
-                                <span className="font-medium">{label}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {entry.userId}
+                            return (
+                              <div
+                                key={entry.userId}
+                                className="flex justify-between items-center px-3 py-2 rounded border bg-background text-sm"
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{label}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {entry.userId}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`font-semibold ${isPositive ? "text-green-600" : "text-red-600"}`}
+                                >
+                                  {isPositive ? "+" : "-"}$
+                                  {(Math.abs(entry.payoutCents) / 100).toFixed(
+                                    2,
+                                  )}
                                 </span>
                               </div>
-                              <span
-                                className={`font-semibold ${isPositive ? "text-green-600" : "text-red-600"}`}
-                              >
-                                {isPositive ? "+" : "-"}$
-                                {(Math.abs(entry.payoutCents) / 100).toFixed(2)}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </Card>
-                  )}
-                </TabsContent>
-              )}
-            </Tabs>
-          </div>
-        ) : (
-          <Card className="p-6 text-center">
-            <p className="text-muted-foreground text-sm mb-3">
-              Sign in to view your positions and order history for this market.
-            </p>
-          </Card>
-        )}
+                            );
+                          })}
+                        </div>
+                      </Card>
+                    )}
+                  </TabsContent>
+                )}
+              </>
+            ) : null}
+          </Tabs>
+        </div>
       </div>
 
       <TradeDialog

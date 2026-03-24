@@ -3,6 +3,7 @@
 from . import (
     admin,
     auth,
+    comments,
     history,
     markets,
     notifications,

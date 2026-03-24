@@ -33,6 +33,7 @@ class Settings(BaseSettings):
         default="no-reply@tempora.local", alias="SMTP_FROM_EMAIL"
     )
     smtp_from_name: str = Field(default="Tempora", alias="SMTP_FROM_NAME")
+    seed_admin_password: str = Field(default="admin12345", alias="SEED_ADMIN_PASSWORD")
 
     model_config = SettingsConfigDict(
         env_file=(".env",),

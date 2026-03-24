@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core import models  # noqa: E402
+from core.config import settings  # noqa: E402
 from core.database import SessionLocal, init_db  # noqa: E402
 from services.history import HistoryService  # noqa: E402
 from utils.pricing import _lmsr_price_cents  # noqa: E402
@@ -358,7 +359,7 @@ def seed_markets() -> None:
             admin_user = models.User(
                 email="admin@tempora.com",
                 role=models.UserRole.ADMIN,
-                password_hash=hash_password("admin12345"),
+                password_hash=hash_password(settings.seed_admin_password),
                 created_at=datetime.now(timezone.utc),
             )
             session.add(admin_user)

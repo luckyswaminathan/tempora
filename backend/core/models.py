@@ -304,6 +304,75 @@ class ProbabilityHistory(Base):
     order: Mapped[Order] = relationship()
 
 
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    market_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("markets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    parent_comment_id: Mapped[str | None] = mapped_column(
+        String,
+        ForeignKey("comments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    market: Mapped[Market] = relationship()
+    user: Mapped[User] = relationship()
+    parent: Mapped["Comment | None"] = relationship(remote_side="Comment.id")
+
+
+class CommentReaction(Base):
+    __tablename__ = "comment_reactions"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    comment_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("comments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reaction: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    comment: Mapped[Comment] = relationship()
+    user: Mapped[User] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint(
+            "comment_id",
+            "user_id",
+            "reaction",
+            name="uq_comment_user_reaction",
+        ),
+    )
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 
