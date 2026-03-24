@@ -31,6 +31,14 @@ const REACTION_KEYS: Set<string> = new Set(
   REACTION_OPTIONS.map((item) => item.key),
 );
 
+const REACTION_ORDER: Record<string, number> = REACTION_OPTIONS.reduce(
+  (acc, item, index) => {
+    acc[item.key] = index;
+    return acc;
+  },
+  {} as Record<string, number>,
+);
+
 interface MarketCommentsProps {
   marketId: string;
   isSignedIn: boolean;
@@ -97,21 +105,25 @@ export function MarketComments({
     return walk(comments);
   }, [comments]);
 
-  const loadComments = useCallback(async () => {
+  const loadComments = useCallback(async (showLoadingState = false) => {
     try {
-      setLoading(true);
+      if (showLoadingState) {
+        setLoading(true);
+      }
       setError(null);
       const response = await commentsApi.listComments(marketId);
       setComments(response.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load comments");
     } finally {
-      setLoading(false);
+      if (showLoadingState) {
+        setLoading(false);
+      }
     }
   }, [marketId]);
 
   useEffect(() => {
-    loadComments();
+    void loadComments(true);
   }, [loadComments]);
 
   const submitComment = useCallback(
@@ -194,9 +206,9 @@ export function MarketComments({
     const isExpanded = expandedReplies.has(comment.id);
     const replyCount = comment.replies.length;
     const showReactionPicker = reactionPickerFor === comment.id;
-    const visibleReactions = comment.reactions.filter(
-      (r) => r.count > 0 && REACTION_KEYS.has(r.reaction),
-    );
+    const visibleReactions = comment.reactions
+      .filter((r) => r.count > 0 && REACTION_KEYS.has(r.reaction))
+      .sort((a, b) => REACTION_ORDER[a.reaction] - REACTION_ORDER[b.reaction]);
 
     return (
       <article
@@ -358,7 +370,7 @@ export function MarketComments({
   };
 
   return (
-    <Card className="p-4 md:p-5 mt-8">
+    <Card className="mt-8 overflow-visible p-4 md:p-5">
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <h2 className="text-lg font-semibold">Comments</h2>
         <Badge variant="secondary">{totalCommentCount}</Badge>
