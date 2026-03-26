@@ -62,6 +62,24 @@ export function useTutorial({
     if (isActive && currentStepData) {
       const element = document.getElementById(currentStepData.elementId);
       if (element) {
+        // Keep the highlighted target visible below the sticky header.
+        const header = document.querySelector("header.header-elevated");
+        const headerHeight = header?.getBoundingClientRect().height ?? 0;
+        const topPadding = 12;
+        const bottomPadding = 24;
+        const visibleTop = headerHeight + topPadding;
+        const visibleBottom = window.innerHeight - bottomPadding;
+        const rect = element.getBoundingClientRect();
+
+        if (rect.top < visibleTop || rect.bottom > visibleBottom) {
+          const targetY =
+            window.scrollY +
+            rect.top -
+            visibleTop -
+            Math.max(rect.height * 0.15, 0);
+          window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+        }
+
         setElementRect(element.getBoundingClientRect());
 
         // Handle window resize and scroll

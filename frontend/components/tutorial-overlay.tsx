@@ -33,10 +33,7 @@ export function TutorialOverlay({
   return (
     <>
       {/* Fade overlay */}
-      <div
-        className="fixed inset-0 bg-black/60 z-40 transition-opacity duration-300"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/60 z-40 transition-opacity duration-300 pointer-events-none" />
 
       {/* Highlight and tooltip */}
       {elementRect && (

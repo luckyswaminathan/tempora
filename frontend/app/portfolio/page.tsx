@@ -109,6 +109,12 @@ export default function PortfolioPage() {
     lessonKey: "settled-positions",
   });
 
+  const pnlTabAdvanceStepByTab: Partial<Record<string, number>> = {
+    collateral: 2,
+    history: 4,
+    holdings: 6,
+  };
+
   // Ensure component is mounted on client
   useEffect(() => {
     setMounted(true);
@@ -208,7 +214,27 @@ export default function PortfolioPage() {
         settledTutorial.start();
       }
     }
-  }, [mounted, searchParams, loading, pnlTutorial, managingOrdersTutorial, holdingsTutorial, collateralTutorial, settledTutorial]);
+  }, [
+    mounted,
+    searchParams,
+    loading,
+    pnlTutorial,
+    managingOrdersTutorial,
+    holdingsTutorial,
+    collateralTutorial,
+    settledTutorial,
+  ]);
+
+  useEffect(() => {
+    if (!pnlTutorial.isActive) return;
+
+    const stepToAdvance = pnlTabAdvanceStepByTab[activeTab];
+    if (stepToAdvance === undefined) return;
+
+    if (pnlTutorial.currentStep === stepToAdvance) {
+      pnlTutorial.next();
+    }
+  }, [activeTab, pnlTutorial.currentStep, pnlTutorial.isActive]);
 
   // Group holdings by market
   const marketGroups = useMemo(() => {
@@ -358,10 +384,38 @@ export default function PortfolioPage() {
         onNext={pnlTutorial.next}
         onClose={pnlTutorial.close}
       />
-      <TutorialOverlay steps={MANAGING_ORDERS_STEPS} currentStep={managingOrdersTutorial.currentStep} isActive={managingOrdersTutorial.isActive} elementRect={managingOrdersTutorial.elementRect} onNext={managingOrdersTutorial.next} onClose={managingOrdersTutorial.close} />
-      <TutorialOverlay steps={HOLDINGS_STEPS} currentStep={holdingsTutorial.currentStep} isActive={holdingsTutorial.isActive} elementRect={holdingsTutorial.elementRect} onNext={holdingsTutorial.next} onClose={holdingsTutorial.close} />
-      <TutorialOverlay steps={COLLATERAL_STEPS} currentStep={collateralTutorial.currentStep} isActive={collateralTutorial.isActive} elementRect={collateralTutorial.elementRect} onNext={collateralTutorial.next} onClose={collateralTutorial.close} />
-      <TutorialOverlay steps={SETTLED_POSITIONS_STEPS} currentStep={settledTutorial.currentStep} isActive={settledTutorial.isActive} elementRect={settledTutorial.elementRect} onNext={settledTutorial.next} onClose={settledTutorial.close} />
+      <TutorialOverlay
+        steps={MANAGING_ORDERS_STEPS}
+        currentStep={managingOrdersTutorial.currentStep}
+        isActive={managingOrdersTutorial.isActive}
+        elementRect={managingOrdersTutorial.elementRect}
+        onNext={managingOrdersTutorial.next}
+        onClose={managingOrdersTutorial.close}
+      />
+      <TutorialOverlay
+        steps={HOLDINGS_STEPS}
+        currentStep={holdingsTutorial.currentStep}
+        isActive={holdingsTutorial.isActive}
+        elementRect={holdingsTutorial.elementRect}
+        onNext={holdingsTutorial.next}
+        onClose={holdingsTutorial.close}
+      />
+      <TutorialOverlay
+        steps={COLLATERAL_STEPS}
+        currentStep={collateralTutorial.currentStep}
+        isActive={collateralTutorial.isActive}
+        elementRect={collateralTutorial.elementRect}
+        onNext={collateralTutorial.next}
+        onClose={collateralTutorial.close}
+      />
+      <TutorialOverlay
+        steps={SETTLED_POSITIONS_STEPS}
+        currentStep={settledTutorial.currentStep}
+        isActive={settledTutorial.isActive}
+        elementRect={settledTutorial.elementRect}
+        onNext={settledTutorial.next}
+        onClose={settledTutorial.close}
+      />
 
       <div className="mb-8" id="portfolio-title">
         <h1 className="text-3xl font-bold text-balance flex items-center gap-2">
@@ -373,10 +427,10 @@ export default function PortfolioPage() {
       </div>
 
       <div id="portfolio-summary">
-      <PortfolioSummaryCards
-        portfolio={portfolio}
-        walletHistory={walletHistory}
-      />
+        <PortfolioSummaryCards
+          portfolio={portfolio}
+          walletHistory={walletHistory}
+        />
       </div>
 
       <PortfolioAnalyticsSection
@@ -392,11 +446,19 @@ export default function PortfolioPage() {
           className="w-full"
         >
           <TabsList className="mb-6">
-            <TabsTrigger value="holdings" className="gap-2">
+            <TabsTrigger
+              id="portfolio-tab-holdings"
+              value="holdings"
+              className="gap-2"
+            >
               <Wallet className="w-4 h-4" />
               Open Positions
             </TabsTrigger>
-            <TabsTrigger value="collateral" className="gap-2">
+            <TabsTrigger
+              id="portfolio-tab-collateral"
+              value="collateral"
+              className="gap-2"
+            >
               <Lock className="w-4 h-4" />
               Collateral
               {portfolio.collateralLocked > 0 && (
@@ -409,7 +471,11 @@ export default function PortfolioPage() {
               <CheckCircle2 className="w-4 h-4" />
               Settled Positions
             </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2">
+            <TabsTrigger
+              id="portfolio-tab-history"
+              value="history"
+              className="gap-2"
+            >
               <History className="w-4 h-4" />
               Order History
               {pendingOrders.length > 0 && (
@@ -422,24 +488,28 @@ export default function PortfolioPage() {
 
           {/* Holdings Tab */}
           <TabsContent value="holdings">
-            <HoldingsTab
-              filteredMarkets={filteredMarkets}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              openOutcomeDetail={openOutcomeDetail}
-            />
+            <div id="portfolio-holdings-panel">
+              <HoldingsTab
+                filteredMarkets={filteredMarkets}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                openOutcomeDetail={openOutcomeDetail}
+              />
+            </div>
           </TabsContent>
 
           {/* Collateral Tab */}
           <TabsContent value="collateral">
-            <CollateralTab
-              totalCollateralLocked={portfolio.collateralLocked}
-              holdings={portfolio.holdings}
-              openOutcomeDetail={openOutcomeDetail}
-              refreshKey={collateralRefreshKey}
-              pendingOrders={pendingOrders}
-              openOrderDetail={(order) => setSelectedOrder(order)}
-            />
+            <div id="portfolio-collateral-panel">
+              <CollateralTab
+                totalCollateralLocked={portfolio.collateralLocked}
+                holdings={portfolio.holdings}
+                openOutcomeDetail={openOutcomeDetail}
+                refreshKey={collateralRefreshKey}
+                pendingOrders={pendingOrders}
+                openOrderDetail={(order) => setSelectedOrder(order)}
+              />
+            </div>
           </TabsContent>
 
           {/* Settled Positions Tab */}
@@ -475,17 +545,19 @@ export default function PortfolioPage() {
 
           {/* History Tab */}
           <TabsContent value="history">
-            <HistoryTab
-              orders={allOrders}
-              loading={false}
-              searchQuery={historySearchQuery}
-              setSearchQuery={setHistorySearchQuery}
-              showOrderStateFilter
-              defaultOrderStateFilter={
-                searchParams.get("tab") === "orders" ? "open" : "all"
-              }
-              onOrderClick={(order) => setSelectedOrder(order)}
-            />
+            <div id="portfolio-history-panel">
+              <HistoryTab
+                orders={allOrders}
+                loading={false}
+                searchQuery={historySearchQuery}
+                setSearchQuery={setHistorySearchQuery}
+                showOrderStateFilter
+                defaultOrderStateFilter={
+                  searchParams.get("tab") === "orders" ? "open" : "all"
+                }
+                onOrderClick={(order) => setSelectedOrder(order)}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

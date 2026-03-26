@@ -1,166 +1,171 @@
 # Tutorial System
 
-A modular and reusable tutorial overlay system for the Tempora trading platform.
+This document describes the current interactive tutorial architecture used across the frontend.
 
-## Components
+## Overview
 
-### `TutorialOverlay`
+The tutorial system is built from three pieces:
 
-A presentational component that renders the tutorial UI overlay, highlighting elements and displaying tooltips.
+1. Step definitions in [lib/tutorial-steps.ts](lib/tutorial-steps.ts)
+2. State and persistence logic in [hooks/useTutorial.ts](hooks/useTutorial.ts)
+3. UI overlay in [components/tutorial-overlay.tsx](components/tutorial-overlay.tsx)
 
-### `useTutorial` Hook
+Pages opt into tutorials by:
 
-A custom hook that manages tutorial state and logic, including step navigation and element tracking.
+1. Creating a tutorial instance with useTutorial
+2. Rendering TutorialOverlay
+3. Starting the tutorial from query params or user action
 
-### Tutorial Steps
+## Data Model
 
-Centralized tutorial step definitions in `lib/tutorial-steps.ts`.
+Tutorial steps use this shape:
 
-## Usage
+```ts
+type TutorialStep = {
+  id: number;
+  elementId: string;
+  title: string;
+  description: string;
+};
+```
 
-### Basic Example
+The elementId must match an element rendered on the page.
+
+## useTutorial Hook
+
+Defined in [hooks/useTutorial.ts](hooks/useTutorial.ts).
+
+### Options
+
+- steps: TutorialStep[] (required)
+- lessonKey: string (required, used for completion tracking)
+- autoStart?: boolean (default false)
+- onComplete?: () => void
+
+### Return Value
+
+- isActive: boolean
+- currentStep: number
+- elementRect: DOMRect | null
+- isCompleted: boolean
+- start(): void
+- next(): Promise<void>
+- close(): void
+- goToStep(step: number): void
+
+### Runtime Behavior
+
+- Tracks the active element by id and updates highlight bounds on resize/scroll.
+- Auto-scrolls each target into view with sticky-header-aware offset logic.
+- On final step, next() marks completion and invokes onComplete.
+
+### Completion Persistence
+
+- Authenticated users: completion is saved to backend via usersApi.updateTutorialCompletion.
+- Unauthenticated users: completion is saved in localStorage under tempora_tutorial_completions.
+- Local completions can be migrated after sign-in via migrateLocalCompletions.
+
+## TutorialOverlay Component
+
+Defined in [components/tutorial-overlay.tsx](components/tutorial-overlay.tsx).
+
+### Props
+
+- steps
+- currentStep
+- isActive
+- elementRect
+- onNext
+- onClose
+
+### UI Behavior
+
+- Renders dimmed full-screen backdrop.
+- Draws a highlight border around the active target.
+- Shows a tooltip with title, description, step counter, Close, and OK/Done actions.
+- Does not close on backdrop click.
+- Tutorial closes only through Close (or Done on the last step).
+
+## Page Integration Pattern
+
+Minimal example:
 
 ```tsx
 import { TutorialOverlay } from "@/components/tutorial-overlay";
 import { useTutorial } from "@/hooks/useTutorial";
+import type { TutorialStep } from "@/components/tutorial-overlay";
 
-// Define your tutorial steps
-const myTutorialSteps = [
+const MY_STEPS: TutorialStep[] = [
   {
     id: 1,
-    elementId: "target-element-1",
-    title: "Step 1 Title",
-    description: "Step 1 description",
-  },
-  {
-    id: 2,
-    elementId: "target-element-2",
-    title: "Step 2 Title",
-    description: "Step 2 description",
+    elementId: "my-target",
+    title: "My Step",
+    description: "Explain this UI area.",
   },
 ];
 
-function MyComponent() {
-  const tutorial = useTutorial({
-    steps: myTutorialSteps,
-    autoStart: false, // Optional: start tutorial automatically
-    onComplete: () => {
-      console.log("Tutorial completed!");
-    },
-  });
+const tutorial = useTutorial({
+  steps: MY_STEPS,
+  lessonKey: "my-lesson-key",
+});
 
-  return (
-    <div>
-      <button onClick={tutorial.start}>Start Tutorial</button>
-
-      <TutorialOverlay
-        steps={myTutorialSteps}
-        currentStep={tutorial.currentStep}
-        isActive={tutorial.isActive}
-        elementRect={tutorial.elementRect}
-        onNext={tutorial.next}
-        onClose={tutorial.close}
-      />
-
-      <div id="target-element-1">Element 1</div>
-      <div id="target-element-2">Element 2</div>
-    </div>
-  );
-}
+<TutorialOverlay
+  steps={MY_STEPS}
+  currentStep={tutorial.currentStep}
+  isActive={tutorial.isActive}
+  elementRect={tutorial.elementRect}
+  onNext={tutorial.next}
+  onClose={tutorial.close}
+/>;
 ```
 
-### Using Pre-defined Tutorial Steps
+## Routing and Launching
 
-```tsx
-import { UNDERSTANDING_PNL_STEPS } from "@/lib/tutorial-steps";
-import { TutorialOverlay } from "@/components/tutorial-overlay";
-import { useTutorial } from "@/hooks/useTutorial";
+Interactive tutorials are launched from [app/tutorial/page.tsx](app/tutorial/page.tsx).
 
-function PortfolioPage() {
-  const pnlTutorial = useTutorial({
-    steps: UNDERSTANDING_PNL_STEPS,
-  });
+- Some tutorials start in-place (platform overview).
+- Others navigate using tutorial query params, for example:
+  - /portfolio?tutorial=understanding-pnl
+  - /portfolio?tutorial=managing-orders
+  - /market/{marketId}?tutorial=first-trade
 
-  return (
-    <div>
-      <button onClick={pnlTutorial.start}>Learn About P&L</button>
+Each destination page reads query params and starts the matching tutorial once mounted.
 
-      <TutorialOverlay
-        steps={UNDERSTANDING_PNL_STEPS}
-        currentStep={pnlTutorial.currentStep}
-        isActive={pnlTutorial.isActive}
-        elementRect={pnlTutorial.elementRect}
-        onNext={pnlTutorial.next}
-        onClose={pnlTutorial.close}
-      />
+## Portfolio Tutorials
 
-      {/* Your component content */}
-    </div>
-  );
-}
-```
+Portfolio page implementation is in [app/portfolio/page.tsx](app/portfolio/page.tsx).
 
-## Hook API
+Supported lesson keys on that page:
 
-### `useTutorial(options)`
+- understanding-pnl
+- managing-orders
+- holdings-positions
+- collateral
+- settled-positions
 
-**Options:**
+Current understanding-pnl flow is tab-aware and includes explicit targets for:
 
-- `steps`: Array of tutorial steps (required)
-- `autoStart`: Boolean to start tutorial automatically (default: `false`)
-- `onComplete`: Callback function called when tutorial completes
+- Portfolio summary area
+- Tabs container and tab triggers
+- Collateral, order history, and holdings panels
 
-**Returns:**
+The page also auto-advances specific understanding-pnl steps when users switch to required tabs.
 
-- `isActive`: Boolean indicating if tutorial is active
-- `currentStep`: Current step index
-- `elementRect`: DOMRect of the currently highlighted element
-- `start()`: Function to start/restart the tutorial
-- `next()`: Function to advance to next step
-- `close()`: Function to close the tutorial
-- `goToStep(step)`: Function to jump to a specific step
+## Adding a New Tutorial
 
-## Component Props
+1. Add a step array in [lib/tutorial-steps.ts](lib/tutorial-steps.ts).
+2. Add stable DOM ids to every target element.
+3. Instantiate useTutorial with a unique lessonKey.
+4. Render TutorialOverlay and wire onNext/onClose.
+5. Decide how users start it:
+   - Direct button action, or
+   - query-param route from [app/tutorial/page.tsx](app/tutorial/page.tsx)
+6. If needed, add page-specific auto-advance logic for guided interactions.
 
-### `TutorialOverlay`
+## Current Guarantees
 
-- `steps`: Array of tutorial steps
-- `currentStep`: Current step index
-- `isActive`: Boolean to show/hide overlay
-- `elementRect`: DOMRect of element to highlight
-- `onNext`: Callback for next button
-- `onClose`: Callback for close/skip button
-
-## Adding New Tutorial Steps
-
-1. Define your steps in `lib/tutorial-steps.ts`:
-
-```typescript
-export const MY_NEW_TUTORIAL_STEPS: TutorialStep[] = [
-  {
-    id: 1,
-    elementId: "element-id-in-dom",
-    title: "Step Title",
-    description: "Step description text",
-  },
-  // ... more steps
-];
-```
-
-2. Ensure target elements have the corresponding IDs:
-
-```tsx
-<div id="element-id-in-dom">Target content</div>
-```
-
-3. Use the tutorial in your component as shown in the examples above.
-
-## Features
-
-- ✅ Automatic element highlighting with yellow border
-- ✅ Responsive tooltip positioning
-- ✅ Window resize and scroll handling
-- ✅ Keyboard-friendly navigation
-- ✅ Dark mode support
-- ✅ Completion callbacks
-- ✅ Step navigation controls
+- Highlight follows active element geometry.
+- Highlight position updates on viewport changes.
+- Target scrolling accounts for sticky header overlap.
+- Background clicks do not dismiss tutorials.
+- Completion persists across sessions (backend or local storage).
