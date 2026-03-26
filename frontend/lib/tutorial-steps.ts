@@ -87,23 +87,58 @@ export const UNDERSTANDING_PNL_STEPS: TutorialStep[] = [
   {
     id: 2,
     elementId: "portfolio-tabs",
-    title: "Cost Basis & Market Value",
+    title: "Portfolio Tabs",
     description:
-      "When you hold positions, your cost basis is what you paid and market value is what they're worth now. Open the 'Open Positions' tab to see per-position cost, current value, and unrealized P&L.",
+      "This page is split into tabs so you can inspect P&L from different angles: Open Positions, Collateral, Settled Positions, and Order History.",
   },
   {
     id: 3,
-    elementId: "portfolio-title",
-    title: "Profit & Loss (P&L)",
+    elementId: "portfolio-tab-collateral",
+    title: "Open Collateral",
     description:
-      "P&L is market value minus cost basis. Green means profit, red means loss. This is 'unrealized' until you sell or the market settles. Once you have positions, a Performance Analytics section appears with portfolio-wide stats.",
+      "Click the Collateral tab to continue. This shows funds locked by open orders and short exposure, which directly affects how much capital is available for new trades.",
   },
   {
     id: 4,
-    elementId: "portfolio-summary",
-    title: "Return on Investment (ROI)",
+    elementId: "portfolio-collateral-panel",
+    title: "Collateral And Spendable Cash",
     description:
-      "ROI is your P&L as a percentage of cost basis. For example, buying at 30¢ and selling at 50¢ gives ~67% ROI. Track ROI in the analytics section that appears after your first trade.",
+      "Collateral is locked cash. Even with positive unrealized P&L, your spendable balance can stay tight if collateral is tied up in pending orders or shorts.",
+  },
+  {
+    id: 5,
+    elementId: "portfolio-tab-history",
+    title: "Open Order History",
+    description:
+      "Click the Order History tab to continue. You need fill status and execution prices to understand when P&L becomes realized.",
+  },
+  {
+    id: 6,
+    elementId: "portfolio-history-panel",
+    title: "Realized Vs Unrealized P&L",
+    description:
+      "Filled trades and settlements determine realized P&L. Open positions remain unrealized and move with market prices. Use this tab to reconcile both.",
+  },
+  {
+    id: 7,
+    elementId: "portfolio-tab-holdings",
+    title: "Return To Open Positions",
+    description:
+      "Click Open Positions to continue. This is where cost basis, mark value, and unrealized P&L are shown per outcome.",
+  },
+  {
+    id: 8,
+    elementId: "portfolio-holdings-panel",
+    title: "Per-Position P&L",
+    description:
+      "Each row shows quantity, average entry price, mark price, and unrealized P&L. P&L is mark value minus cost basis for that position.",
+  },
+  {
+    id: 9,
+    elementId: "portfolio-title",
+    title: "P&L And ROI Recap",
+    description:
+      "Portfolio P&L is aggregate market value minus total cost basis. ROI is P&L divided by cost basis. Use tabs together to monitor risk, liquidity, and performance.",
   },
 ];
 

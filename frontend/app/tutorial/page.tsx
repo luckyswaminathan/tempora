@@ -13,7 +13,11 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
-import { useTutorial, getAllTutorialCompletions, areAllTutorialsComplete } from "@/hooks/useTutorial";
+import {
+  useTutorial,
+  getAllTutorialCompletions,
+  areAllTutorialsComplete,
+} from "@/hooks/useTutorial";
 import { PLATFORM_OVERVIEW_STEPS } from "@/lib/tutorial-steps";
 import { useAuth } from "@/contexts/auth-context";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -142,12 +146,6 @@ const TUTORIAL_SECTIONS = [
         isInteractive: true as const,
         requiresAuth: true,
       },
-      {
-        title: "Market Comments & Reactions",
-        duration: "2 min",
-        lessonKey: "comments-reactions" as LessonKey,
-        isInteractive: true as const,
-      },
     ],
   },
   {
@@ -156,6 +154,12 @@ const TUTORIAL_SECTIONS = [
     icon: Users,
     color: "text-accent",
     lessons: [
+      {
+        title: "Market Comments",
+        duration: "2 min",
+        lessonKey: "comments-reactions" as LessonKey,
+        isInteractive: true as const,
+      },
       {
         title: "Leaderboard",
         duration: "1 min",
@@ -235,7 +239,8 @@ export default function TutorialPage() {
     0,
   );
   const progressPercent = Math.round((completedLessons / totalLessons) * 100);
-  const allComplete = mounted && completedLessons === totalLessons && totalLessons > 0;
+  const allComplete =
+    mounted && completedLessons === totalLessons && totalLessons > 0;
 
   const CONGRATS_SHOWN_KEY = "tempora_tutorial_congrats_shown";
 
@@ -281,7 +286,15 @@ export default function TutorialPage() {
       particleCount: 100,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#10b981", "#059669", "#34d399", "#6ee7b7", "#a7f3d0", "#fbbf24", "#f59e0b"],
+      colors: [
+        "#10b981",
+        "#059669",
+        "#34d399",
+        "#6ee7b7",
+        "#a7f3d0",
+        "#fbbf24",
+        "#f59e0b",
+      ],
     });
 
     requestAnimationFrame(frame);
@@ -326,7 +339,9 @@ export default function TutorialPage() {
     if (route) router.push(route);
   };
 
-  const canStartLesson = (lesson: (typeof TUTORIAL_SECTIONS)[0]["lessons"][0]) => {
+  const canStartLesson = (
+    lesson: (typeof TUTORIAL_SECTIONS)[0]["lessons"][0],
+  ) => {
     if (lesson.requiresAuth && !profile) return false;
     return true;
   };
@@ -480,11 +495,11 @@ export default function TutorialPage() {
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold mb-2">
-              Congratulations!
-            </h2>
+            <h2 className="text-2xl font-bold mb-2">Congratulations!</h2>
             <p className="text-muted-foreground mb-6">
-              You&apos;ve completed all the tutorials. You&apos;re ready to trade like a pro. You can always revisit tutorials from your profile dropdown menu.
+              You&apos;ve completed all the tutorials. You&apos;re ready to
+              trade like a pro. You can always revisit tutorials from your
+              profile dropdown menu.
             </p>
 
             <button
