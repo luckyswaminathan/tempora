@@ -1,18 +1,15 @@
-from datetime import datetime, timezone, timedelta
-
 from fastapi import APIRouter, Body, Depends, Query, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api import deps
-from core.config import settings
 from schemas.portfolio import PortfolioSnapshot, CollateralBreakdown
 from schemas.user import (
     UserBase,
     UserProfile,
     LeaderboardResponse,
     UpdateTutorialRequest,
+    UpdateEmailNotificationsRequest,
 )
 from services.auth import AuthService
 from services.portfolio import PortfolioService
@@ -73,6 +70,26 @@ def update_tutorial_completion(
     )
 
 
+@router.put("/me/preferences/notifications/email", response_model=UserProfile)
+def update_email_notifications_preference(
+    payload: UpdateEmailNotificationsRequest,
+    current_user: UserBase = Depends(deps.get_current_user),
+    session: Session = Depends(deps.get_session),
+    auth_service: AuthService = Depends(deps.get_auth_service),
+) -> UserProfile:
+    profile = session.get(models.Profile, current_user.id)
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User profile not found",
+        )
+
+    profile.email_notifications_enabled = payload.enabled
+    session.commit()
+
+    return auth_service.get_profile(current_user.id)
+
+
 class WalletPoint(BaseModel):
     t: str  # ISO datetime
     v: int  # balance in cents
@@ -108,67 +125,13 @@ def add_funds(
     return auth_service.get_profile(current_user.id)
 
 
-def _parse_ts(ts: str) -> datetime:
-    dt = datetime.fromisoformat(ts)
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
-
-
 @router.get("/me/wallet-history", response_model=WalletHistoryResponse)
 def get_wallet_history(
     days: int = Query(default=30, ge=0),
     current_user: UserBase = Depends(deps.get_current_user),
-    session: Session = Depends(deps.get_session),
+    portfolio_service: PortfolioService = Depends(deps.get_portfolio_service),
 ) -> WalletHistoryResponse:
-    """Return approximate wallet balance history reconstructed from trade records."""
-    profile = session.get(models.Profile, current_user.id)
-    if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
-        )
-
-    now = datetime.now(timezone.utc)
-
-    # Normalize joined_at (may be naive in SQLite)
-    joined_at = profile.joined_at
-    if joined_at.tzinfo is None:
-        joined_at = joined_at.replace(tzinfo=timezone.utc)
-
-    # Fetch all trades for the user ordered chronologically
-    stmt = (
-        select(models.Trade)
-        .where(models.Trade.user_id == current_user.id)
-        .order_by(models.Trade.created_at.asc())
+    data = portfolio_service.get_wallet_history(current_user.id, days)
+    return WalletHistoryResponse(
+        data=[WalletPoint(t=str(point["t"]), v=int(point["v"])) for point in data]
     )
-    trades = session.scalars(stmt).all()
-
-    # Build full history: genesis point + trades + current balance
-    balance = settings.starting_amount
-    all_points: list[WalletPoint] = [WalletPoint(t=joined_at.isoformat(), v=balance)]
-
-    for trade in trades:
-        # buy: quantity > 0, wallet decreases; sell: quantity < 0, wallet increases
-        if trade.quantity > 0:
-            balance -= trade.price_cents
-        else:
-            balance += trade.price_cents
-        all_points.append(WalletPoint(t=trade.created_at.isoformat(), v=balance))
-
-    # Always append current wallet value as final point (captures resolution payouts)
-    all_points.append(WalletPoint(t=now.isoformat(), v=profile.wallet))
-
-    if days == 0:
-        # All-time view: return from account creation
-        return WalletHistoryResponse(data=all_points)
-
-    # Windowed view: prepend a virtual point at the cutoff with balance at that time
-    cutoff = now - timedelta(days=days)
-    balance_at_cutoff = settings.starting_amount
-    for p in all_points:
-        if _parse_ts(p.t) < cutoff:
-            balance_at_cutoff = p.v
-
-    filtered = [p for p in all_points if _parse_ts(p.t) >= cutoff]
-    cutoff_point = WalletPoint(t=cutoff.isoformat(), v=balance_at_cutoff)
-    return WalletHistoryResponse(data=[cutoff_point] + filtered)

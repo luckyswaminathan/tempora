@@ -65,6 +65,15 @@ class OrderType(StrEnum):
     LIMIT = "limit"
 
 
+class NotificationType(StrEnum):
+    LIMIT_ORDER_FILLED = "limit_order_filled"
+    LIMIT_ORDER_EXPIRED = "limit_order_expired"
+    POSITION_MARKET_SETTLED = "position_market_settled"
+    MARKET_MAKER_MARKET_SETTLED = "market_maker_market_settled"
+    MARKET_MAKER_MARKET_STATUS_UPDATED = "market_maker_market_status_updated"
+    ADMIN_MARKET_OVERDUE_CLOSED = "admin_market_overdue_closed"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -106,6 +115,9 @@ class Profile(Base):
         MutableDict.as_mutable(JSON),
         default=dict,
         nullable=False,
+    )
+    email_notifications_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -223,7 +235,13 @@ class Order(Base):
     )
     filled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     canceled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None, nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
 
     user: Mapped[User] = relationship()
     market: Mapped[Market] = relationship()
@@ -252,3 +270,132 @@ class Trade(Base):
     order: Mapped[Order] = relationship(back_populates="trades")
     user: Mapped[User] = relationship()
     security: Mapped[Security] = relationship(back_populates="trades")
+
+
+class ProbabilityHistory(Base):
+    __tablename__ = "probability_history"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    market_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("markets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    security_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("securities.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    order_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("orders.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    probability: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    market: Mapped[Market] = relationship()
+    security: Mapped[Security] = relationship()
+    order: Mapped[Order] = relationship()
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    market_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("markets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    parent_comment_id: Mapped[str | None] = mapped_column(
+        String,
+        ForeignKey("comments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    market: Mapped[Market] = relationship()
+    user: Mapped[User] = relationship()
+    parent: Mapped["Comment | None"] = relationship(remote_side="Comment.id")
+
+
+class CommentReaction(Base):
+    __tablename__ = "comment_reactions"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    comment_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("comments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reaction: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    comment: Mapped[Comment] = relationship()
+    user: Mapped[User] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint(
+            "comment_id",
+            "user_id",
+            "reaction",
+            name="uq_comment_user_reaction",
+        ),
+    )
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid4())
+    )
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    event_type: Mapped[str] = mapped_column(
+        Enum(NotificationType), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict] = mapped_column(
+        MutableDict.as_mutable(JSON),
+        default=dict,
+        nullable=False,
+    )
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    read_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    user: Mapped[User] = relationship()

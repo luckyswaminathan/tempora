@@ -41,6 +41,23 @@ def list_orders(
     return order_service.list_orders(user_id=user.id, market_id=market_id)
 
 
+@router.get("/market/{market_id}/history", response_model=OrderListResponse)
+def list_market_history(
+    market_id: str,
+    order_service: OrderService = Depends(deps.get_order_service),
+    market_service: MarketService = Depends(deps.get_market_service),
+    user: UserBase = Depends(deps.get_current_market_maker),
+) -> OrderListResponse:
+    market = market_service.get_market(market_id)
+    if market.creator_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the market creator can view full market history",
+        )
+
+    return order_service.list_orders(market_id=market_id)
+
+
 @router.post("", response_model=OrderPlaceResponse, status_code=status.HTTP_201_CREATED)
 def place_order(
     payload: OrderCreateRequest = Depends(validate_same_market),
@@ -53,6 +70,7 @@ def place_order(
         marketId=payload.market_id,
         orderType=payload.order_type,
         limitPriceCents=payload.limit_price_cents,
+        expirationMinutes=payload.expiration_minutes,
         legs=payload.legs,
     )
     return order_service.place_order(order_data)

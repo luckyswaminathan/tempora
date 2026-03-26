@@ -142,3 +142,59 @@ class MarketMakerDashboard(BaseModel):
     total_net_pnl_cents: int = Field(alias="totalNetPnlCents")
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class SettlementUserTotals(BaseModel):
+    """Aggregated settlement totals for a user in a resolved market."""
+
+    position_count: int = Field(alias="positionCount")
+    total_cost_cents: int = Field(alias="totalCostCents")
+    total_payout_cents: int = Field(alias="totalPayoutCents")
+    total_pnl_cents: int = Field(alias="totalPnlCents")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class SettlementPayoutEntry(BaseModel):
+    """Signed settlement transfer for a single user."""
+
+    user_id: str = Field(alias="userId")
+    payout_cents: int = Field(alias="payoutCents")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class SettlementInfo(BaseModel):
+    """Settlement information for a resolved market."""
+
+    market_id: str = Field(alias="marketId")
+    winning_security_id: str = Field(alias="winningSecurityId")
+    winning_outcome: str = Field(alias="winningOutcome")
+    settlement_date: UTCDateTime = Field(alias="settlementDate")
+    user_totals: Optional[SettlementUserTotals] = Field(
+        default=None,
+        alias="userTotals",
+        description="Aggregated settlement totals for this user in the market",
+    )
+    payout_distribution: Optional[List[SettlementPayoutEntry]] = Field(
+        default=None,
+        alias="payoutDistribution",
+        description="Signed settlement transfer by user (+ receives from market maker, - pays back) visible only to market maker",
+    )
+    market_total_revenue_cents: Optional[int] = Field(
+        default=None,
+        alias="marketTotalRevenueCents",
+        description="Total revenue collected from all trades in this market (market maker view)",
+    )
+    market_total_payout_cents: Optional[int] = Field(
+        default=None,
+        alias="marketTotalPayoutCents",
+        description="Total settlement payout distributed to winners (market maker view)",
+    )
+    market_net_pnl_cents: Optional[int] = Field(
+        default=None,
+        alias="marketNetPnlCents",
+        description="Net settlement P&L for market maker (revenue - payout)",
+    )
+
+    model_config = ConfigDict(populate_by_name=True)

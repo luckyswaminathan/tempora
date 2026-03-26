@@ -7,6 +7,8 @@ export function BarsPicker({
   handleCellClick,
   setHoveredIndex,
   isInRange,
+  winningSecurityId,
+  readOnly,
 }: SecurityPickerProps) {
   // Calculate max probability for scaling
   const maxProbability = Math.max(...outcomes.map((o) => o.probability), 0);
@@ -17,6 +19,8 @@ export function BarsPicker({
         const widthPercent =
           maxProbability > 0 ? (outcome.probability / maxProbability) * 100 : 0;
         const isSelected = isInRange(index);
+        const isWinning = outcome.id === winningSecurityId;
+        const shouldShowSelected = isSelected && !readOnly;
 
         return (
           <button
@@ -25,13 +29,21 @@ export function BarsPicker({
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
             className={`w-full h-12 rounded-lg relative overflow-visible transition ring-offset-2 ${
-              isSelected
-                ? "ring-2 ring-green-500"
-                : "hover:ring-2 hover:ring-primary"
+              shouldShowSelected
+                ? "ring-2 ring-primary"
+                : isWinning
+                  ? "ring-2 ring-primary"
+                  : "hover:ring-2 hover:ring-secondary"
             }`}
           >
             <div
-              className="absolute left-0 top-0 h-full rounded-lg transition-all duration-300 bg-blue-200"
+              className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${
+                shouldShowSelected
+                  ? "bg-primary"
+                  : isWinning
+                    ? "bg-primary/70"
+                    : "bg-secondary"
+              }`}
               style={{ width: `${widthPercent}%` }}
             />
 

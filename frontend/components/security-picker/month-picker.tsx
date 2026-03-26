@@ -9,6 +9,8 @@ export function MonthPicker({
   setHoveredIndex,
   hoveredIndex,
   isInRange,
+  winningSecurityId,
+  readOnly,
 }: SecurityPickerProps) {
   const today = new Date();
   const todayYear = today.getFullYear();
@@ -69,11 +71,11 @@ export function MonthPicker({
   return (
     <div className="space-y-6">
       {errors.length > 0 && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-red-900 mb-2">
+        <div className="bg-destructive/10 border-2 border-destructive/30 rounded-lg p-4">
+          <p className="text-sm font-medium text-destructive mb-2">
             Validation Errors:
           </p>
-          <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+          <ul className="text-sm text-destructive/90 list-disc list-inside space-y-1">
             {errors.map((error, idx) => (
               <li key={idx}>{error}</li>
             ))}
@@ -88,21 +90,26 @@ export function MonthPicker({
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
             {monthsByYear[year].map(({ index, month, monthNum, outcome }) => {
               const elapsed = isElapsedMonth(year, monthNum);
+              const disabled = elapsed && !readOnly;
+              const isWinning = outcome.id === winningSecurityId;
+              const shouldShowSelected = isInRange(index) && !readOnly;
               return (
                 <button
                   key={outcome.id}
-                  disabled={elapsed}
-                  onClick={() => !elapsed && handleCellClick(index)}
-                  onMouseEnter={() => !elapsed && setHoveredIndex(index)}
+                  disabled={disabled}
+                  onClick={() => !disabled && handleCellClick(index)}
+                  onMouseEnter={() => !disabled && setHoveredIndex(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
                   className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[80px] ${
-                    elapsed
-                      ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
-                      : isInRange(index)
-                        ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                        : hoveredIndex === index
-                          ? "border-blue-400 bg-blue-50"
-                          : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                    disabled
+                      ? "border-border/70 bg-muted/45 opacity-55 cursor-not-allowed"
+                      : shouldShowSelected
+                        ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
+                        : isWinning
+                          ? "border-primary/70 bg-primary/20"
+                          : hoveredIndex === index
+                            ? "border-secondary/70 bg-muted/75"
+                            : "border-border/85 bg-card/70 hover:border-secondary/65 hover:bg-muted/65"
                   }`}
                 >
                   <div className="text-sm font-bold text-center mb-1">
@@ -123,28 +130,36 @@ export function MonthPicker({
             Other
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {others.map(({ index, outcome }) => (
-              <button
-                key={outcome.id}
-                onClick={() => handleCellClick(index)}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
-                className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[70px] ${
-                  isInRange(index)
-                    ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                    : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                }`}
-              >
-                <div className="text-sm font-bold text-center mb-1 break-words w-full">
-                  {outcome.outcome}
-                </div>
-                <div className="text-center">
-                  <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
-                </div>
-              </button>
-            ))}
+            {others.map(({ index, outcome }) =>
+              (() => {
+                const shouldShowSelected = isInRange(index) && !readOnly;
+                const isWinning = outcome.id === winningSecurityId;
+                return (
+                  <button
+                    key={outcome.id}
+                    onClick={() => handleCellClick(index)}
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                    className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[70px] ${
+                      shouldShowSelected
+                        ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
+                        : isWinning
+                          ? "border-primary/70 bg-primary/20"
+                          : hoveredIndex === index
+                            ? "border-secondary/70 bg-muted/75"
+                            : "border-border/85 bg-card/70 hover:border-secondary/65 hover:bg-muted/65"
+                    }`}
+                  >
+                    <div className="text-sm font-bold text-center mb-1 break-words w-full">
+                      {outcome.outcome}
+                    </div>
+                    <div className="text-center">
+                      <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
+                    </div>
+                  </button>
+                );
+              })(),
+            )}
           </div>
         </div>
       )}

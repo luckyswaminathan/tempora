@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SecurityPickerProps, Pill, SecurityPickerOutcome } from "./types";
 import { MONTHS } from "@/lib/utils";
 
@@ -11,6 +11,8 @@ export function DayPicker({
   setHoveredIndex,
   hoveredIndex,
   isInRange,
+  winningSecurityId,
+  readOnly,
 }: SecurityPickerProps) {
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -41,6 +43,9 @@ export function DayPicker({
 
   // Open on the earliest non-elapsed date, falling back to the first date
   const dates = Array.from(dayMap.keys()).sort();
+  const winningDate = winningSecurityId
+    ? dates.find((date) => dayMap.get(date)?.outcome.id === winningSecurityId)
+    : undefined;
 
   // YYYY-MM strings bounding the navigable range
   const firstMonthKey = dates.length > 0 ? dates[0].slice(0, 7) : null;
@@ -49,10 +54,30 @@ export function DayPicker({
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     if (dates.length === 0) return new Date();
+    if (readOnly && winningDate) {
+      const winning = new Date(winningDate);
+      return new Date(winning.getFullYear(), winning.getMonth(), 1);
+    }
     const firstTradeable = dates.find((d) => !isElapsedDate(d)) ?? dates[0];
     const d = new Date(firstTradeable);
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
+
+  useEffect(() => {
+    if (!readOnly || !winningDate) return;
+
+    const winning = new Date(winningDate);
+    const targetMonth = new Date(winning.getFullYear(), winning.getMonth(), 1);
+    setCurrentMonth((prev) => {
+      if (
+        prev.getFullYear() === targetMonth.getFullYear() &&
+        prev.getMonth() === targetMonth.getMonth()
+      ) {
+        return prev;
+      }
+      return targetMonth;
+    });
+  }, [readOnly, winningDate]);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -86,11 +111,11 @@ export function DayPicker({
   return (
     <div className="space-y-6">
       {errors.length > 0 && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-red-900 mb-2">
+        <div className="bg-destructive/10 border-2 border-destructive/30 rounded-lg p-4">
+          <p className="text-sm font-medium text-destructive mb-2">
             Validation Errors:
           </p>
-          <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+          <ul className="text-sm text-destructive/90 list-disc list-inside space-y-1">
             {errors.map((error, idx) => (
               <li key={idx}>{error}</li>
             ))}
@@ -102,7 +127,7 @@ export function DayPicker({
           <button
             onClick={previousMonth}
             disabled={!canGoPrev}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 hover:bg-muted/70 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Previous month"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -113,7 +138,7 @@ export function DayPicker({
           <button
             onClick={nextMonth}
             disabled={!canGoNext}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-2 hover:bg-muted/70 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Next month"
           >
             <ChevronRight className="w-5 h-5" />
@@ -142,7 +167,7 @@ export function DayPicker({
               return (
                 <div
                   key={dayInfo.date}
-                  className="aspect-square p-2 rounded-lg border border-gray-100 flex items-center justify-center text-sm text-muted-foreground"
+                  className="aspect-square p-2 rounded-lg border-2 calendar-date-surface flex items-center justify-center text-sm text-muted-foreground"
                 >
                   {dayInfo.day}
                 </div>
@@ -150,21 +175,26 @@ export function DayPicker({
             }
 
             const elapsed = isElapsedDate(dayInfo.date);
+            const disabled = elapsed && !readOnly;
+            const isWinning = dayData.outcome.id === winningSecurityId;
+            const shouldShowSelected = isInRange(dayData.index) && !readOnly;
             return (
               <button
                 key={dayInfo.date}
-                disabled={elapsed}
-                onClick={() => !elapsed && handleCellClick(dayData.index)}
-                onMouseEnter={() => !elapsed && setHoveredIndex(dayData.index)}
+                disabled={disabled}
+                onClick={() => !disabled && handleCellClick(dayData.index)}
+                onMouseEnter={() => !disabled && setHoveredIndex(dayData.index)}
                 onMouseLeave={() => setHoveredIndex(null)}
                 className={`aspect-square p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                  elapsed
-                    ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
-                    : isInRange(dayData.index)
-                      ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                      : hoveredIndex === dayData.index
-                        ? "border-blue-400 bg-blue-50"
-                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                  disabled
+                    ? "border-border/70 bg-muted/45 opacity-55 cursor-not-allowed"
+                    : shouldShowSelected
+                      ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
+                      : isWinning
+                        ? "border-primary/70 bg-primary/20"
+                        : hoveredIndex === dayData.index
+                          ? "border-secondary/70 bg-muted/75"
+                          : "calendar-date-surface hover:border-secondary/65 hover:bg-muted/65"
                 }`}
               >
                 <div className="text-sm font-bold mb-1">{dayInfo.day}</div>
@@ -183,28 +213,36 @@ export function DayPicker({
             Other
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {others.map(({ index, outcome }) => (
-              <button
-                key={outcome.id}
-                onClick={() => handleCellClick(index)}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
-                className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[70px] ${
-                  isInRange(index)
-                    ? "border-green-500 bg-green-50 ring-2 ring-green-500 ring-offset-2"
-                    : hoveredIndex === index
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                }`}
-              >
-                <div className="text-sm font-bold text-center mb-1 break-words w-full">
-                  {outcome.outcome}
-                </div>
-                <div className="text-center">
-                  <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
-                </div>
-              </button>
-            ))}
+            {others.map(({ index, outcome }) =>
+              (() => {
+                const shouldShowSelected = isInRange(index) && !readOnly;
+                const isWinning = outcome.id === winningSecurityId;
+                return (
+                  <button
+                    key={outcome.id}
+                    onClick={() => handleCellClick(index)}
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                    className={`relative p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center min-h-[70px] ${
+                      shouldShowSelected
+                        ? "border-primary bg-primary/15 ring-2 ring-primary ring-offset-2"
+                        : isWinning
+                          ? "border-primary/70 bg-primary/20"
+                          : hoveredIndex === index
+                            ? "border-secondary/70 bg-muted/75"
+                            : "calendar-date-surface hover:border-secondary/65 hover:bg-muted/65"
+                    }`}
+                  >
+                    <div className="text-sm font-bold text-center mb-1 break-words w-full">
+                      {outcome.outcome}
+                    </div>
+                    <div className="text-center">
+                      <Pill>{(outcome.probability * 100).toFixed(1)}%</Pill>
+                    </div>
+                  </button>
+                );
+              })(),
+            )}
           </div>
         </div>
       )}

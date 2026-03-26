@@ -21,6 +21,8 @@ export function IntervalPicker({
   handleCellClick,
   isInRange,
   onRangeChange,
+  winningSecurityId,
+  readOnly,
 }: SecurityPickerProps) {
   // Separate catch-all and regular outcomes
   const { regularOutcomes, catchAllOutcome } = useMemo(() => {
@@ -141,10 +143,18 @@ export function IntervalPicker({
                     (o) => o.id === outcome.id,
                   );
                   const isSelected = isInRange(regularIndex);
+                  const isWinning = outcome.id === winningSecurityId;
+                  const shouldShowSelected = isSelected && !readOnly;
                   return (
                     <Cell
                       key={outcome.id}
-                      fill={isSelected ? "#22c55e" : "#93c5fd"}
+                      fill={
+                        shouldShowSelected
+                          ? "var(--primary)"
+                          : isWinning
+                            ? "var(--primary)"
+                            : "var(--secondary)"
+                      }
                       style={{ cursor: "pointer" }}
                       onClick={() => handleCellClick(regularIndex)}
                     />
@@ -155,32 +165,35 @@ export function IntervalPicker({
           </ResponsiveContainer>
         </div>
 
-        {/* Range Slider */}
-        <div className="px-2 space-y-3">
-          <label className="text-sm font-medium">Select Range</label>
-          <Slider
-            min={minSliderValue}
-            max={maxSliderValue}
-            step={1}
-            value={[
-              Math.max(
-                minSliderValue,
-                startSliderValue >= 0 ? startSliderValue : 0,
-              ),
-              Math.min(
-                maxSliderValue,
-                endSliderValue >= 0 ? endSliderValue : maxSliderValue,
-              ),
-            ]}
-            onValueChange={handleSliderChange}
-            minStepsBetweenThumbs={0}
-            className="my-3"
-          />
-          <div className="flex justify-between text-xs text-gray-600">
-            <span>{regularOutcomes[0]?.outcome}</span>
-            <span>{regularOutcomes[regularOutcomes.length - 1]?.outcome}</span>
+        {!readOnly && (
+          <div className="px-2 space-y-3">
+            <label className="text-sm font-medium">Select Range</label>
+            <Slider
+              min={minSliderValue}
+              max={maxSliderValue}
+              step={1}
+              value={[
+                Math.max(
+                  minSliderValue,
+                  startSliderValue >= 0 ? startSliderValue : 0,
+                ),
+                Math.min(
+                  maxSliderValue,
+                  endSliderValue >= 0 ? endSliderValue : maxSliderValue,
+                ),
+              ]}
+              onValueChange={handleSliderChange}
+              minStepsBetweenThumbs={0}
+              className="my-3"
+            />
+            <div className="flex justify-between text-xs text-gray-600">
+              <span>{regularOutcomes[0]?.outcome}</span>
+              <span>
+                {regularOutcomes[regularOutcomes.length - 1]?.outcome}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Catch-all button */}
@@ -193,7 +206,11 @@ export function IntervalPicker({
                 : "outline"
             }
             onClick={handleCatchAllClick}
-            className="min-w-[200px]"
+            className={`min-w-[200px] ${
+              catchAllOutcome.id === winningSecurityId
+                ? "border-primary bg-primary/15 text-primary hover:bg-primary/20"
+                : ""
+            }`}
           >
             {catchAllOutcome.outcome}
             <span className="ml-2 text-xs">

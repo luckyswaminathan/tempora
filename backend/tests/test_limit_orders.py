@@ -19,7 +19,7 @@ What this does NOT test:
 - Settlement/resolution - see test_settlement.py
 """
 
-import pytest
+from datetime import datetime, timedelta, timezone
 
 
 def test_limit_order_executes_within_limit(trader_client, trade_market):
@@ -940,3 +940,60 @@ def test_limit_order_across_market_movement(trader_client, trade_market):
     orders = {o["id"]: o for o in resp.json()["items"]}
     assert orders[order_id]["filled"] is True
     assert orders[order_id]["collateralLockedCents"] == 0
+
+
+def test_market_order_rejects_expiration_minutes(trader_client, trade_market):
+    """Market orders should not accept expirationMinutes."""
+    security_id = trade_market.securities[0].id
+
+    payload = {
+        "marketId": trade_market.id,
+        "orderType": "market",
+        "expirationMinutes": 10,
+        "legs": [{"securityId": security_id, "quantity": 5}],
+    }
+    resp = trader_client.post("/orders", json=payload)
+    assert resp.status_code == 400
+    assert "expirationminutes" in resp.json()["detail"].lower()
+
+
+def test_expired_limit_order_is_auto_cancelled(trader_client, trade_market, db_session):
+    """Expired unfilled limit orders are cancelled by the background worker logic."""
+    from core import models
+    from services.orders import OrderService
+
+    security_id = trade_market.securities[0].id
+
+    # Build an intentionally unfilled limit order.
+    price_payload = {
+        "marketId": trade_market.id,
+        "legs": [{"securityId": security_id, "quantity": 10}],
+    }
+    market_price = trader_client.post("/orders/price", json=price_payload).json()[
+        "priceCents"
+    ]
+    limit_payload = {
+        "marketId": trade_market.id,
+        "orderType": "limit",
+        "limitPriceCents": market_price - 100,
+        "expirationMinutes": 60,
+        "legs": [{"securityId": security_id, "quantity": 10}],
+    }
+    resp = trader_client.post("/orders", json=limit_payload)
+    assert resp.status_code == 201
+    assert resp.json()["filled"] is False
+
+    # Fetch created order id and force its expiry into the past.
+    orders = trader_client.get("/orders").json()["items"]
+    order_id = orders[0]["id"]
+    order = db_session.get(models.Order, order_id)
+    order.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    db_session.commit()
+
+    cancelled_ids = OrderService(db_session).auto_cancel_expired_orders()
+    assert order_id in cancelled_ids
+
+    refreshed_orders = trader_client.get("/orders").json()["items"]
+    refreshed = next(o for o in refreshed_orders if o["id"] == order_id)
+    assert refreshed["canceled"] is True
+    assert refreshed["filled"] is False

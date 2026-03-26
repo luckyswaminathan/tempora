@@ -155,6 +155,47 @@ export interface MarketListResponse {
   count: number;
 }
 
+export interface CommentAuthor {
+  id: string;
+  displayName?: string;
+  email: string;
+}
+
+export interface CommentReactionCount {
+  reaction: string;
+  count: number;
+}
+
+export interface MarketComment {
+  id: string;
+  marketId: string;
+  userId: string;
+  parentCommentId?: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  author: CommentAuthor;
+  reactions: CommentReactionCount[];
+  myReactions: string[];
+  replies: MarketComment[];
+}
+
+export interface MarketCommentListResponse {
+  items: MarketComment[];
+  count: number;
+}
+
+export interface CreateCommentRequest {
+  content: string;
+  parentCommentId?: string;
+}
+
+export interface CommentReactionResponse {
+  commentId: string;
+  reaction: string;
+  active: boolean;
+}
+
 export interface SecurityUpdate {
   id: string;
   outcome: string;
@@ -174,6 +215,30 @@ export interface MarketSettlementResponse {
   id: string;
   winningOutcome: string;
   netPayout: number;
+}
+
+export interface SettlementUserTotals {
+  positionCount: number;
+  totalCostCents: number;
+  totalPayoutCents: number;
+  totalPnlCents: number;
+}
+
+export interface SettlementPayoutEntry {
+  userId: string;
+  payoutCents: number;
+}
+
+export interface SettlementInfo {
+  marketId: string;
+  winningSecurityId: string;
+  winningOutcome: string;
+  settlementDate: string;
+  userTotals?: SettlementUserTotals;
+  payoutDistribution?: SettlementPayoutEntry[];
+  marketTotalRevenueCents?: number;
+  marketTotalPayoutCents?: number;
+  marketNetPnlCents?: number;
 }
 
 export const marketsApi = {
@@ -200,6 +265,10 @@ export const marketsApi = {
     });
   },
 
+  async getSettlementInfo(marketId: string): Promise<SettlementInfo> {
+    return fetchWithAuth(`/markets/${marketId}/settlement-info`);
+  },
+
   async settleMarket(
     winningSecurityId: string,
   ): Promise<MarketSettlementResponse> {
@@ -209,6 +278,36 @@ export const marketsApi = {
         winningSecurityId: winningSecurityId,
       }),
     });
+  },
+};
+
+export const commentsApi = {
+  async listComments(marketId: string): Promise<MarketCommentListResponse> {
+    return fetchWithAuth(`/markets/${marketId}/comments`);
+  },
+
+  async createComment(
+    marketId: string,
+    data: CreateCommentRequest,
+  ): Promise<MarketComment> {
+    return fetchWithAuth(`/markets/${marketId}/comments`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async toggleReaction(
+    marketId: string,
+    commentId: string,
+    reaction: string,
+  ): Promise<CommentReactionResponse> {
+    return fetchWithAuth(
+      `/markets/${marketId}/comments/${commentId}/reactions`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reaction }),
+      },
+    );
   },
 };
 
@@ -233,6 +332,8 @@ export interface OrderCreateRequest {
   orderType?: OrderType;
   // Max avg price for limit orders
   limitPriceCents?: number;
+  // Optional limit order TTL in minutes before auto-cancel
+  expirationMinutes?: number;
 }
 
 export interface TradeRecord {
@@ -251,6 +352,7 @@ interface _BaseOrderFields {
   question: string;
   collateralLockedCents?: number;
   createdAt: string;
+  expiresAt?: string;
   filled: boolean;
   canceled: boolean;
   legs: [LegWithOutcome, ...LegWithOutcome[]];
@@ -300,6 +402,67 @@ export interface ProbabilityHistResponse {
   history: ProbabilityHistData[];
 }
 
+export type NotificationEventType =
+  | "limit_order_filled"
+  | "limit_order_expired"
+  | "position_market_settled"
+  | "market_maker_market_settled"
+  | "market_maker_market_status_updated"
+  | "admin_market_overdue_closed";
+
+export interface NotificationItem {
+  id: string;
+  eventType: NotificationEventType;
+  title: string;
+  body: string;
+  payload: Record<string, unknown>;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+}
+
+export interface NotificationListResponse {
+  items: NotificationItem[];
+  count: number;
+  unreadCount: number;
+}
+
+export interface NotificationUnreadCountResponse {
+  unreadCount: number;
+}
+
+export const notificationsApi = {
+  async listNotifications(params?: {
+    unreadOnly?: boolean;
+    limit?: number;
+  }): Promise<NotificationListResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.unreadOnly) searchParams.set("unreadOnly", "true");
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+
+    const query = searchParams.toString();
+    return fetchWithAuth(`/notifications${query ? `?${query}` : ""}`);
+  },
+
+  async getUnreadCount(): Promise<NotificationUnreadCountResponse> {
+    return fetchWithAuth("/notifications/unread-count");
+  },
+
+  async markRead(
+    notificationId: string,
+  ): Promise<{ id: string; isRead: boolean }> {
+    return fetchWithAuth(`/notifications/${notificationId}/read`, {
+      method: "POST",
+    });
+  },
+
+  async markAllRead(): Promise<{ updated: number }> {
+    return fetchWithAuth("/notifications/read-all", {
+      method: "POST",
+    });
+  },
+};
+
 export const ordersApi = {
   async listOrders(params?: { marketId?: string }): Promise<OrderListResponse> {
     const searchParams = new URLSearchParams();
@@ -307,6 +470,10 @@ export const ordersApi = {
 
     const query = searchParams.toString();
     return fetchWithAuth(`/orders${query ? `?${query}` : ""}`);
+  },
+
+  async listMarketHistory(marketId: string): Promise<OrderListResponse> {
+    return fetchWithAuth(`/orders/market/${marketId}/history`);
   },
 
   async priceOrder(data: OrderCreateRequest): Promise<OrderPriceResponse> {
@@ -350,6 +517,7 @@ export interface UserProfile {
   joinedAt: string;
   lastSeenAt?: string;
   tutorialCompletions?: Record<string, boolean>;
+  emailNotificationsEnabled?: boolean;
 }
 
 // Admin types
@@ -382,6 +550,19 @@ export interface PortfolioSnapshot {
     endDate: string;
     pnl: number;
     category: string;
+  }>;
+  settledPositions: Array<{
+    marketId: string;
+    question: string;
+    category: string;
+    securityId: string;
+    outcome: string;
+    quantity: number;
+    costBasisCents: number;
+    payoutCents: number;
+    pnlCents: number;
+    winningOutcome: string;
+    settlementDate: string;
   }>;
   summary: {
     costBasis: number;
@@ -495,6 +676,15 @@ export const usersApi = {
     return fetchWithAuth("/users/me/wallet/add-funds", {
       method: "POST",
       body: JSON.stringify({ amount }),
+    });
+  },
+
+  async updateEmailNotificationsPreference(
+    enabled: boolean,
+  ): Promise<UserProfile> {
+    return fetchWithAuth("/users/me/preferences/notifications/email", {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
     });
   },
 

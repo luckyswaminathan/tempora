@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from core import models
+from core.config import settings
 from schemas.portfolio import (
     Holding,
+    SettledPosition,
     PortfolioSnapshot,
     PortfolioSummary,
     CollateralBreakdown,
@@ -24,6 +27,7 @@ from utils.collateral import (
     get_limit_orders_data,
     get_market_maker_markets_data,
 )
+from utils.settlement import aggregate_position_metrics, compute_position_settlement
 
 
 class PortfolioService:
@@ -142,11 +146,70 @@ class PortfolioService:
         collateral_locked = get_user_collateral_locked(self.session, user_id)
         spendable_balance = max(0, profile.wallet - collateral_locked)
 
+        # Fetch settled positions
+        settled_stmt = (
+            select(models.Trade)
+            .join(models.Security)
+            .join(models.Market, models.Security.market_id == models.Market.id)
+            .where(
+                models.Trade.user_id == user_id,
+                models.Market.status == models.MarketStatus.RESOLVED,
+            )
+        )
+        settled_trades = self.session.scalars(settled_stmt).all()
+
+        settled_positions = []
+        settled_metrics = aggregate_position_metrics(
+            settled_trades,
+            lambda trade: (trade.security.market_id, trade.security_id),
+        )
+
+        for (market_id, security_id), metrics in settled_metrics.items():
+            quantity = metrics["quantity"]
+            if quantity == 0:
+                continue
+
+            market = self.market_service.get_market(market_id)
+            security = self.market_service.get_security(security_id)
+
+            position_settlement = compute_position_settlement(
+                quantity=quantity,
+                cost_basis_cents=metrics["cost_basis"],
+                is_winning_security=security_id == market.winning_security_id,
+            )
+
+            winning_outcome = "—"
+            if market.winning_security_id:
+                winning_security = self.session.get(
+                    models.Security, market.winning_security_id
+                )
+                if winning_security:
+                    winning_outcome = winning_security.outcome
+
+            settled_positions.append(
+                SettledPosition.model_validate(
+                    {
+                        "marketId": market.id,
+                        "question": market.question,
+                        "category": market.category,
+                        "securityId": security.id,
+                        "outcome": security.outcome,
+                        "quantity": position_settlement.quantity,
+                        "costBasisCents": position_settlement.cost_basis_cents,
+                        "payoutCents": position_settlement.payout_cents,
+                        "pnlCents": position_settlement.pnl_cents,
+                        "winningOutcome": winning_outcome,
+                        "settlementDate": market.updated_at,
+                    }
+                )
+            )
+
         return PortfolioSnapshot(
             wallet=profile.wallet,
             spendable_balance=spendable_balance,
             collateral_locked=collateral_locked,
             holdings=holdings,
+            settled_positions=settled_positions,
             summary=summary,
         )
 
@@ -243,3 +306,65 @@ class PortfolioService:
             market_maker_markets=market_maker_markets,
             total_market_maker_collateral=total_market_maker_collateral,
         )
+
+    def get_wallet_history(self, user_id: str, days: int) -> list[dict[str, int | str]]:
+        """Return approximate wallet balance history reconstructed from trade records."""
+        profile = self.session.get(models.Profile, user_id)
+        if not profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
+            )
+
+        now = datetime.now(timezone.utc)
+
+        # Normalize joined_at (may be naive in SQLite)
+        joined_at = profile.joined_at
+        if joined_at.tzinfo is None:
+            joined_at = joined_at.replace(tzinfo=timezone.utc)
+
+        # Fetch all trades for the user ordered chronologically
+        stmt = (
+            select(models.Trade)
+            .where(models.Trade.user_id == user_id)
+            .order_by(models.Trade.created_at.asc())
+        )
+        trades = self.session.scalars(stmt).all()
+
+        # Build full history: genesis point + trades + current balance
+        balance = settings.starting_amount
+        all_points: list[dict[str, int | str]] = [
+            {"t": joined_at.isoformat(), "v": balance}
+        ]
+
+        for trade in trades:
+            # buy: quantity > 0, wallet decreases; sell: quantity < 0, wallet increases
+            if trade.quantity > 0:
+                balance -= trade.price_cents
+            else:
+                balance += trade.price_cents
+            all_points.append({"t": trade.created_at.isoformat(), "v": balance})
+
+        # Always append current wallet value as final point (captures resolution payouts)
+        all_points.append({"t": now.isoformat(), "v": profile.wallet})
+
+        if days == 0:
+            # All-time view: return from account creation
+            return all_points
+
+        # Windowed view: prepend a virtual point at the cutoff with balance at that time
+        cutoff = now - timedelta(days=days)
+        balance_at_cutoff = settings.starting_amount
+        for p in all_points:
+            if self._parse_ts(str(p["t"])) < cutoff:
+                balance_at_cutoff = int(p["v"])
+
+        filtered = [p for p in all_points if self._parse_ts(str(p["t"])) >= cutoff]
+        cutoff_point = {"t": cutoff.isoformat(), "v": balance_at_cutoff}
+        return [cutoff_point] + filtered
+
+    @staticmethod
+    def _parse_ts(ts: str) -> datetime:
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt

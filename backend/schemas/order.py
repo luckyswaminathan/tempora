@@ -24,6 +24,11 @@ class OrderCreateRequest(BaseModel):
     order_type: str = Field(default="market", alias="orderType")
     limit_price_cents: Optional[int] = Field(default=None, alias="limitPriceCents")
     legs: list[Leg] = Field(default_factory=list)
+    expiration_minutes: Optional[int] = Field(
+        default=None,
+        alias="expirationMinutes",
+        description="For limit orders: minutes until auto-cancellation if not filled",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -70,6 +75,11 @@ class _BaseOrderRecord(BaseModel):
     question: str = Field(description="market question")
     collateral_locked_cents: int = Field(default=0, alias="collateralLockedCents")
     created_at: UTCDateTime = Field(alias="createdAt")
+    expires_at: Optional[UTCDateTime] = Field(
+        default=None,
+        alias="expiresAt",
+        description="Time when limit order will be auto-cancelled if not filled",
+    )
     filled: bool
     canceled: bool = Field(default=False)
     # Invariant: always non-empty — every order has at least one leg.

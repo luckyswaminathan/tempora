@@ -6,13 +6,21 @@ import { MarketFilters } from "@/components/market-filters";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
 import { useTutorial } from "@/hooks/useTutorial";
 import { UNDERSTANDING_DASHBOARD_STEPS } from "@/lib/tutorial-steps";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 export default function Home() {
   const searchParams = useSearchParams();
-  const [category, setCategory] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [category, setCategory] = useState<string | null>(
+    () => searchParams?.get("category") ?? null,
+  );
+  const [searchQuery, setSearchQuery] = useState(
+    () => searchParams?.get("q") ?? "",
+  );
+  const [status, setStatus] = useState<string | null>(
+    () => searchParams?.get("status") ?? null,
+  );
   const [mounted, setMounted] = useState(false);
 
   const dashboardTutorial = useTutorial({
@@ -32,6 +40,39 @@ export default function Home() {
       }
     }
   }, [mounted, searchParams]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+
+    if (category) {
+      params.set("category", category);
+    } else {
+      params.delete("category");
+    }
+
+    const trimmedSearch = searchQuery.trim();
+    if (trimmedSearch) {
+      params.set("q", trimmedSearch);
+    } else {
+      params.delete("q");
+    }
+
+    if (status) {
+      params.set("status", status);
+    } else {
+      params.delete("status");
+    }
+
+    const nextQuery = params.toString();
+    const currentQuery = searchParams?.toString() ?? "";
+    if (nextQuery !== currentQuery) {
+      router.replace(`${pathname}${nextQuery ? `?${nextQuery}` : ""}`, {
+        scroll: false,
+      });
+    }
+  }, [category, searchQuery, status, mounted, pathname, router, searchParams]);
 
   if (!mounted) {
     return null;

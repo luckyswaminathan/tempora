@@ -18,6 +18,25 @@ def test_profile(client):
     assert "wallet" in data
     assert "joinedAt" in data
     assert "lastSeenAt" in data
+    assert "emailNotificationsEnabled" in data
+
+
+def test_update_email_notifications_preference(client):
+    resp = client.put(
+        "/users/me/preferences/notifications/email",
+        json={"enabled": True},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["emailNotificationsEnabled"] is True
+
+    resp = client.put(
+        "/users/me/preferences/notifications/email",
+        json={"enabled": False},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["emailNotificationsEnabled"] is False
 
 
 class TestPortfolioEmpty:

@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, Clock, Lock, History } from "lucide-react";
+import { Wallet, Lock, History, CheckCircle2 } from "lucide-react";
 import {
   usersApi,
   ordersApi,
@@ -19,9 +19,9 @@ import { useTutorial } from "@/hooks/useTutorial";
 import { UNDERSTANDING_PNL_STEPS } from "@/lib/tutorial-steps";
 import { PortfolioSummaryCards } from "@/components/portfolio-summary-cards";
 import { HoldingsTab } from "@/components/holdings-tab";
-import { OpenOrdersTab } from "@/components/open-orders-tab";
 import { CollateralTab } from "@/components/collateral-tab";
 import { HistoryTab } from "@/components/history-tab";
+import { SettledPositionsTab } from "@/components/settled-positions-tab";
 import { PortfolioAnalyticsSection } from "@/components/portfolio-analytics-section";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
 import { OrderDetailSheet } from "@/components/order-detail-sheet";
@@ -56,11 +56,11 @@ export default function PortfolioPage() {
     securityId: string;
     holding: PortfolioSnapshot["holdings"][0];
   } | null>(null);
-  const [activeTab, setActiveTab] = useState(
-    () => searchParams.get("tab") ?? "holdings",
-  );
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    return tab === "orders" ? "history" : (tab ?? "holdings");
+  });
   const [pendingOrders, setPendingOrders] = useState<OrderRecord[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
   const [allOrders, setAllOrders] = useState<OrderRecord[]>([]);
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
@@ -135,18 +135,23 @@ export default function PortfolioPage() {
   // Callback to refresh orders after cancellation
   const handleOrderCancelled = useCallback(() => {
     if (user) {
-      setLoadingOrders(true);
       Promise.all([ordersApi.listOrders(), usersApi.getPortfolio()])
         .then(([ordersResponse, portfolioData]) => {
           const pending = ordersResponse.items.filter(
             (order) => !order.filled && !order.canceled,
           );
           setPendingOrders(pending);
+          setAllOrders(
+            ordersResponse.items.sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime(),
+            ),
+          );
           setPortfolio(portfolioData);
           setCollateralRefreshKey((k) => k + 1);
         })
-        .catch((err) => console.error("Failed to refresh after cancel:", err))
-        .finally(() => setLoadingOrders(false));
+        .catch((err) => console.error("Failed to refresh after cancel:", err));
     }
   }, [user]);
 
@@ -339,7 +344,7 @@ export default function PortfolioPage() {
       />
 
       {/* Tabs for Holdings vs Open Orders vs Collateral */}
-      <div ref={tabsRef}>
+      <div ref={tabsRef} className="scroll-mt-24">
         <Tabs
           value={activeTab}
           onValueChange={handleTabChange}
@@ -348,16 +353,7 @@ export default function PortfolioPage() {
           <TabsList className="mb-6">
             <TabsTrigger value="holdings" className="gap-2">
               <Wallet className="w-4 h-4" />
-              Holdings
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="gap-2">
-              <Clock className="w-4 h-4" />
-              Open Orders
-              {pendingOrders.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                  {pendingOrders.length}
-                </Badge>
-              )}
+              Open Positions
             </TabsTrigger>
             <TabsTrigger value="collateral" className="gap-2">
               <Lock className="w-4 h-4" />
@@ -368,9 +364,18 @@ export default function PortfolioPage() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="settled" className="gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              Settled Positions
+            </TabsTrigger>
             <TabsTrigger value="history" className="gap-2">
               <History className="w-4 h-4" />
               Order History
+              {pendingOrders.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                  {pendingOrders.length} open
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -381,15 +386,6 @@ export default function PortfolioPage() {
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               openOutcomeDetail={openOutcomeDetail}
-            />
-          </TabsContent>
-
-          {/* Open Orders Tab */}
-          <TabsContent value="orders">
-            <OpenOrdersTab
-              pendingOrders={pendingOrders}
-              loadingOrders={loadingOrders}
-              onOrderCancelled={handleOrderCancelled}
             />
           </TabsContent>
 
@@ -405,6 +401,37 @@ export default function PortfolioPage() {
             />
           </TabsContent>
 
+          {/* Settled Positions Tab */}
+          <TabsContent value="settled">
+            <SettledPositionsTab
+              positions={portfolio.settledPositions}
+              onOpenOutcomeDetail={(marketId, securityId, outcome) => {
+                const settled = portfolio.settledPositions.find(
+                  (p) => p.marketId === marketId && p.securityId === securityId,
+                );
+                const quantity = settled?.quantity ?? 0;
+                const costBasisCents = settled?.costBasisCents ?? 0;
+                const payoutCents = settled?.payoutCents ?? 0;
+                setSelectedOutcome({
+                  marketId,
+                  securityId,
+                  holding: {
+                    marketId,
+                    securityId,
+                    question: settled?.question || "",
+                    outcome,
+                    avgPriceCents: quantity > 0 ? costBasisCents / quantity : 0,
+                    quantity,
+                    markPriceCents: quantity > 0 ? payoutCents / quantity : 0,
+                    endDate: settled?.settlementDate || "",
+                    pnl: settled?.pnlCents ?? 0,
+                    category: settled?.category || "",
+                  },
+                });
+              }}
+            />
+          </TabsContent>
+
           {/* History Tab */}
           <TabsContent value="history">
             <HistoryTab
@@ -412,6 +439,10 @@ export default function PortfolioPage() {
               loading={false}
               searchQuery={historySearchQuery}
               setSearchQuery={setHistorySearchQuery}
+              showOrderStateFilter
+              defaultOrderStateFilter={
+                searchParams.get("tab") === "orders" ? "open" : "all"
+              }
               onOrderClick={(order) => setSelectedOrder(order)}
             />
           </TabsContent>

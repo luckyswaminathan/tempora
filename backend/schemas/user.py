@@ -26,6 +26,9 @@ class UserProfile(BaseModel):
     tutorial_completions: Optional[dict] = Field(
         default_factory=dict, alias="tutorialCompletions"
     )
+    email_notifications_enabled: bool = Field(
+        default=False, alias="emailNotificationsEnabled"
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -61,6 +64,10 @@ class UpdateTutorialRequest(BaseModel):
     completed: bool
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class UpdateEmailNotificationsRequest(BaseModel):
+    enabled: bool
 
 
 class LeaderboardResponse(BaseModel):

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,8 @@ interface TradeDialogProps {
   }>;
   onSuccess?: () => void;
   onSignInClick?: () => void;
+  historyOnly?: boolean;
+  defaultTab?: "trade" | "history";
 }
 
 export function TradeDialog({
@@ -40,8 +42,11 @@ export function TradeDialog({
   selectedOutcomes,
   onSuccess,
   onSignInClick,
+  historyOnly = false,
+  defaultTab = "trade",
 }: TradeDialogProps) {
   const { user } = useAuth();
+  const isLiveMarket = market.status === "open";
   const isInterval = selectedOutcomes.length > 1;
   const isSingle = selectedOutcomes.length === 1;
 
@@ -51,10 +56,16 @@ export function TradeDialog({
   const [suggestedMarketPrice, setSuggestedMarketPrice] = useState<
     number | null
   >(null);
+  const [expirationMinutes, setExpirationMinutes] = useState<number | null>(
+    1440,
+  );
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(0);
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");
+  const [activeTab, setActiveTab] = useState<"trade" | "history">(
+    historyOnly ? "history" : defaultTab,
+  );
 
   // The last successfully resolved price snapshot — used for both display and
   // button/balance logic so there is a single source of truth.
@@ -77,10 +88,36 @@ export function TradeDialog({
     }
   }, [open, user]);
 
-  // Reset history index when outcomes change (e.g. switching interval → single)
+  const selectedOutcomeIds = useMemo(
+    () => selectedOutcomes.map((outcome) => outcome.id).join("|"),
+    [selectedOutcomes],
+  );
+  const previousOutcomeIdsRef = useRef("");
+
+  // Keep selected history outcome stable across polling updates. Only react
+  // when the actual selected outcomes change (not object identity churn).
   useEffect(() => {
-    setSelectedHistoryIndex(0);
-  }, [selectedOutcomes]);
+    const previousIds = previousOutcomeIdsRef.current;
+    previousOutcomeIdsRef.current = selectedOutcomeIds;
+
+    // Initial mount for this dialog lifecycle.
+    if (!previousIds) {
+      return;
+    }
+
+    if (previousIds !== selectedOutcomeIds) {
+      setSelectedHistoryIndex((prev) => {
+        if (selectedOutcomes.length === 0) return 0;
+        return Math.min(prev, selectedOutcomes.length - 1);
+      });
+    }
+  }, [selectedOutcomeIds, selectedOutcomes.length]);
+
+  useEffect(() => {
+    if (open) {
+      setActiveTab(historyOnly ? "history" : defaultTab);
+    }
+  }, [open, historyOnly, defaultTab]);
 
   // For single outcome, get the security directly
   const securityId = isSingle ? selectedOutcomes[0].id : undefined;
@@ -311,6 +348,8 @@ export function TradeDialog({
           orderType === "limit" && limitPrice
             ? Math.round(parseFloat(limitPrice) * 100)
             : undefined,
+        expirationMinutes:
+          orderType === "limit" ? (expirationMinutes ?? undefined) : undefined,
       };
 
       const result = await ordersApi.placeOrder(tradeRequest);
@@ -344,6 +383,7 @@ export function TradeDialog({
       setCommittedCollateralCents(null);
       setSuggestedMarketPrice(null);
       setLimitPrice("");
+      setExpirationMinutes(1440);
       setOrderType("market");
       onSuccess?.();
     } catch (error) {
@@ -381,7 +421,11 @@ export function TradeDialog({
             display: idx === selectedHistoryIndex ? "block" : "none",
           }}
         >
-          <ProbabilityGraph securityId={outcome.id} outcome={outcome.outcome} />
+          <ProbabilityGraph
+            securityId={outcome.id}
+            outcome={outcome.outcome}
+            isLive={isLiveMarket}
+          />
         </div>
       ))}
     </>
@@ -394,10 +438,13 @@ export function TradeDialog({
         showCloseButton={false}
       >
         {/* Fixed header with close button */}
-        <div className="sticky top-0 z-10 bg-background border-b px-6 pt-6 pb-4">
+        <div className="sticky top-0 z-10 surface-panel px-6 pt-6 pb-4">
           <button
-            onClick={() => onOpenChange(false)}
-            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            onClick={(e) => {
+              onOpenChange(false);
+              e.currentTarget.blur();
+            }}
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -417,7 +464,11 @@ export function TradeDialog({
           </button>
           <DialogHeader className="pr-8">
             <DialogTitle className="text-balance">
-              {isInterval ? "Trade Interval" : "Place Your Trade"}
+              {historyOnly
+                ? "Probability History"
+                : isInterval
+                  ? "Trade Interval"
+                  : "Place Your Trade"}
             </DialogTitle>
             <DialogDescription className="text-balance">
               {market.question}
@@ -427,467 +478,509 @@ export function TradeDialog({
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto px-6 pb-6">
-          <Tabs defaultValue="trade">
-            <TabsList className="grid w-full grid-cols-2 mt-4">
-              <TabsTrigger value="trade">Trade</TabsTrigger>
-              <TabsTrigger value="history">Probability</TabsTrigger>
-            </TabsList>
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as "trade" | "history")}
+          >
+            {!historyOnly && (
+              <TabsList className="grid w-full grid-cols-2 mt-4 dialog-neumorphic p-1">
+                <TabsTrigger value="trade">Trade</TabsTrigger>
+                <TabsTrigger value="history">Probability</TabsTrigger>
+              </TabsList>
+            )}
 
-            <TabsContent value="trade" className="space-y-4 py-4">
-              {/* Balance display */}
-              {user && portfolio && (
-                <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-800">
-                      Spendable Balance
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-mono font-bold text-green-700">
-                      ${spendableBalanceDollars.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Header card */}
-              {isInterval ? (
-                <div className="p-4 rounded-lg bg-muted">
-                  <div className="text-sm text-muted-foreground mb-1">
-                    Trading interval
-                  </div>
-                  <div className="text-2xl font-bold mb-2">{intervalText}</div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Outcomes: </span>
-                      <span className="font-medium">{numOutcomes}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Combined prob:{" "}
-                      </span>
-                      <span className="font-medium">
-                        {(intervalProbability * 100).toFixed(1)}%
+            {!historyOnly && (
+              <TabsContent value="trade" className="space-y-4 py-4">
+                {/* Balance display */}
+                {user && portfolio && (
+                  <div className="animate-fadeInUp dialog-neumorphic flex items-center justify-between p-3 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium text-foreground">
+                        Spendable Balance
                       </span>
                     </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">
-                      Trading
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {selectedSecurity?.outcome || "UNKNOWN"}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-muted-foreground mb-1">
-                      Current price
-                    </div>
-                    <div className="text-lg font-mono">
-                      {quote?.buyUnitPriceCents
-                        ? `${quote.buyUnitPriceCents}¢`
-                        : "—"}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Order Type Tabs */}
-              <Tabs
-                defaultValue="market"
-                onValueChange={(value) => {
-                  const newType = value as OrderType;
-                  setOrderType(newType);
-                  // Only market orders need a re-fetch; limit price is local math
-                  if (newType === "market" && shares !== 0) {
-                    setFetchingPrice(true);
-                  }
-                }}
-                className="w-full"
-              >
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="market">Market Order</TabsTrigger>
-                  <TabsTrigger value="limit">Limit Order</TabsTrigger>
-                </TabsList>
-
-                {/* Market Order Content */}
-                <TabsContent value="market" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity-market">
-                      {isInterval
-                        ? "Quantity per outcome (shares)"
-                        : "Quantity (shares)"}
-                    </Label>
-                    <Input
-                      id="quantity-market"
-                      type="number"
-                      placeholder="10 (or -10 to sell)"
-                      value={quantity}
-                      onChange={(e) => {
-                        setFetchingPrice(true);
-                        setQuantity(e.target.value);
-                      }}
-                      step="1"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {isInterval ? (
-                        <>
-                          You'll trade {shares !== 0 ? Math.abs(shares) : "N"}{" "}
-                          shares of EACH of the {numOutcomes} outcomes. Only one
-                          outcome can win, paying $1 per share.
-                        </>
-                      ) : (
-                        "Positive = buy (long), Negative = sell (short). Each share pays $1 if outcome occurs."
-                      )}
-                    </p>
-                  </div>
-                </TabsContent>
-
-                {/* Limit Order Content */}
-                <TabsContent value="limit" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity-limit">
-                      {isInterval
-                        ? "Quantity per outcome (shares)"
-                        : "Quantity (shares)"}
-                    </Label>
-                    <Input
-                      id="quantity-limit"
-                      type="number"
-                      placeholder="10 (or -10 to sell)"
-                      value={quantity}
-                      onChange={(e) => {
-                        setFetchingPrice(true);
-                        setQuantity(e.target.value);
-                      }}
-                      step="1"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {isInterval ? (
-                        <>
-                          You'll trade {shares !== 0 ? Math.abs(shares) : "N"}{" "}
-                          shares of EACH of the {numOutcomes} outcomes.
-                        </>
-                      ) : (
-                        "Positive = buy (long), Negative = sell (short)."
-                      )}
-                    </p>
-                  </div>
-                  {/* Total Limit Price input */}
-                  <div className="space-y-2">
-                    <Label htmlFor="limitPrice">Maximum Total Price</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        $
-                      </span>
-                      <Input
-                        id="limitPrice"
-                        type="number"
-                        placeholder={
-                          suggestedMarketPrice && shares !== 0
-                            ? (suggestedMarketPrice / 100).toFixed(2)
-                            : "0.00"
-                        }
-                        value={limitPrice}
-                        onChange={(e) => setLimitPrice(e.target.value)}
-                        step="0.01"
-                        className={`pl-7 ${
-                          limitPriceSignMismatch
-                            ? "border-red-500 focus-visible:ring-red-500"
-                            : ""
-                        }`}
-                      />
-                    </div>
-                    {limitPriceSignMismatch ? (
-                      <p className="text-xs text-red-600 font-medium">
-                        {shares > 0
-                          ? "Buying requires a positive limit price."
-                          : "Selling requires a negative limit price."}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Total maximum price you're willing to trade at. Use a
-                        negative value when selling.
-                        {suggestedMarketPrice && shares !== 0 && (
-                          <span className="block mt-1 text-blue-600 font-medium">
-                            Current market quote: $
-                            {(suggestedMarketPrice / 100).toFixed(2)}
-                          </span>
-                        )}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Limit order info card */}
-                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                    <div className="flex items-start gap-2">
-                      <Settings2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <div className="text-xs text-blue-700">
-                        <span className="font-medium">
-                          How limit orders work:
-                        </span>{" "}
-                        Your order will execute when the market price reaches
-                        your limit. Orders are good-til-canceled (GTC) and
-                        remain active until filled or manually cancelled.
+                    <div className="text-right">
+                      <div className="font-mono font-bold text-primary">
+                        ${spendableBalanceDollars.toFixed(2)}
                       </div>
                     </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-
-              {/* Price display */}
-              <div className="relative space-y-2 p-4 rounded-lg bg-muted/50">
-                {/* Spinner overlay — shown during re-fetches so height never changes */}
-                {fetchingPrice && committedPrice !== null && (
-                  <div className="absolute top-3 right-3">
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                   </div>
                 )}
 
-                {fetchingPrice && committedPrice === null ? (
-                  // First-ever load: no previous content to preserve, show full spinner
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                    <span className="ml-2 text-sm text-muted-foreground">
-                      {isInterval
-                        ? "Calculating basket price..."
-                        : "Calculating price..."}
-                    </span>
-                  </div>
-                ) : committedPrice !== null &&
-                  !(orderType === "limit" && !limitPrice) &&
-                  !limitPriceSignMismatch ? (
-                  // Render frozen committed values; dim while a re-fetch is in flight
-                  <div
-                    className={`space-y-2 transition-opacity duration-150 ${
-                      fetchingPrice ? "opacity-50" : "opacity-100"
-                    }`}
-                  >
-                    {/* Order type badge */}
-                    {committedOrderType !== "market" && (
-                      <div className="flex justify-between text-sm mb-2 pb-2 border-b">
-                        <span className="text-muted-foreground">
-                          Order Type
-                        </span>
-                        <Badge variant="outline" className="font-mono">
-                          {committedOrderType.replace("_", "-").toUpperCase()}
-                        </Badge>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Action</span>
-                      <span
-                        className={`font-mono font-medium ${committedIsBuy ? "text-green-600" : "text-red-600"}`}
-                      >
-                        {committedIsBuy ? "BUY" : "SELL"}{" "}
-                        {Math.abs(committedShares)}
-                        {isInterval && ` × ${numOutcomes}`}
-                      </span>
+                {/* Header card */}
+                {isInterval ? (
+                  <div className="dialog-neumorphic p-4">
+                    <div className="text-sm text-muted-foreground mb-1">
+                      Trading interval
                     </div>
-                    {isInterval && (
-                      <div className="flex justify-between text-sm">
+                    <div className="text-2xl font-bold mb-2">
+                      {intervalText}
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div>
                         <span className="text-muted-foreground">
-                          Total shares
+                          Outcomes:{" "}
                         </span>
-                        <span className="font-mono font-medium">
-                          {Math.abs(committedShares) * numOutcomes} shares
+                        <span className="font-medium">{numOutcomes}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">
+                          Combined prob:{" "}
+                        </span>
+                        <span className="font-medium">
+                          {(intervalProbability * 100).toFixed(1)}%
                         </span>
                       </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {committedOrderType === "market"
-                          ? "Avg price per share"
-                          : "Limit price per share"}
-                      </span>
-                      <span className="font-mono font-medium">
-                        {committedPricePerShare.toFixed(2)}¢
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm border-t pt-2">
-                      <span className="text-muted-foreground font-medium">
-                        {committedOrderType === "market"
-                          ? committedIsBuy
-                            ? "Total cost"
-                            : "You receive"
-                          : committedIsBuy
-                            ? "Max cost (if filled)"
-                            : "Min receive (if filled)"}
-                      </span>
-                      <span className="font-mono font-bold text-lg">
-                        ${committedCostDollars.toFixed(2)}
-                      </span>
-                    </div>
-                    {committedIsBuy && (
-                      <>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            {isInterval
-                              ? "If ANY outcome wins"
-                              : "If outcome wins"}
-                          </span>
-                          <span className="font-mono font-medium text-green-600">
-                            ${committedReturn.toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            Potential profit
-                          </span>
-                          <span
-                            className={`font-mono font-medium ${committedProfit > 0 ? "text-green-600" : "text-red-600"}`}
-                          >
-                            {committedProfit > 0 ? "+" : ""}$
-                            {committedProfit.toFixed(2)}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                    {committedIsSell && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Profit if sold
-                        </span>
-                        <span className="font-mono font-medium text-green-600">
-                          +${committedProfit.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    {committedIsSell &&
-                      committedCollateralCents !== null &&
-                      committedCollateralCents > 0 && (
-                        <div className="flex justify-between text-sm border-t pt-2">
-                          <span className="text-muted-foreground">
-                            Collateral required
-                          </span>
-                          <span className="font-mono font-medium text-amber-600">
-                            ${(committedCollateralCents / 100).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                    <div className="pt-2 border-t text-xs text-muted-foreground">
-                      {committedOrderType === "market" ? (
-                        <>
-                          ✓ Real-time {isInterval ? "basket " : ""}price from
-                          LMSR market maker
-                        </>
-                      ) : (
-                        <>✓ {committedOrderType.replace("_", "-")} order</>
-                      )}
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-sm text-muted-foreground">
-                    {orderType === "market"
-                      ? "Enter quantity to see price"
-                      : "Enter quantity and limit price"}
+                  <div className="dialog-neumorphic flex items-center justify-between p-4">
+                    <div>
+                      <div className="text-sm text-muted-foreground mb-1">
+                        Trading
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {selectedSecurity?.outcome || "UNKNOWN"}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-muted-foreground mb-1">
+                        Current price
+                      </div>
+                      <div className="text-lg font-mono">
+                        {quote?.buyUnitPriceCents
+                          ? `${quote.buyUnitPriceCents}¢`
+                          : "—"}
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
 
-              {/* Insufficient balance warning */}
-              {hasInsufficientBalance && user && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
-                  <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                  <div className="text-sm text-red-700">
-                    <span className="font-medium">Insufficient balance.</span>{" "}
-                    You need ${committedCostDollars.toFixed(2)} but only have $
-                    {spendableBalanceDollars.toFixed(2)} available to spend.
-                  </div>
-                </div>
-              )}
-
-              {/* Insufficient collateral warning for shorts */}
-              {hasInsufficientCollateral && user && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                  <div className="text-sm text-amber-700">
-                    <span className="font-medium">
-                      Insufficient collateral.
-                    </span>{" "}
-                    Short positions require $
-                    {(committedCollateralCents / 100).toFixed(2)} collateral.
-                  </div>
-                </div>
-              )}
-
-              {/* Interval outcomes list */}
-              {isInterval && selectedOutcomes.length > 0 && (
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Outcomes in basket</div>
-                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                    {selectedOutcomes.map((outcome) => (
-                      <Badge
-                        key={outcome.id}
-                        variant="outline"
-                        className="text-xs"
-                      >
-                        {outcome.outcome}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  className="flex-1"
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (!user && onSignInClick) {
-                      onOpenChange(false);
-                      onSignInClick();
-                    } else {
-                      handlePlaceTrade();
+                {/* Order Type Tabs */}
+                <Tabs
+                  defaultValue="market"
+                  onValueChange={(value) => {
+                    const newType = value as OrderType;
+                    setOrderType(newType);
+                    // Only market orders need a re-fetch; limit price is local math
+                    if (newType === "market" && shares !== 0) {
+                      setFetchingPrice(true);
                     }
                   }}
-                  disabled={
-                    shares === 0 ||
-                    loading ||
-                    limitPriceSignMismatch ||
-                    (orderType === "market" &&
-                      (committedPrice === null || fetchingPrice)) ||
-                    (orderType === "limit" && !limitPrice) ||
-                    (user !== null &&
-                      (hasInsufficientBalance || hasInsufficientCollateral))
-                  }
-                  className="flex-1"
-                  variant={shares < 0 ? "destructive" : "default"}
+                  className="w-full"
                 >
-                  {loading
-                    ? "Placing..."
-                    : !user
-                      ? "Sign In Required"
-                      : limitPriceSignMismatch
-                        ? "Fix limit price sign"
-                        : fetchingPrice && orderType === "market"
-                          ? "Loading..."
-                          : hasInsufficientBalance
-                            ? "Insufficient Balance"
-                            : hasInsufficientCollateral
-                              ? "Insufficient Collateral"
-                              : committedPrice !== null
-                                ? orderType === "market"
-                                  ? committedIsBuy
-                                    ? `Buy for $${committedCostDollars.toFixed(2)}`
-                                    : `Sell for $${committedCostDollars.toFixed(2)}`
-                                  : "Place limit order"
-                                : orderType === "limit"
-                                  ? "Place limit order"
-                                  : "Enter quantity"}
-                </Button>
-              </div>
-            </TabsContent>
+                  <TabsList className="grid w-full grid-cols-2 dialog-neumorphic p-1">
+                    <TabsTrigger value="market">Market Order</TabsTrigger>
+                    <TabsTrigger value="limit">Limit Order</TabsTrigger>
+                  </TabsList>
+
+                  {/* Market Order Content */}
+                  <TabsContent value="market" className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="quantity-market">
+                        {isInterval
+                          ? "Quantity per outcome (shares)"
+                          : "Quantity (shares)"}
+                      </Label>
+                      <Input
+                        id="quantity-market"
+                        type="number"
+                        placeholder="10 (or -10 to sell)"
+                        value={quantity}
+                        onChange={(e) => {
+                          setFetchingPrice(true);
+                          setQuantity(e.target.value);
+                        }}
+                        step="1"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {isInterval ? (
+                          <>
+                            You'll trade {shares !== 0 ? Math.abs(shares) : "N"}{" "}
+                            shares of EACH of the {numOutcomes} outcomes. Only
+                            one outcome can win, paying $1 per share.
+                          </>
+                        ) : (
+                          "Positive = buy (long), Negative = sell (short). Each share pays $1 if outcome occurs."
+                        )}
+                      </p>
+                    </div>
+                  </TabsContent>
+
+                  {/* Limit Order Content */}
+                  <TabsContent value="limit" className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="quantity-limit">
+                        {isInterval
+                          ? "Quantity per outcome (shares)"
+                          : "Quantity (shares)"}
+                      </Label>
+                      <Input
+                        id="quantity-limit"
+                        type="number"
+                        placeholder="10 (or -10 to sell)"
+                        value={quantity}
+                        onChange={(e) => {
+                          setFetchingPrice(true);
+                          setQuantity(e.target.value);
+                        }}
+                        step="1"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {isInterval ? (
+                          <>
+                            You'll trade {shares !== 0 ? Math.abs(shares) : "N"}{" "}
+                            shares of EACH of the {numOutcomes} outcomes.
+                          </>
+                        ) : (
+                          "Positive = buy (long), Negative = sell (short)."
+                        )}
+                      </p>
+                    </div>
+                    {/* Total Limit Price input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="limitPrice">Maximum Total Price</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          $
+                        </span>
+                        <Input
+                          id="limitPrice"
+                          type="number"
+                          placeholder={
+                            suggestedMarketPrice && shares !== 0
+                              ? (suggestedMarketPrice / 100).toFixed(2)
+                              : "0.00"
+                          }
+                          value={limitPrice}
+                          onChange={(e) => setLimitPrice(e.target.value)}
+                          step="0.01"
+                          className={`pl-7 ${
+                            limitPriceSignMismatch
+                              ? "border-destructive focus-visible:ring-destructive"
+                              : ""
+                          }`}
+                        />
+                      </div>
+                      {limitPriceSignMismatch ? (
+                        <p className="text-xs text-destructive font-medium">
+                          {shares > 0
+                            ? "Buying requires a positive limit price."
+                            : "Selling requires a negative limit price."}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Total maximum price you're willing to trade at. Use a
+                          negative value when selling.
+                          {suggestedMarketPrice && shares !== 0 && (
+                            <span className="block mt-1 text-accent-foreground font-medium">
+                              Current market quote: $
+                              {(suggestedMarketPrice / 100).toFixed(2)}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Order Expiration</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { label: "1 Hour", minutes: 60 },
+                          { label: "6 Hours", minutes: 360 },
+                          { label: "24 Hours", minutes: 1440 },
+                          { label: "No Expiration", minutes: null },
+                        ].map((option) => (
+                          <button
+                            key={option.label}
+                            type="button"
+                            onClick={() => setExpirationMinutes(option.minutes)}
+                            className={`p-2 text-sm rounded border transition-colors ${
+                              expirationMinutes === option.minutes
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "border-border/60 hover:border-border text-foreground hover:bg-accent/40"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Unfilled limit orders are auto-cancelled after this
+                        period.
+                      </p>
+                    </div>
+
+                    {/* Limit order info card */}
+                    <div className="surface-panel p-3 rounded-lg border border-accent/45">
+                      <div className="flex items-start gap-2">
+                        <Settings2 className="w-4 h-4 text-accent-foreground flex-shrink-0 mt-0.5" />
+                        <div className="text-xs text-foreground/90">
+                          <span className="font-medium">
+                            How limit orders work:
+                          </span>{" "}
+                          Your order will execute when the market price reaches
+                          your limit. It remains active until filled, manually
+                          cancelled, or auto-cancelled at expiration.
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                {/* Price display */}
+                <div className="surface-panel relative space-y-2 p-4 rounded-lg border border-border/60">
+                  {/* Spinner overlay — shown during re-fetches so height never changes */}
+                  {fetchingPrice && committedPrice !== null && (
+                    <div className="absolute top-3 right-3">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+
+                  {fetchingPrice && committedPrice === null ? (
+                    // First-ever load: no previous content to preserve, show full spinner
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        {isInterval
+                          ? "Calculating basket price..."
+                          : "Calculating price..."}
+                      </span>
+                    </div>
+                  ) : committedPrice !== null &&
+                    !(orderType === "limit" && !limitPrice) &&
+                    !limitPriceSignMismatch ? (
+                    // Render frozen committed values; dim while a re-fetch is in flight
+                    <div
+                      className={`space-y-2 transition-opacity duration-150 ${
+                        fetchingPrice ? "opacity-50" : "opacity-100"
+                      }`}
+                    >
+                      {/* Order type badge */}
+                      {committedOrderType !== "market" && (
+                        <div className="flex justify-between text-sm mb-2 pb-2 border-b">
+                          <span className="text-muted-foreground">
+                            Order Type
+                          </span>
+                          <Badge variant="outline" className="font-mono">
+                            {committedOrderType.replace("_", "-").toUpperCase()}
+                          </Badge>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Action</span>
+                        <span
+                          className={`font-mono font-medium ${committedIsBuy ? "text-primary" : "text-destructive"}`}
+                        >
+                          {committedIsBuy ? "BUY" : "SELL"}{" "}
+                          {Math.abs(committedShares)}
+                          {isInterval && ` × ${numOutcomes}`}
+                        </span>
+                      </div>
+                      {isInterval && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Total shares
+                          </span>
+                          <span className="font-mono font-medium">
+                            {Math.abs(committedShares) * numOutcomes} shares
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {committedOrderType === "market"
+                            ? "Avg price per share"
+                            : "Limit price per share"}
+                        </span>
+                        <span className="font-mono font-medium">
+                          {committedPricePerShare.toFixed(2)}¢
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm border-t pt-2">
+                        <span className="text-muted-foreground font-medium">
+                          {committedOrderType === "market"
+                            ? committedIsBuy
+                              ? "Total cost"
+                              : "You receive"
+                            : committedIsBuy
+                              ? "Max cost (if filled)"
+                              : "Min receive (if filled)"}
+                        </span>
+                        <span className="font-mono font-bold text-lg">
+                          ${committedCostDollars.toFixed(2)}
+                        </span>
+                      </div>
+                      {committedIsBuy && (
+                        <>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              {isInterval
+                                ? "If ANY outcome wins"
+                                : "If outcome wins"}
+                            </span>
+                            <span className="font-mono font-medium text-primary">
+                              ${committedReturn.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Potential profit
+                            </span>
+                            <span
+                              className={`font-mono font-medium ${committedProfit > 0 ? "text-primary" : "text-destructive"}`}
+                            >
+                              {committedProfit > 0 ? "+" : ""}$
+                              {committedProfit.toFixed(2)}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      {committedIsSell && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Profit if sold
+                          </span>
+                          <span className="font-mono font-medium text-primary">
+                            +${committedProfit.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      {committedIsSell &&
+                        committedCollateralCents !== null &&
+                        committedCollateralCents > 0 && (
+                          <div className="flex justify-between text-sm border-t pt-2">
+                            <span className="text-muted-foreground">
+                              Collateral required
+                            </span>
+                            <span className="font-mono font-medium text-amber-600">
+                              ${(committedCollateralCents / 100).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      <div className="pt-2 border-t text-xs text-muted-foreground">
+                        {committedOrderType === "market" ? (
+                          <>
+                            ✓ Real-time {isInterval ? "basket " : ""}price from
+                            LMSR market maker
+                          </>
+                        ) : (
+                          <>✓ {committedOrderType.replace("_", "-")} order</>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      {orderType === "market"
+                        ? "Enter quantity to see price"
+                        : "Enter quantity and limit price"}
+                    </div>
+                  )}
+                </div>
+
+                {/* Insufficient balance warning */}
+                {hasInsufficientBalance && user && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                    <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
+                    <div className="text-sm text-destructive/90">
+                      <span className="font-medium">Insufficient balance.</span>{" "}
+                      You need ${committedCostDollars.toFixed(2)} but only have
+                      ${spendableBalanceDollars.toFixed(2)} available to spend.
+                    </div>
+                  </div>
+                )}
+
+                {/* Insufficient collateral warning for shorts */}
+                {hasInsufficientCollateral && user && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <div className="text-sm text-amber-700">
+                      <span className="font-medium">
+                        Insufficient collateral.
+                      </span>{" "}
+                      Short positions require $
+                      {(committedCollateralCents / 100).toFixed(2)} collateral.
+                    </div>
+                  </div>
+                )}
+
+                {/* Interval outcomes list */}
+                {isInterval && selectedOutcomes.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">
+                      Outcomes in basket
+                    </div>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                      {selectedOutcomes.map((outcome) => (
+                        <Badge
+                          key={outcome.id}
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          {outcome.outcome}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    className="flex-1"
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (!user && onSignInClick) {
+                        onOpenChange(false);
+                        onSignInClick();
+                      } else {
+                        handlePlaceTrade();
+                      }
+                    }}
+                    disabled={
+                      shares === 0 ||
+                      loading ||
+                      limitPriceSignMismatch ||
+                      (orderType === "market" &&
+                        (committedPrice === null || fetchingPrice)) ||
+                      (orderType === "limit" && !limitPrice) ||
+                      (user !== null &&
+                        (hasInsufficientBalance || hasInsufficientCollateral))
+                    }
+                    className="flex-1"
+                    variant={shares < 0 ? "destructive" : "default"}
+                  >
+                    {loading
+                      ? "Placing..."
+                      : !user
+                        ? "Sign In Required"
+                        : limitPriceSignMismatch
+                          ? "Fix limit price sign"
+                          : fetchingPrice && orderType === "market"
+                            ? "Loading..."
+                            : hasInsufficientBalance
+                              ? "Insufficient Balance"
+                              : hasInsufficientCollateral
+                                ? "Insufficient Collateral"
+                                : committedPrice !== null
+                                  ? orderType === "market"
+                                    ? committedIsBuy
+                                      ? `Buy for $${committedCostDollars.toFixed(2)}`
+                                      : `Sell for $${committedCostDollars.toFixed(2)}`
+                                    : "Place limit order"
+                                  : orderType === "limit"
+                                    ? "Place limit order"
+                                    : "Enter quantity"}
+                  </Button>
+                </div>
+              </TabsContent>
+            )}
 
             <TabsContent value="history" className="py-4 space-y-4">
               {probabilityContent}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   AreaChart,
   XAxis,
@@ -19,20 +19,26 @@ import { format, parseISO } from "date-fns";
 interface ProbabiltiyGraphProps {
   securityId: string;
   outcome: string;
+  isLive?: boolean;
+  pollIntervalMs?: number;
 }
 
 export function ProbabilityGraph({
   securityId,
   outcome,
+  isLive = false,
+  pollIntervalMs = 5000,
 }: ProbabiltiyGraphProps) {
   const [data, setData] = useState<
     Array<ProbabilityHistData & { dateFormatted: string; timestamp: number }>
   >([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      setLoading(true);
+  const fetchHistory = useCallback(
+    async (showLoadingState: boolean) => {
+      if (showLoadingState) {
+        setLoading(true);
+      }
       try {
         const response = await historyApi.getProbabilityHistory(securityId);
         const formattedData = response.history.map((item) => ({
@@ -42,18 +48,39 @@ export function ProbabilityGraph({
         }));
         setData(formattedData);
       } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to load probability history",
-        );
+        if (showLoadingState) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to load probability history",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (showLoadingState) {
+          setLoading(false);
+        }
+      }
+    },
+    [securityId],
+  );
+
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    void fetchHistory(true);
+
+    if (isLive) {
+      intervalId = setInterval(() => {
+        void fetchHistory(false);
+      }, pollIntervalMs);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
       }
     };
-
-    fetchHistory();
-  }, [securityId]);
+  }, [fetchHistory, isLive, pollIntervalMs]);
 
   if (loading) {
     return (
@@ -68,7 +95,7 @@ export function ProbabilityGraph({
 
   if (data.length === 0) {
     return (
-      <Card className="p-4 text-center text-sm text-muted-foreground">
+      <Card className="dialog-neumorphic p-4 text-center text-sm text-muted-foreground">
         No probability history available yet
       </Card>
     );
@@ -80,11 +107,19 @@ export function ProbabilityGraph({
   const probChange = currentProb - (data[0]?.probability || 0);
 
   return (
-    <Card className="p-4 space-y-3 border border-border bg-card">
+    <Card className="dialog-neumorphic p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h3 className="text-sm font-semibold">{outcome}</h3>
-          <p className="text-xs text-muted-foreground">History</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">History</p>
+            {isLive && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Live
+              </span>
+            )}
+          </div>
         </div>
         <div className="text-right space-y-1">
           <div className="text-sm font-mono font-semibold">
@@ -131,7 +166,7 @@ export function ProbabilityGraph({
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#e5e7eb"
+                stroke="var(--border)"
                 vertical={false}
               />
               <XAxis
@@ -139,17 +174,17 @@ export function ProbabilityGraph({
                 type="number"
                 scale="time"
                 domain={["dataMin", "dataMax"]}
-                tick={{ fontSize: 11, fill: "#6b7280" }}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                 tickFormatter={(timestamp) =>
                   format(new Date(timestamp), "MMM d")
                 }
-                stroke="#9ca3af"
+                stroke="var(--muted-foreground)"
                 tickCount={5}
               />
               <YAxis
                 dataKey="probability"
-                tick={{ fontSize: 8, fill: "#6b7280" }}
-                stroke="#9ca3af"
+                tick={{ fontSize: 8, fill: "var(--muted-foreground)" }}
+                stroke="var(--muted-foreground)"
                 domain={[(dataMin: number) => Math.max(0, dataMin), "auto"]}
                 tickFormatter={(value) => `${(value * 100).toFixed(2)}%`}
               />
@@ -162,18 +197,18 @@ export function ProbabilityGraph({
                   format(new Date(timestamp), "MMM d, h:mm a")
                 }
                 contentStyle={{
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #e5e7eb",
+                  backgroundColor: "var(--popover)",
+                  border: "1px solid var(--border)",
                   borderRadius: "4px",
                   padding: "8px",
                 }}
               />
               <Area
-                type="linear"
+                type="stepAfter"
                 dataKey="probability"
-                stroke="#3b82f6"
+                stroke="var(--chart-3)"
                 strokeWidth={1.5}
-                fill="#3b82f6"
+                fill="var(--chart-3)"
                 fillOpacity={0.15}
                 isAnimationActive={false}
               />

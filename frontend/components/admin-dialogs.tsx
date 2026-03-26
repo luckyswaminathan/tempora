@@ -1,8 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Gavel, Pen } from "lucide-react";
 import { marketsApi, type Market, type MarketStatus } from "@/lib/api";
 import { toast } from "sonner";
@@ -26,28 +32,24 @@ export function AdminDialogsController({
 }: AdminDialogsControllerProps) {
   return (
     <>
-      {showSettleForm && (
-        <AdminSettleDialog
-          market={market}
-          open={showSettleForm}
-          onOpenChange={setShowSettleForm}
-          onSettleSuccess={() => {
-            setShowSettleForm(false);
-            onSuccess();
-          }}
-        />
-      )}
-      {showEditForm && (
-        <AdminEditDialog
-          market={market}
-          open={showEditForm}
-          onOpenChange={setShowEditForm}
-          onEditSuccess={() => {
-            setShowEditForm(false);
-            onSuccess();
-          }}
-        />
-      )}
+      <AdminSettleDialog
+        market={market}
+        open={showSettleForm}
+        onOpenChange={setShowSettleForm}
+        onSettleSuccess={() => {
+          setShowSettleForm(false);
+          onSuccess();
+        }}
+      />
+      <AdminEditDialog
+        market={market}
+        open={showEditForm}
+        onOpenChange={setShowEditForm}
+        onEditSuccess={() => {
+          setShowEditForm(false);
+          onSuccess();
+        }}
+      />
     </>
   );
 }
@@ -96,55 +98,61 @@ function AdminSettleDialog({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <Card className="w-full max-w-md p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Gavel className="w-5 h-5" />
-          <h2 className="text-lg font-semibold">Settle Market</h2>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="sm:max-w-md max-h-[90vh] p-0 gap-0"
+        showCloseButton={false}
+      >
+        <div className="surface-panel px-6 pt-6 pb-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gavel className="w-5 h-5" />
+              Settle Market
+            </DialogTitle>
+            <DialogDescription>
+              Select the winning outcome for: <strong>{market.question}</strong>
+            </DialogDescription>
+          </DialogHeader>
         </div>
 
-        <p className="text-sm text-muted-foreground mb-4">
-          Select the winning outcome for: <strong>{market.question}</strong>
-        </p>
+        <div className="px-6 pb-6 pt-4 overflow-y-auto">
+          <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
+            {outcomes.map((outcome) => (
+              <button
+                key={outcome.id}
+                onClick={() => setSelectedOutcome(outcome.id)}
+                className={`w-full p-3 rounded-lg border-2 text-left transition ${
+                  selectedOutcome === outcome.id
+                    ? "border-primary bg-primary/12"
+                    : "border-border/70 bg-muted/35 hover:border-primary/35"
+                }`}
+              >
+                <div className="font-medium">{outcome.outcome}</div>
+              </button>
+            ))}
+          </div>
 
-        <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
-          {outcomes.map((outcome) => (
-            <button
-              key={outcome.id}
-              onClick={() => setSelectedOutcome(outcome.id)}
-              className={`w-full p-3 rounded-lg border-2 text-left transition ${
-                selectedOutcome === outcome.id
-                  ? "border-green-500 bg-green-50"
-                  : "border-gray-200 hover:border-gray-300"
-              }`}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+              className="flex-1"
             >
-              <div className="font-medium">{outcome.outcome}</div>
-            </button>
-          ))}
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSettle}
+              disabled={loading || !selectedOutcome}
+              className="flex-1"
+            >
+              {loading ? "Settling..." : "Settle"}
+            </Button>
+          </div>
         </div>
-
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-            className="flex-1"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSettle}
-            disabled={loading || !selectedOutcome}
-            className="flex-1 bg-green-600 hover:bg-green-700"
-          >
-            {loading ? "Settling..." : "Settle"}
-          </Button>
-        </div>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -214,140 +222,153 @@ function AdminEditDialog({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <Card className="w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center gap-2 mb-4">
-          <Pen className="w-5 h-5" />
-          <h2 className="text-lg font-semibold">Edit Market</h2>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="sm:max-w-2xl max-h-[90vh] p-0 gap-0"
+        showCloseButton={false}
+      >
+        <div className="surface-panel px-6 pt-6 pb-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pen className="w-5 h-5" />
+              Edit Market
+            </DialogTitle>
+          </DialogHeader>
         </div>
 
-        <div className="space-y-4 mb-6">
-          <div>
-            <label className="text-sm font-medium block mb-2">Question</label>
-            <textarea
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              className="w-full p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-              rows={3}
-            />
-          </div>
+        <div className="px-6 pb-6 pt-4 overflow-y-auto">
+          <div className="space-y-4 mb-6">
+            <div>
+              <label className="text-sm font-medium block mb-2">Question</label>
+              <textarea
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                className="w-full p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                rows={3}
+              />
+            </div>
 
-          <div>
-            <label className="text-sm font-medium block mb-2">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-              rows={3}
-              placeholder="Optional description"
-            />
-          </div>
+            <div>
+              <label className="text-sm font-medium block mb-2">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                rows={3}
+                placeholder="Optional description"
+              />
+            </div>
 
-          <div>
-            <label className="text-sm font-medium block mb-2">
-              Resolution Date
-            </label>
-            <input
-              type="date"
-              value={resolutionDate}
-              onChange={(e) => setResolutionDate(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+            <div>
+              <label className="text-sm font-medium block mb-2">
+                Resolution Date
+              </label>
+              <input
+                type="date"
+                value={resolutionDate}
+                onChange={(e) => setResolutionDate(e.target.value)}
+                className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
 
-          <div>
-            <label className="text-sm font-medium block mb-2">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as MarketStatus)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="open">Open</option>
-              <option value="closed">Closed</option>
-              <option value="suspended">Suspended</option>
-            </select>
-            {status === "closed" && (
-              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800">
-                  <strong>Closed:</strong> No new trades can be placed. Existing
-                  positions remain until market is resolved.
-                </p>
-              </div>
-            )}
-            {status === "suspended" && (
-              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-800">
-                  <strong>Suspended:</strong> Trading is temporarily halted due
-                  to administrative review or technical issues.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="text-sm font-medium block mb-2">Outcomes</label>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {outcomes.map((outcome) => (
-                <div key={outcome.id} className="flex gap-2 items-center">
-                  {editingOutcomeId === outcome.id ? (
-                    <>
-                      <input
-                        type="text"
-                        value={editingOutcomeText}
-                        onChange={(e) => setEditingOutcomeText(e.target.value)}
-                        className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        autoFocus
-                      />
-                      <Button
-                        size="sm"
-                        onClick={handleSaveOutcome}
-                        className="h-8"
-                      >
-                        Save
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex-1 p-2 bg-gray-50 rounded-lg">
-                        {outcome.outcome}
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          handleStartEditOutcome(outcome.id, outcome.outcome)
-                        }
-                        className="h-8"
-                      >
-                        <Pen className="w-3 h-3" />
-                      </Button>
-                    </>
-                  )}
+            <div>
+              <label className="text-sm font-medium block mb-2">Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as MarketStatus)}
+                className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+                <option value="suspended">Suspended</option>
+              </select>
+              {status === "closed" && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    <strong>Closed:</strong> No new trades can be placed.
+                    Existing positions remain until market is resolved.
+                  </p>
                 </div>
-              ))}
+              )}
+              {status === "suspended" && (
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">
+                    <strong>Suspended:</strong> Trading is temporarily halted
+                    due to administrative review or technical issues.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="text-sm font-medium block mb-2">Outcomes</label>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {outcomes.map((outcome) => (
+                  <div key={outcome.id} className="flex gap-2 items-center">
+                    {editingOutcomeId === outcome.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={editingOutcomeText}
+                          onChange={(e) =>
+                            setEditingOutcomeText(e.target.value)
+                          }
+                          className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          onClick={handleSaveOutcome}
+                          className="h-8"
+                        >
+                          Save
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1 p-2 bg-muted/50 rounded-lg">
+                          {outcome.outcome}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            handleStartEditOutcome(outcome.id, outcome.outcome)
+                          }
+                          className="h-8"
+                        >
+                          <Pen className="w-3 h-3" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-            className="flex-1"
-          >
-            Cancel
-          </Button>
-          <Button onClick={handleUpdate} disabled={loading} className="flex-1">
-            {loading ? "Updating..." : "Update"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdate}
+              disabled={loading}
+              className="flex-1"
+            >
+              {loading ? "Updating..." : "Update"}
+            </Button>
+          </div>
         </div>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
