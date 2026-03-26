@@ -5,16 +5,47 @@ import { Badge } from "@/components/ui/badge";
 import {
   BookOpen,
   TrendingUp,
-  Shield,
+  Wallet,
   Users,
   CheckCircle2,
+  Trophy,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
-import { useTutorial, getAllTutorialCompletions } from "@/hooks/useTutorial";
+import { useTutorial, getAllTutorialCompletions, areAllTutorialsComplete } from "@/hooks/useTutorial";
 import { PLATFORM_OVERVIEW_STEPS } from "@/lib/tutorial-steps";
 import { useAuth } from "@/contexts/auth-context";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { marketsApi } from "@/lib/api";
+import { toast } from "sonner";
+import confetti from "canvas-confetti";
+
+type LessonKey =
+  | "platform-overview"
+  | "user-profile"
+  | "understanding-pnl"
+  | "understanding-dashboard"
+  | "first-trade"
+  | "market-limit-orders"
+  | "prices-probabilities"
+  | "managing-orders"
+  | "holdings-positions"
+  | "collateral"
+  | "settled-positions"
+  | "comments-reactions"
+  | "leaderboard"
+  | "notifications"
+  | "market-making";
+
+interface Lesson {
+  title: string;
+  duration: string;
+  lessonKey: LessonKey;
+  isInteractive: true;
+  requiresAuth?: boolean;
+  requiresMarketMaker?: boolean;
+}
 
 const TUTORIAL_SECTIONS = [
   {
@@ -25,175 +56,279 @@ const TUTORIAL_SECTIONS = [
     lessons: [
       {
         title: "Platform Overview",
-        duration: "6 min",
-        lessonKey: "platform-overview",
-        isInteractive: true,
-      },
-      {
-        title: "User Profile",
-        duration: "8 min",
-        lessonKey: "user-profile",
-        isInteractive: true,
-      },
-      {
-        title: "Understanding P&L",
         duration: "2 min",
-        lessonKey: "understanding-pnl",
-        isInteractive: true,
+        lessonKey: "platform-overview" as LessonKey,
+        isInteractive: true as const,
       },
       {
         title: "Understanding the Dashboard",
         duration: "2 min",
-        lessonKey: "understanding-dashboard",
-        isInteractive: true,
+        lessonKey: "understanding-dashboard" as LessonKey,
+        isInteractive: true as const,
+      },
+      {
+        title: "User Profile",
+        duration: "3 min",
+        lessonKey: "user-profile" as LessonKey,
+        isInteractive: true as const,
+        requiresAuth: true,
+      },
+      {
+        title: "Understanding P&L",
+        duration: "2 min",
+        lessonKey: "understanding-pnl" as LessonKey,
+        isInteractive: true as const,
+        requiresAuth: true,
       },
     ],
   },
   {
     id: 2,
-    title: "Trading Basics",
+    title: "Trading",
     icon: TrendingUp,
     color: "text-secondary",
     lessons: [
       {
-        title: "Market Orders vs Limit Orders",
-        duration: "12 min",
-        lessonKey: "market-limit-orders",
-        isInteractive: false,
+        title: "Placing Your First Trade",
+        duration: "2 min",
+        lessonKey: "first-trade" as LessonKey,
+        isInteractive: true as const,
       },
       {
-        title: "Reading Price Charts",
-        duration: "15 min",
-        lessonKey: "reading-charts",
-        isInteractive: false,
+        title: "Market vs Limit Orders",
+        duration: "2 min",
+        lessonKey: "market-limit-orders" as LessonKey,
+        isInteractive: true as const,
       },
       {
-        title: "Understanding Bid-Ask Spread",
-        duration: "8 min",
-        lessonKey: "bid-ask-spread",
-        isInteractive: false,
+        title: "Understanding Prices & Probabilities",
+        duration: "2 min",
+        lessonKey: "prices-probabilities" as LessonKey,
+        isInteractive: true as const,
       },
       {
-        title: "Position Sizing Fundamentals",
-        duration: "10 min",
-        lessonKey: "position-sizing",
-        isInteractive: false,
+        title: "Managing Your Orders",
+        duration: "2 min",
+        lessonKey: "managing-orders" as LessonKey,
+        isInteractive: true as const,
+        requiresAuth: true,
       },
     ],
   },
   {
     id: 3,
-    title: "Risk Management",
-    icon: Shield,
+    title: "Portfolio & Risk",
+    icon: Wallet,
     color: "text-success",
     lessons: [
       {
-        title: "Setting Stop Losses",
-        duration: "10 min",
-        lessonKey: "stop-losses",
-        isInteractive: false,
+        title: "Your Holdings & Positions",
+        duration: "2 min",
+        lessonKey: "holdings-positions" as LessonKey,
+        isInteractive: true as const,
+        requiresAuth: true,
       },
       {
-        title: "Portfolio Diversification",
-        duration: "12 min",
-        lessonKey: "diversification",
-        isInteractive: false,
+        title: "Understanding Collateral",
+        duration: "2 min",
+        lessonKey: "collateral" as LessonKey,
+        isInteractive: true as const,
+        requiresAuth: true,
       },
       {
-        title: "Risk-Reward Ratios",
-        duration: "14 min",
-        lessonKey: "risk-reward",
-        isInteractive: false,
+        title: "Settled Positions & Payouts",
+        duration: "2 min",
+        lessonKey: "settled-positions" as LessonKey,
+        isInteractive: true as const,
+        requiresAuth: true,
       },
       {
-        title: "Managing Leverage",
-        duration: "16 min",
-        lessonKey: "leverage",
-        isInteractive: false,
+        title: "Market Comments & Reactions",
+        duration: "2 min",
+        lessonKey: "comments-reactions" as LessonKey,
+        isInteractive: true as const,
       },
     ],
   },
   {
     id: 4,
-    title: "Community & Social",
+    title: "Community & Platform",
     icon: Users,
     color: "text-accent",
     lessons: [
       {
-        title: "Following Top Traders",
-        duration: "8 min",
-        lessonKey: "follow-traders",
-        isInteractive: false,
+        title: "Leaderboard",
+        duration: "1 min",
+        lessonKey: "leaderboard" as LessonKey,
+        isInteractive: true as const,
       },
       {
-        title: "Sharing Trade Ideas",
-        duration: "10 min",
-        lessonKey: "share-ideas",
-        isInteractive: false,
+        title: "Notifications",
+        duration: "1 min",
+        lessonKey: "notifications" as LessonKey,
+        isInteractive: true as const,
+        requiresAuth: true,
       },
       {
-        title: "Understanding Leaderboards",
-        duration: "7 min",
-        lessonKey: "leaderboards",
-        isInteractive: false,
-      },
-      {
-        title: "Copy Trading Features",
-        duration: "12 min",
-        lessonKey: "copy-trading",
-        isInteractive: false,
+        title: "Market Making Overview",
+        duration: "2 min",
+        lessonKey: "market-making" as LessonKey,
+        isInteractive: true as const,
+        requiresMarketMaker: true,
       },
     ],
   },
 ];
 
+const MARKET_PAGE_TUTORIALS: Set<LessonKey> = new Set([
+  "first-trade",
+  "market-limit-orders",
+  "prices-probabilities",
+  "comments-reactions",
+]);
+
 export default function TutorialPage() {
   const router = useRouter();
   const { profile } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [firstOpenMarketId, setFirstOpenMarketId] = useState<string | null>(
+    null,
+  );
 
   const platformTutorial = useTutorial({
     steps: PLATFORM_OVERVIEW_STEPS,
     lessonKey: "platform-overview",
   });
 
-  // Ensure component is mounted on client
+  const [showCongrats, setShowCongrats] = useState(false);
+  const confettiFiredRef = useRef(false);
+
   useEffect(() => {
     setMounted(true);
+    marketsApi
+      .listMarkets({ status: "open" })
+      .then((res) => {
+        if (res.items.length > 0) setFirstOpenMarketId(res.items[0].id);
+      })
+      .catch(() => {});
   }, []);
 
-  const totalLessons = TUTORIAL_SECTIONS.reduce(
+  const isMarketMaker = profile?.role === "market_maker";
+  const visibleSections = TUTORIAL_SECTIONS.map((section) => ({
+    ...section,
+    lessons: section.lessons.filter(
+      (l) => !l.requiresMarketMaker || isMarketMaker,
+    ),
+  })).filter((section) => section.lessons.length > 0);
+
+  const totalLessons = visibleSections.reduce(
     (acc, section) => acc + section.lessons.length,
     0,
   );
 
-  // Get completions only after mounting to avoid hydration mismatch
   const completions = mounted ? getAllTutorialCompletions(profile) : {};
 
-  const completedLessons = TUTORIAL_SECTIONS.reduce(
+  const completedLessons = visibleSections.reduce(
     (acc, section) =>
       acc +
       section.lessons.filter((l) => completions[l.lessonKey] === true).length,
     0,
   );
   const progressPercent = Math.round((completedLessons / totalLessons) * 100);
+  const allComplete = mounted && completedLessons === totalLessons && totalLessons > 0;
 
-  const handleStartTutorial = (
-    tutorialType:
-      | "platform-overview"
-      | "user-profile"
-      | "understanding-pnl"
-      | "understanding-dashboard",
-  ) => {
-    if (tutorialType === "understanding-pnl") {
-      router.push("/portfolio?tutorial=understanding-pnl");
-    } else if (tutorialType === "user-profile") {
-      router.push("/profile?tutorial=user-profile");
-    } else if (tutorialType === "understanding-dashboard") {
-      router.push("/?tutorial=understanding-dashboard");
-    } else {
-      platformTutorial.start();
+  const CONGRATS_SHOWN_KEY = "tempora_tutorial_congrats_shown";
+
+  useEffect(() => {
+    if (!allComplete) return;
+    try {
+      const alreadyShown = localStorage.getItem(CONGRATS_SHOWN_KEY);
+      if (alreadyShown) return;
+      setShowCongrats(true);
+      localStorage.setItem(CONGRATS_SHOWN_KEY, "true");
+    } catch {}
+  }, [allComplete]);
+
+  const fireConfetti = useCallback(() => {
+    if (confettiFiredRef.current) return;
+    confettiFiredRef.current = true;
+
+    const duration = 2500;
+    const end = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: ["#10b981", "#059669", "#34d399", "#6ee7b7", "#a7f3d0"],
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: ["#10b981", "#059669", "#34d399", "#6ee7b7", "#a7f3d0"],
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ["#10b981", "#059669", "#34d399", "#6ee7b7", "#a7f3d0", "#fbbf24", "#f59e0b"],
+    });
+
+    requestAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (showCongrats) {
+      const timer = setTimeout(fireConfetti, 300);
+      return () => clearTimeout(timer);
     }
+  }, [showCongrats, fireConfetti]);
+
+  const handleStartTutorial = (lessonKey: LessonKey) => {
+    if (lessonKey === "platform-overview") {
+      platformTutorial.start();
+      return;
+    }
+
+    if (MARKET_PAGE_TUTORIALS.has(lessonKey)) {
+      if (!firstOpenMarketId) {
+        toast.error("No open markets available. Try again later.");
+        return;
+      }
+      router.push(`/market/${firstOpenMarketId}?tutorial=${lessonKey}`);
+      return;
+    }
+
+    const routeMap: Partial<Record<LessonKey, string>> = {
+      "understanding-dashboard": "/?tutorial=understanding-dashboard",
+      "user-profile": "/profile?tutorial=user-profile",
+      "understanding-pnl": "/portfolio?tutorial=understanding-pnl",
+      "managing-orders": "/portfolio?tutorial=managing-orders",
+      "holdings-positions": "/portfolio?tutorial=holdings-positions",
+      collateral: "/portfolio?tutorial=collateral",
+      "settled-positions": "/portfolio?tutorial=settled-positions",
+      leaderboard: "/leaderboard?tutorial=leaderboard",
+      notifications: "/notifications?tutorial=notifications",
+      "market-making": "/market-making?tutorial=market-making",
+    };
+
+    const route = routeMap[lessonKey];
+    if (route) router.push(route);
+  };
+
+  const canStartLesson = (lesson: (typeof TUTORIAL_SECTIONS)[0]["lessons"][0]) => {
+    if (lesson.requiresAuth && !profile) return false;
+    return true;
   };
 
   return (
@@ -214,11 +349,11 @@ export default function TutorialPage() {
               <BookOpen className="w-7 h-7 text-primary" /> Trading Tutorials
             </h1>
             <p className="text-muted-foreground mt-1">
-              Master trading from basics to advanced strategies
+              Interactive guides for every feature on the platform
             </p>
           </div>
           <div className="flex gap-2">
-            <Badge variant="outline">16 Lessons</Badge>
+            <Badge variant="outline">{totalLessons} Lessons</Badge>
           </div>
         </div>
 
@@ -242,7 +377,7 @@ export default function TutorialPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {TUTORIAL_SECTIONS.map((section) => {
+        {visibleSections.map((section) => {
           const Icon = section.icon;
           const sectionCompleted = section.lessons.filter(
             (l) => completions[l.lessonKey] === true,
@@ -275,6 +410,7 @@ export default function TutorialPage() {
               <div className="space-y-2">
                 {section.lessons.map((lesson, idx) => {
                   const isCompleted = completions[lesson.lessonKey] === true;
+                  const canStart = canStartLesson(lesson);
                   return (
                     <div
                       key={idx}
@@ -299,24 +435,21 @@ export default function TutorialPage() {
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5">
                               {lesson.duration}
+                              {lesson.requiresAuth &&
+                                !profile &&
+                                " · Sign in required"}
                             </div>
                           </div>
                         </div>
                         <button
-                          className="px-4 py-1.5 text-sm font-medium rounded-md bg-primary text-primary-foreground cursor-pointer"
+                          className={`px-4 py-1.5 text-sm font-medium rounded-md cursor-pointer ${
+                            canStart
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground cursor-not-allowed"
+                          }`}
+                          disabled={!canStart}
                           onClick={() => {
-                            if (lesson.isInteractive) {
-                              const key = lesson.lessonKey as Parameters<
-                                typeof handleStartTutorial
-                              >[0];
-                              if (lesson.lessonKey === "user-profile") {
-                                if (profile) {
-                                  handleStartTutorial(key);
-                                }
-                              } else {
-                                handleStartTutorial(key);
-                              }
-                            }
+                            if (canStart) handleStartTutorial(lesson.lessonKey);
                           }}
                         >
                           {isCompleted ? "Review" : "Start"}
@@ -330,6 +463,39 @@ export default function TutorialPage() {
           );
         })}
       </div>
+
+      {showCongrats && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="relative bg-card border border-border rounded-2xl shadow-2xl p-8 max-w-md mx-4 text-center animate-in zoom-in-95 duration-300">
+            <button
+              onClick={() => setShowCongrats(false)}
+              className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center">
+                <Trophy className="w-8 h-8 text-primary" />
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold mb-2">
+              Congratulations!
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              You&apos;ve completed all the tutorials. You&apos;re ready to trade like a pro. You can always revisit tutorials from your profile dropdown menu.
+            </p>
+
+            <button
+              onClick={() => setShowCongrats(false)}
+              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            >
+              Let&apos;s Go!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,10 @@ import { MarketGrid } from "@/components/market-grid";
 import { MarketFilters } from "@/components/market-filters";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
 import { useTutorial } from "@/hooks/useTutorial";
-import { UNDERSTANDING_DASHBOARD_STEPS } from "@/lib/tutorial-steps";
+import {
+  UNDERSTANDING_DASHBOARD_STEPS,
+  WELCOME_STEPS,
+} from "@/lib/tutorial-steps";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 export default function Home() {
@@ -28,6 +31,11 @@ export default function Home() {
     lessonKey: "understanding-dashboard",
   });
 
+  const welcomeTutorial = useTutorial({
+    steps: WELCOME_STEPS,
+    lessonKey: "welcome",
+  });
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -37,6 +45,8 @@ export default function Home() {
       const tutorialMode = searchParams?.get("tutorial");
       if (tutorialMode === "understanding-dashboard") {
         dashboardTutorial.start();
+      } else if (tutorialMode === "welcome") {
+        setTimeout(() => welcomeTutorial.start(), 300);
       }
     }
   }, [mounted, searchParams]);
@@ -87,6 +97,14 @@ export default function Home() {
         elementRect={dashboardTutorial.elementRect}
         onNext={dashboardTutorial.next}
         onClose={dashboardTutorial.close}
+      />
+      <TutorialOverlay
+        steps={WELCOME_STEPS}
+        currentStep={welcomeTutorial.currentStep}
+        isActive={welcomeTutorial.isActive}
+        elementRect={welcomeTutorial.elementRect}
+        onNext={welcomeTutorial.next}
+        onClose={welcomeTutorial.close}
       />
 
       <div className="mb-8" id="dashboard-title">

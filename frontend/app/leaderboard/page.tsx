@@ -5,6 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Trophy, TrendingUp, Shield, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usersApi } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
+import { TutorialOverlay } from "@/components/tutorial-overlay";
+import { useTutorial } from "@/hooks/useTutorial";
+import { LEADERBOARD_STEPS } from "@/lib/tutorial-steps";
 
 interface LeaderboardRow {
   rank: number;
@@ -15,9 +19,25 @@ interface LeaderboardRow {
 }
 
 export default function LeaderboardPage() {
+  const searchParams = useSearchParams();
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  const leaderboardTutorial = useTutorial({
+    steps: LEADERBOARD_STEPS,
+    lessonKey: "leaderboard",
+  });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (mounted && !loading) {
+      const tutorialMode = searchParams?.get("tutorial");
+      if (tutorialMode === "leaderboard") leaderboardTutorial.start();
+    }
+  }, [mounted, loading, searchParams]);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -46,7 +66,8 @@ export default function LeaderboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 flex items-center justify-between">
+      <TutorialOverlay steps={LEADERBOARD_STEPS} currentStep={leaderboardTutorial.currentStep} isActive={leaderboardTutorial.isActive} elementRect={leaderboardTutorial.elementRect} onNext={leaderboardTutorial.next} onClose={leaderboardTutorial.close} />
+      <div className="mb-8 flex items-center justify-between" id="leaderboard-title">
         <div>
           <h1 className="text-3xl font-bold text-balance flex items-center gap-2">
             <Trophy className="w-7 h-7 text-yellow-500" /> Top Traders
@@ -73,7 +94,7 @@ export default function LeaderboardPage() {
       )}
 
       {!loading && !error && (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-4" id="leaderboard-list">
           {leaderboard.map((row) => (
             <Card key={row.id} className="p-4">
               <div className="flex items-center justify-between">

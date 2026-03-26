@@ -16,7 +16,13 @@ import { useAuth } from "@/contexts/auth-context";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { TutorialOverlay } from "@/components/tutorial-overlay";
 import { useTutorial } from "@/hooks/useTutorial";
-import { UNDERSTANDING_PNL_STEPS } from "@/lib/tutorial-steps";
+import {
+  UNDERSTANDING_PNL_STEPS,
+  MANAGING_ORDERS_STEPS,
+  HOLDINGS_STEPS,
+  COLLATERAL_STEPS,
+  SETTLED_POSITIONS_STEPS,
+} from "@/lib/tutorial-steps";
 import { PortfolioSummaryCards } from "@/components/portfolio-summary-cards";
 import { HoldingsTab } from "@/components/holdings-tab";
 import { CollateralTab } from "@/components/collateral-tab";
@@ -85,6 +91,22 @@ export default function PortfolioPage() {
   const pnlTutorial = useTutorial({
     steps: UNDERSTANDING_PNL_STEPS,
     lessonKey: "understanding-pnl",
+  });
+  const managingOrdersTutorial = useTutorial({
+    steps: MANAGING_ORDERS_STEPS,
+    lessonKey: "managing-orders",
+  });
+  const holdingsTutorial = useTutorial({
+    steps: HOLDINGS_STEPS,
+    lessonKey: "holdings-positions",
+  });
+  const collateralTutorial = useTutorial({
+    steps: COLLATERAL_STEPS,
+    lessonKey: "collateral",
+  });
+  const settledTutorial = useTutorial({
+    steps: SETTLED_POSITIONS_STEPS,
+    lessonKey: "settled-positions",
   });
 
   // Ensure component is mounted on client
@@ -168,9 +190,25 @@ export default function PortfolioPage() {
       if (tutorialMode === "understanding-pnl") {
         tutorialStartedRef.current = true;
         pnlTutorial.start();
+      } else if (tutorialMode === "managing-orders") {
+        tutorialStartedRef.current = true;
+        setActiveTab("history");
+        managingOrdersTutorial.start();
+      } else if (tutorialMode === "holdings-positions") {
+        tutorialStartedRef.current = true;
+        setActiveTab("holdings");
+        holdingsTutorial.start();
+      } else if (tutorialMode === "collateral") {
+        tutorialStartedRef.current = true;
+        setActiveTab("collateral");
+        collateralTutorial.start();
+      } else if (tutorialMode === "settled-positions") {
+        tutorialStartedRef.current = true;
+        setActiveTab("settled");
+        settledTutorial.start();
       }
     }
-  }, [mounted, searchParams, loading, pnlTutorial]);
+  }, [mounted, searchParams, loading, pnlTutorial, managingOrdersTutorial, holdingsTutorial, collateralTutorial, settledTutorial]);
 
   // Group holdings by market
   const marketGroups = useMemo(() => {
@@ -320,8 +358,12 @@ export default function PortfolioPage() {
         onNext={pnlTutorial.next}
         onClose={pnlTutorial.close}
       />
+      <TutorialOverlay steps={MANAGING_ORDERS_STEPS} currentStep={managingOrdersTutorial.currentStep} isActive={managingOrdersTutorial.isActive} elementRect={managingOrdersTutorial.elementRect} onNext={managingOrdersTutorial.next} onClose={managingOrdersTutorial.close} />
+      <TutorialOverlay steps={HOLDINGS_STEPS} currentStep={holdingsTutorial.currentStep} isActive={holdingsTutorial.isActive} elementRect={holdingsTutorial.elementRect} onNext={holdingsTutorial.next} onClose={holdingsTutorial.close} />
+      <TutorialOverlay steps={COLLATERAL_STEPS} currentStep={collateralTutorial.currentStep} isActive={collateralTutorial.isActive} elementRect={collateralTutorial.elementRect} onNext={collateralTutorial.next} onClose={collateralTutorial.close} />
+      <TutorialOverlay steps={SETTLED_POSITIONS_STEPS} currentStep={settledTutorial.currentStep} isActive={settledTutorial.isActive} elementRect={settledTutorial.elementRect} onNext={settledTutorial.next} onClose={settledTutorial.close} />
 
-      <div className="mb-8">
+      <div className="mb-8" id="portfolio-title">
         <h1 className="text-3xl font-bold text-balance flex items-center gap-2">
           <Wallet className="w-7 h-7" /> Your Portfolio
         </h1>
@@ -330,21 +372,20 @@ export default function PortfolioPage() {
         </p>
       </div>
 
-      {/* Summary Cards */}
+      <div id="portfolio-summary">
       <PortfolioSummaryCards
         portfolio={portfolio}
         walletHistory={walletHistory}
       />
+      </div>
 
-      {/* Analytics Section */}
       <PortfolioAnalyticsSection
         portfolio={portfolio}
         allOrders={allOrders}
         onSelectOutcome={openOutcomeDetail}
       />
 
-      {/* Tabs for Holdings vs Open Orders vs Collateral */}
-      <div ref={tabsRef} className="scroll-mt-24">
+      <div ref={tabsRef} className="scroll-mt-24" id="portfolio-tabs">
         <Tabs
           value={activeTab}
           onValueChange={handleTabChange}

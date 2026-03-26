@@ -39,6 +39,14 @@ import { HoldingsTab } from "@/components/holdings-tab";
 import { OutcomeDetailSheet } from "@/components/outcome-detail-sheet";
 import { AdminDialogsController } from "@/components/admin-dialogs";
 import { MarketComments } from "@/components/market-comments";
+import { TutorialOverlay } from "@/components/tutorial-overlay";
+import { useTutorial } from "@/hooks/useTutorial";
+import {
+  FIRST_TRADE_STEPS,
+  MARKET_LIMIT_ORDERS_STEPS,
+  PRICES_PROBABILITIES_STEPS,
+  COMMENTS_STEPS,
+} from "@/lib/tutorial-steps";
 import { format } from "date-fns";
 import { categoryColor } from "@/lib/utils";
 
@@ -83,6 +91,8 @@ export default function MarketPage({
     null,
   );
 
+  const tutorialStartedRef = useRef(false);
+
   // Order detail sheet
   const [cancellingOrder, setCancellingOrder] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
@@ -93,6 +103,23 @@ export default function MarketPage({
     securityId: string;
     holding: PortfolioSnapshot["holdings"][0];
   } | null>(null);
+  const firstTradeTutorial = useTutorial({
+    steps: FIRST_TRADE_STEPS,
+    lessonKey: "first-trade",
+  });
+  const marketLimitTutorial = useTutorial({
+    steps: MARKET_LIMIT_ORDERS_STEPS,
+    lessonKey: "market-limit-orders",
+  });
+  const pricesTutorial = useTutorial({
+    steps: PRICES_PROBABILITIES_STEPS,
+    lessonKey: "prices-probabilities",
+  });
+  const commentsTutorial = useTutorial({
+    steps: COMMENTS_STEPS,
+    lessonKey: "comments-reactions",
+  });
+
   const [tradeHistory, setTradeHistory] = useState<
     Record<string, OrderRecord[]>
   >({});
@@ -133,6 +160,25 @@ export default function MarketPage({
       });
     }
   }, []);
+
+  useEffect(() => {
+    if (!loadingMarket && market && !tutorialStartedRef.current) {
+      const tutorialMode = searchParams.get("tutorial");
+      if (tutorialMode === "first-trade") {
+        tutorialStartedRef.current = true;
+        firstTradeTutorial.start();
+      } else if (tutorialMode === "market-limit-orders") {
+        tutorialStartedRef.current = true;
+        marketLimitTutorial.start();
+      } else if (tutorialMode === "prices-probabilities") {
+        tutorialStartedRef.current = true;
+        pricesTutorial.start();
+      } else if (tutorialMode === "comments-reactions") {
+        tutorialStartedRef.current = true;
+        commentsTutorial.start();
+      }
+    }
+  }, [loadingMarket, market, searchParams]);
 
   // Fetch market
   useEffect(() => {
@@ -430,6 +476,10 @@ export default function MarketPage({
 
   return (
     <>
+      <TutorialOverlay steps={FIRST_TRADE_STEPS} currentStep={firstTradeTutorial.currentStep} isActive={firstTradeTutorial.isActive} elementRect={firstTradeTutorial.elementRect} onNext={firstTradeTutorial.next} onClose={firstTradeTutorial.close} />
+      <TutorialOverlay steps={MARKET_LIMIT_ORDERS_STEPS} currentStep={marketLimitTutorial.currentStep} isActive={marketLimitTutorial.isActive} elementRect={marketLimitTutorial.elementRect} onNext={marketLimitTutorial.next} onClose={marketLimitTutorial.close} />
+      <TutorialOverlay steps={PRICES_PROBABILITIES_STEPS} currentStep={pricesTutorial.currentStep} isActive={pricesTutorial.isActive} elementRect={pricesTutorial.elementRect} onNext={pricesTutorial.next} onClose={pricesTutorial.close} />
+      <TutorialOverlay steps={COMMENTS_STEPS} currentStep={commentsTutorial.currentStep} isActive={commentsTutorial.isActive} elementRect={commentsTutorial.elementRect} onNext={commentsTutorial.next} onClose={commentsTutorial.close} />
       <div className="container mx-auto px-4 py-8 max-w-4xl animate-stagger">
         {/* Back */}
         <div className="mb-5">
@@ -486,7 +536,7 @@ export default function MarketPage({
               )}
             </span>
           </div>
-          <h1 className="text-2xl font-bold leading-snug text-balance">
+          <h1 className="text-2xl font-bold leading-snug text-balance" id="market-detail-question">
             {market.question}
           </h1>
           {market.description && (
@@ -494,7 +544,7 @@ export default function MarketPage({
               {market.description}
             </p>
           )}
-          <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
+          <div className="flex gap-4 mt-3 text-xs text-muted-foreground" id="market-detail-stats">
             <span className="flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />$
               {(market.totalVolume / 100).toFixed(0)} volume
@@ -703,7 +753,7 @@ export default function MarketPage({
         {(market.status === "open" ||
           market.status === "resolved" ||
           market.status === "closed") && (
-          <Card className="p-4 mb-6">
+          <Card className="p-4 mb-6" id="market-security-picker">
             <SecurityPicker
               outcomes={outcomes}
               uiType={market.uiType}
@@ -766,7 +816,7 @@ export default function MarketPage({
           </Card>
         )}
 
-        <div ref={tabsRef} className="scroll-mt-24">
+        <div ref={tabsRef} className="scroll-mt-24" id="market-detail-tabs">
           <Tabs
             value={marketTab}
             onValueChange={handleMarketTabChange}

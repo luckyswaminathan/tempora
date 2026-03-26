@@ -143,6 +143,37 @@ export function useTutorial({
   };
 }
 
+// All lesson keys that regular users see (excludes market-maker-only lessons)
+export const REGULAR_LESSON_KEYS = [
+  "platform-overview",
+  "understanding-dashboard",
+  "user-profile",
+  "understanding-pnl",
+  "first-trade",
+  "market-limit-orders",
+  "prices-probabilities",
+  "managing-orders",
+  "holdings-positions",
+  "collateral",
+  "settled-positions",
+  "comments-reactions",
+  "leaderboard",
+  "notifications",
+] as const;
+
+export const MARKET_MAKER_LESSON_KEYS = ["market-making"] as const;
+
+export function areAllTutorialsComplete(
+  profile: UserProfile | null,
+  isMarketMaker: boolean = false,
+): boolean {
+  const completions = getAllTutorialCompletions(profile);
+  const keys: readonly string[] = isMarketMaker
+    ? [...REGULAR_LESSON_KEYS, ...MARKET_MAKER_LESSON_KEYS]
+    : REGULAR_LESSON_KEYS;
+  return keys.every((key) => completions[key] === true);
+}
+
 // Export helper to get all completions (for migration or display)
 export function getAllTutorialCompletions(
   profile: UserProfile | null,

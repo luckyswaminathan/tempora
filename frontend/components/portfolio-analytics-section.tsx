@@ -73,7 +73,7 @@ export function PortfolioAnalyticsSection({
     .filter((h) => h.pnl < 0);
 
   return (
-    <div className="mb-6 space-y-4">
+    <div className="mb-6 space-y-4" id="portfolio-analytics">
       {/* A — Merged top row: portfolio metrics + activity stats */}
       <div className="grid grid-cols-2 gap-4 mb-4 animate-stagger">
         {/* Left: portfolio metrics */}

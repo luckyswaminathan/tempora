@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bell } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { TutorialOverlay } from "@/components/tutorial-overlay";
+import { useTutorial } from "@/hooks/useTutorial";
+import { NOTIFICATIONS_STEPS } from "@/lib/tutorial-steps";
 
 function formatCurrency(cents: unknown): string {
   if (typeof cents !== "number") return "-";
@@ -124,6 +128,7 @@ function eventLabel(eventType: NotificationItem["eventType"]): string {
 
 export default function NotificationsPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [activeTab, setActiveTab] = useState<"unread" | "read">("unread");
   const [loading, setLoading] = useState(true);
@@ -131,6 +136,21 @@ export default function NotificationsPage() {
   const [animatingReadIds, setAnimatingReadIds] = useState<Set<string>>(
     new Set(),
   );
+  const [mounted, setMounted] = useState(false);
+
+  const notificationsTutorial = useTutorial({
+    steps: NOTIFICATIONS_STEPS,
+    lessonKey: "notifications",
+  });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (mounted && !loading && user) {
+      const tutorialMode = searchParams?.get("tutorial");
+      if (tutorialMode === "notifications") notificationsTutorial.start();
+    }
+  }, [mounted, loading, user, searchParams]);
 
   const load = async () => {
     setLoading(true);
@@ -310,7 +330,8 @@ export default function NotificationsPage() {
 
   return (
     <main className="container mx-auto px-4 py-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <TutorialOverlay steps={NOTIFICATIONS_STEPS} currentStep={notificationsTutorial.currentStep} isActive={notificationsTutorial.isActive} elementRect={notificationsTutorial.elementRect} onNext={notificationsTutorial.next} onClose={notificationsTutorial.close} />
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" id="notifications-title">
         <div>
           <h1 className="text-3xl font-bold text-balance flex items-center gap-2">
             <Bell className="w-7 h-7" /> Notifications
@@ -323,12 +344,13 @@ export default function NotificationsPage() {
           variant="outline"
           onClick={markAllRead}
           disabled={markingAll || items.length === 0}
+          id="notifications-mark-all"
         >
           {markingAll ? "Marking..." : "Mark all read"}
         </Button>
       </div>
 
-      <section className="mt-5 space-y-3">
+      <section className="mt-5 space-y-3" id="notifications-tabs">
         <Tabs
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as "read" | "unread")}
