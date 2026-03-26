@@ -29,6 +29,9 @@ import {
 } from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MarketCreateForm } from "@/components/market-create-form";
+import { TutorialOverlay } from "@/components/tutorial-overlay";
+import { useTutorial } from "@/hooks/useTutorial";
+import { MARKET_MAKING_STEPS } from "@/lib/tutorial-steps";
 
 type Tab = "dashboard" | "proposals" | "create";
 
@@ -48,6 +51,21 @@ export default function MarketMakingPage() {
   const [proposalQuotes, setProposalQuotes] = useState<Record<string, number>>(
     {},
   );
+  const [mounted, setMounted] = useState(false);
+
+  const marketMakingTutorial = useTutorial({
+    steps: MARKET_MAKING_STEPS,
+    lessonKey: "market-making",
+  });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (mounted && !loading && profile?.role === "market_maker") {
+      const tutorialMode = searchParams?.get("tutorial");
+      if (tutorialMode === "market-making") marketMakingTutorial.start();
+    }
+  }, [mounted, loading, searchParams, profile]);
 
   useEffect(() => {
     if (!authLoading && !(profile?.role === "market_maker")) {
@@ -181,8 +199,8 @@ export default function MarketMakingPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8 flex items-center gap-3">
+      <TutorialOverlay steps={MARKET_MAKING_STEPS} currentStep={marketMakingTutorial.currentStep} isActive={marketMakingTutorial.isActive} elementRect={marketMakingTutorial.elementRect} onNext={marketMakingTutorial.next} onClose={marketMakingTutorial.close} />
+      <div className="mb-8 flex items-center gap-3" id="market-making-title">
         <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
           <FileText className="w-6 h-6" />
         </div>
@@ -251,11 +269,11 @@ export default function MarketMakingPage() {
         </Card>
       </div>
 
-      {/* Tabs */}
       <Tabs
         value={activeTab}
         onValueChange={(v) => handleTabChange(v as Tab)}
         className="w-full"
+        id="market-making-tabs"
       >
         <TabsList className="mb-8">
           <TabsTrigger value="dashboard" className="gap-2">

@@ -12,10 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/auth-context";
-// import { TutorialOverlay } from "@/components/tutorial-overlay";
-// import { useTutorial } from "@/hooks/useTutorial";
-// import { ACCOUNT_SETUP_STEPS } from "@/lib/tutorial-steps";
-import { useSearchParams } from "next/navigation";
+import { TutorialOverlay } from "@/components/tutorial-overlay";
+import { useTutorial } from "@/hooks/useTutorial";
+import { ACCOUNT_SETUP_STEPS } from "@/lib/tutorial-steps";
+import { useSearchParams, useRouter } from "next/navigation";
 
 interface AuthDialogProps {
   open: boolean;
@@ -29,6 +29,7 @@ export function AuthDialog({
   defaultMode = "login",
 }: AuthDialogProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,10 +38,10 @@ export function AuthDialog({
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
 
-  // const accountSetupTutorial = useTutorial({
-  //   steps: ACCOUNT_SETUP_STEPS,
-  //   lessonKey: "account-setup",
-  // });
+  const accountSetupTutorial = useTutorial({
+    steps: ACCOUNT_SETUP_STEPS,
+    lessonKey: "account-setup",
+  });
 
   useEffect(() => {
     if (open) {
@@ -52,12 +53,11 @@ export function AuthDialog({
   useEffect(() => {
     if (open && mode === "register") {
       const tutorialMode = searchParams?.get("tutorial");
-      // if (tutorialMode === "account-setup") {
-      //   // Small delay to ensure dialog is rendered
-      //   setTimeout(() => {
-      //     accountSetupTutorial.start();
-      //   }, 100);
-      // }
+      if (tutorialMode === "account-setup") {
+        setTimeout(() => {
+          accountSetupTutorial.start();
+        }, 100);
+      }
     }
   }, [open, mode, searchParams]);
 
@@ -74,11 +74,11 @@ export function AuthDialog({
         setPassword("");
       } else {
         await signUp(email, password, displayName || undefined);
-        // If signUp succeeds without throwing, user is logged in
         onOpenChange(false);
         setEmail("");
         setPassword("");
         setDisplayName("");
+        router.push("/?tutorial=welcome");
       }
     } catch (err) {
       const errorMessage =
@@ -92,14 +92,14 @@ export function AuthDialog({
 
   return (
     <>
-      {/* <TutorialOverlay
+      <TutorialOverlay
         steps={ACCOUNT_SETUP_STEPS}
         currentStep={accountSetupTutorial.currentStep}
         isActive={accountSetupTutorial.isActive && mode === "register"}
         elementRect={accountSetupTutorial.elementRect}
         onNext={accountSetupTutorial.next}
         onClose={accountSetupTutorial.close}
-      /> */}
+      />
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

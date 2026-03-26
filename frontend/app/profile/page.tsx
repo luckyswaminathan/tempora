@@ -304,7 +304,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="border-t pt-3">
+          <div className="border-t pt-3" id="profile-add-funds">
             <div className="flex items-center gap-1.5 mb-2">
               <CreditCard className="w-4 h-4 text-muted-foreground" />
               <p className="text-sm font-medium">Add Funds</p>

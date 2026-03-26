@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Bell, ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { Bell, BookOpen, ChevronDown, LogOut, Settings, User } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { AuthDialog } from "@/components/auth-dialog";
 import { notificationsApi } from "@/lib/api";
+import { areAllTutorialsComplete } from "@/hooks/useTutorial";
 
 export function Header() {
   const { user, profile, signOut } = useAuth();
@@ -61,6 +62,10 @@ export function Header() {
       window.clearInterval(interval);
     };
   }, [user]);
+
+  const allTutorialsComplete = profile
+    ? areAllTutorialsComplete(profile, profile.role === "market_maker")
+    : false;
 
   useEffect(() => {
     return () => {
@@ -195,13 +200,15 @@ export function Header() {
               >
                 Leaderboard
               </a>
-              <a
-                id="nav-tutorial"
-                href="/tutorial"
-                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-              >
-                Tutorial
-              </a>
+              {!allTutorialsComplete && (
+                <a
+                  id="nav-tutorial"
+                  href="/tutorial"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Tutorial
+                </a>
+              )}
               {user?.role === "market_maker" && (
                 <a
                   id="nav-market-making"
@@ -279,6 +286,16 @@ export function Header() {
                           <Settings className="w-4 h-4 text-muted-foreground" />
                           Profile settings
                         </a>
+
+                        {allTutorialsComplete && (
+                          <a
+                            href="/tutorial"
+                            className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
+                          >
+                            <BookOpen className="w-4 h-4 text-muted-foreground" />
+                            Tutorials
+                          </a>
+                        )}
 
                         <button
                           type="button"

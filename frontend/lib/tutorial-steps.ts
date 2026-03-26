@@ -1,5 +1,43 @@
 import type { TutorialStep } from "@/components/tutorial-overlay";
 
+export const WELCOME_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "dashboard-title",
+    title: "Welcome to Tempora!",
+    description:
+      "You've just created your account with $1,000 in play money. This is the Markets Dashboard — your starting point for browsing and trading on prediction markets.",
+  },
+  {
+    id: 2,
+    elementId: "dashboard-market-card",
+    title: "Browse Prediction Markets",
+    description:
+      "Each card represents a prediction market with a question, outcomes, and live probabilities. Click on any market to learn more or place a trade.",
+  },
+  {
+    id: 3,
+    elementId: "nav-portfolio",
+    title: "Track Your Portfolio",
+    description:
+      "After you place trades, visit your Portfolio to see your positions, profit & loss, and order history.",
+  },
+  {
+    id: 4,
+    elementId: "nav-leaderboard",
+    title: "Compete on the Leaderboard",
+    description:
+      "See how you stack up against other traders. Make smart predictions to climb the rankings!",
+  },
+  {
+    id: 5,
+    elementId: "nav-tutorial",
+    title: "Learn More Anytime",
+    description:
+      "Visit the Tutorial section for guided walkthroughs on trading, portfolio management, and more. Ready to explore? Click on a market to get started!",
+  },
+];
+
 export const PLATFORM_OVERVIEW_STEPS: TutorialStep[] = [
   {
     id: 1,
@@ -41,31 +79,31 @@ export const PLATFORM_OVERVIEW_STEPS: TutorialStep[] = [
 export const UNDERSTANDING_PNL_STEPS: TutorialStep[] = [
   {
     id: 1,
-    elementId: "pnl-cost-basis",
-    title: "Cost Basis",
+    elementId: "portfolio-summary",
+    title: "Your Wallet & Balance",
     description:
-      "This is the total amount you paid to acquire your positions. It's the sum of all your initial investments in the current holdings.",
+      "Your spendable balance is your wallet total minus any collateral locked in open orders or short positions. This is how much you can use for new trades right now.",
   },
   {
     id: 2,
-    elementId: "pnl-market-value",
-    title: "Market Value",
+    elementId: "portfolio-tabs",
+    title: "Cost Basis & Market Value",
     description:
-      "The current value of all your positions at today's market prices. This changes throughout the day as market prices move.",
+      "When you hold positions, your cost basis is what you paid and market value is what they're worth now. Open the 'Open Positions' tab to see per-position cost, current value, and unrealized P&L.",
   },
   {
     id: 3,
-    elementId: "pnl-unrealized",
+    elementId: "portfolio-title",
     title: "Profit & Loss (P&L)",
     description:
-      "The difference between your market value and cost basis. Green means you're making money, red means you're losing money. This is unrealized - it's the profit/loss if you close all positions now.",
+      "P&L is market value minus cost basis. Green means profit, red means loss. This is 'unrealized' until you sell or the market settles. Once you have positions, a Performance Analytics section appears with portfolio-wide stats.",
   },
   {
     id: 4,
-    elementId: "pnl-roi",
+    elementId: "portfolio-summary",
     title: "Return on Investment (ROI)",
     description:
-      "Your P&L expressed as a percentage of your initial investment. This shows your return efficiency. For example, 10% ROI means you've made 10% profit on your initial investment.",
+      "ROI is your P&L as a percentage of cost basis. For example, buying at 30¢ and selling at 50¢ gives ~67% ROI. Track ROI in the analytics section that appears after your first trade.",
   },
 ];
 
@@ -180,5 +218,332 @@ export const UNDERSTANDING_DASHBOARD_STEPS: TutorialStep[] = [
     title: "Market Cards",
     description:
       "Each card shows a prediction market with its question, outcomes, probabilities, and trading options. Click on outcomes to place trades, or use the Individual/Interval modes for different trading strategies.",
+  },
+];
+
+export const FIRST_TRADE_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "market-detail-question",
+    title: "The Market Question",
+    description:
+      "Each market poses a question about a future outcome. Traders buy shares in the outcomes they think are most likely. If you're right, each share pays $1.",
+  },
+  {
+    id: 2,
+    elementId: "market-detail-stats",
+    title: "Market Activity",
+    description:
+      "Volume shows total dollars traded. Shares outstanding shows how many shares are in circulation. Higher activity typically means more reliable pricing.",
+  },
+  {
+    id: 3,
+    elementId: "market-security-picker",
+    title: "Pick an Outcome",
+    description:
+      "Each bar represents a possible outcome with its current probability. The probability reflects the market's collective belief. Click any outcome to open the trade dialog.",
+  },
+  {
+    id: 4,
+    elementId: "market-detail-tabs",
+    title: "After You Trade",
+    description:
+      "Once you've placed a trade, check 'My Position' to see your holdings and P&L. 'My History' shows all your orders. You can also discuss the market in Comments.",
+  },
+  {
+    id: 5,
+    elementId: "market-security-picker",
+    title: "Ready to Trade!",
+    description:
+      "Click on any outcome bar to open the trade dialog. Enter a positive number to buy (long) or negative to sell (short). Each share pays $1 if the outcome occurs, $0 otherwise.",
+  },
+];
+
+export const MARKET_LIMIT_ORDERS_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "market-security-picker",
+    title: "Two Ways to Trade",
+    description:
+      "When you click an outcome, the trade dialog opens with two order types: Market and Limit. Each has different advantages depending on your strategy.",
+  },
+  {
+    id: 2,
+    elementId: "market-detail-stats",
+    title: "Market Orders",
+    description:
+      "Market orders execute instantly at the current LMSR price. The price is calculated by the automated market maker based on demand. Best when you want immediate execution.",
+  },
+  {
+    id: 3,
+    elementId: "market-detail-question",
+    title: "Limit Orders",
+    description:
+      "Limit orders let you set a maximum total price. Your order waits in a queue and fills when the market price reaches your limit. Set expiration to 1h, 6h, 24h, or no expiration.",
+  },
+  {
+    id: 4,
+    elementId: "market-security-picker",
+    title: "Try It Out",
+    description:
+      "Click an outcome, then toggle between 'Market Order' and 'Limit Order' tabs in the trade dialog. Market orders show the live price; limit orders let you enter your own maximum price.",
+  },
+];
+
+export const PRICES_PROBABILITIES_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "market-detail-question",
+    title: "How Prices Work",
+    description:
+      "Tempora uses an LMSR (Logarithmic Market Scoring Rule) automated market maker. Prices move automatically based on trading — buying pushes prices up, selling pushes them down.",
+  },
+  {
+    id: 2,
+    elementId: "market-security-picker",
+    title: "Reading Probabilities",
+    description:
+      "Each outcome's price corresponds to its implied probability. A price of 60¢ means the market estimates a 60% chance of that outcome. All probabilities always sum to 100%.",
+  },
+  {
+    id: 3,
+    elementId: "market-detail-stats",
+    title: "Volume & Open Interest",
+    description:
+      "Volume tracks total dollar value traded. Open interest shows outstanding shares. Higher numbers mean more market participation and typically more accurate pricing.",
+  },
+  {
+    id: 4,
+    elementId: "market-security-picker",
+    title: "Profit Potential",
+    description:
+      "Buy at 30¢ and if the outcome wins, you receive $1 per share — a 70¢ profit. If it loses, you lose your 30¢. Lower probability outcomes offer higher returns but are riskier.",
+  },
+];
+
+export const MANAGING_ORDERS_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "portfolio-title",
+    title: "Your Order History",
+    description:
+      "The Order History tab shows every order you've placed — filled, open, cancelled, and expired. It's your complete trading record.",
+  },
+  {
+    id: 2,
+    elementId: "portfolio-tabs",
+    title: "Filter Orders",
+    description:
+      "Use the order state filter (All, Open, Filled, Cancelled) to quickly find what you need. Click any order to see its full details.",
+  },
+  {
+    id: 3,
+    elementId: "portfolio-summary",
+    title: "Open Orders & Collateral",
+    description:
+      "Open limit orders lock collateral from your spendable balance. This ensures funds are available when the order fills. See locked amounts in the Collateral tab.",
+  },
+  {
+    id: 4,
+    elementId: "portfolio-tabs",
+    title: "Cancelling Orders",
+    description:
+      "Click any open order to view details and cancel it. Cancelling returns locked collateral to your spendable balance immediately.",
+  },
+];
+
+export const HOLDINGS_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "portfolio-title",
+    title: "Your Open Positions",
+    description:
+      "The Open Positions tab shows all active positions across markets. Each shows the outcome, quantity, average price, current value, and unrealized P&L.",
+  },
+  {
+    id: 2,
+    elementId: "portfolio-summary",
+    title: "Portfolio Summary",
+    description:
+      "Spendable balance, wallet total, and locked collateral are shown at the top. Spendable balance = wallet minus collateral locked in short positions and limit orders.",
+  },
+  {
+    id: 3,
+    elementId: "portfolio-tabs",
+    title: "Positions by Market",
+    description:
+      "Holdings are grouped by market. Each group shows the question, resolution date, and your positions within it. Click any position for detailed trade history.",
+  },
+  {
+    id: 4,
+    elementId: "portfolio-summary",
+    title: "Performance Analytics",
+    description:
+      "Once you place your first trade, a Performance Analytics section appears above the tabs with portfolio-wide stats: cost basis, market value, P&L, ROI, and category breakdowns.",
+  },
+];
+
+export const COLLATERAL_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "portfolio-title",
+    title: "Understanding Collateral",
+    description:
+      "Collateral is the portion of your wallet locked to guarantee obligations. It covers short positions, open limit orders, and market maker liquidity commitments.",
+  },
+  {
+    id: 2,
+    elementId: "portfolio-summary",
+    title: "Locked vs Spendable",
+    description:
+      "Wallet balance minus locked collateral equals spendable balance. Locked collateral cannot be used for new trades until positions are closed or orders cancelled.",
+  },
+  {
+    id: 3,
+    elementId: "portfolio-tabs",
+    title: "Collateral Breakdown",
+    description:
+      "The Collateral tab shows a detailed breakdown: short position collateral, limit order reserves, and market maker obligations. Each category explains why funds are locked.",
+  },
+  {
+    id: 4,
+    elementId: "portfolio-tabs",
+    title: "Freeing Collateral",
+    description:
+      "Cancel open limit orders to free their collateral. Close short positions by buying back shares. Collateral from settled markets is automatically returned.",
+  },
+];
+
+export const SETTLED_POSITIONS_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "portfolio-title",
+    title: "Settled Positions",
+    description:
+      "When a market is resolved, winning positions pay $1 per share and losing positions expire worthless. The Settled Positions tab shows all your resolved results.",
+  },
+  {
+    id: 2,
+    elementId: "portfolio-tabs",
+    title: "Resolution Results",
+    description:
+      "Each settled position shows: the winning outcome, your cost basis, your payout, and P&L (payout minus cost). Positions are grouped by market.",
+  },
+  {
+    id: 3,
+    elementId: "portfolio-summary",
+    title: "Wallet Impact",
+    description:
+      "Payouts from winning positions are automatically credited to your wallet. Use the funds for new trades right away.",
+  },
+  {
+    id: 4,
+    elementId: "portfolio-summary",
+    title: "Track Your Performance",
+    description:
+      "Payouts from settlements are reflected in your wallet balance. Once you have active positions, the Performance Analytics section above the tabs tracks your overall ROI and realized gains.",
+  },
+];
+
+export const COMMENTS_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "market-detail-question",
+    title: "Market Discussion",
+    description:
+      "Every market has a comments section where traders share analysis, debate outcomes, and exchange ideas. A great way to gather insights before trading.",
+  },
+  {
+    id: 2,
+    elementId: "market-detail-tabs",
+    title: "Comments Tab",
+    description:
+      "Comments is the default tab on every market page. Sort by 'Most Reactions' or 'Most Recent' to find the most valuable discussions.",
+  },
+  {
+    id: 3,
+    elementId: "market-detail-tabs",
+    title: "Threaded Replies & Reactions",
+    description:
+      "Reply to any comment to start a thread. React with 👍 Like, ❤️ Love, 📈 Bullish, 📉 Bearish, or 😂 Laugh to surface valuable contributions.",
+  },
+];
+
+export const LEADERBOARD_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "leaderboard-title",
+    title: "Top Traders",
+    description:
+      "The leaderboard ranks traders by wallet balance. Starting with $1,000, your balance grows from profitable trades and market settlements.",
+  },
+  {
+    id: 2,
+    elementId: "leaderboard-list",
+    title: "Rankings",
+    description:
+      "Each row shows rank, display name, role (User, Market Maker, or Admin), and current wallet balance. The top 10 traders are displayed.",
+  },
+  {
+    id: 3,
+    elementId: "leaderboard-title",
+    title: "Climbing the Ranks",
+    description:
+      "Make accurate predictions and manage risk to grow your balance. Focus on markets where you have insight or expertise for the best results.",
+  },
+];
+
+export const NOTIFICATIONS_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "notifications-title",
+    title: "Stay Informed",
+    description:
+      "Notifications alert you to important events: limit orders being filled, markets being settled, and position payouts. Never miss a trading opportunity.",
+  },
+  {
+    id: 2,
+    elementId: "notifications-tabs",
+    title: "Unread & Read",
+    description:
+      "Switch between Unread and Read tabs. Each notification shows the event type, details, timestamp, and a link to the relevant market.",
+  },
+  {
+    id: 3,
+    elementId: "notifications-mark-all",
+    title: "Quick Actions",
+    description:
+      "Mark individual notifications as read, or use 'Mark all read' to clear everything. Enable email notifications from your Profile settings for alerts outside the app.",
+  },
+];
+
+export const MARKET_MAKING_STEPS: TutorialStep[] = [
+  {
+    id: 1,
+    elementId: "market-making-title",
+    title: "Market Making",
+    description:
+      "Market makers create and fund prediction markets. You provide initial liquidity so traders can buy and sell shares from the start.",
+  },
+  {
+    id: 2,
+    elementId: "market-making-tabs",
+    title: "Dashboard & Proposals",
+    description:
+      "The Dashboard shows your active markets with revenue, P&L, and performance. The Proposals tab tracks submissions and their approval status.",
+  },
+  {
+    id: 3,
+    elementId: "market-making-tabs",
+    title: "Creating Markets",
+    description:
+      "Use the Create tab to propose new markets. Define the question, outcomes, category, resolution date, and liquidity parameter. Higher liquidity means less price impact but requires more capital.",
+  },
+  {
+    id: 4,
+    elementId: "market-making-title",
+    title: "The Approval Process",
+    description:
+      "Submit a proposal, then an admin reviews it. Once approved, publish it — this locks your collateral and makes the market live for trading.",
   },
 ];
